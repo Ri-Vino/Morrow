@@ -9,6 +9,8 @@ class AlarmRepository(private val dao: AlarmDao) {
     /** All alarms, sorted by time of day. */
     val alarms: Flow<List<Alarm>> = dao.observeAll().map { rows -> rows.map { it.toAlarm() } }
 
+    suspend fun getAll(): List<Alarm> = dao.getAll().map { it.toAlarm() }
+
     suspend fun get(id: Long): Alarm? = dao.get(id)?.toAlarm()
 
     /** Inserts when [Alarm.id] is 0, otherwise updates. Returns the alarm's id. */

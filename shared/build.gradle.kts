@@ -39,7 +39,7 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)
             implementation(libs.compose.ui.tooling.preview)
-            implementation(libs.room.runtime)
+            api(libs.room.runtime)
             implementation(libs.sqlite.bundled)
             api(libs.kotlinx.coroutines.core)
             api(libs.kotlinx.datetime)
