@@ -13,3 +13,6 @@ captures/
 iosApp/**/xcuserdata/
 iosApp/**/*.xcworkspace/xcuserdata/
 DerivedData/
+
+# Serena (MCP tool) project data
+.serena/

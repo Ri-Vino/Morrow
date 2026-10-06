@@ -68,6 +68,8 @@ room {
 }
 
 dependencies {
+    // Lets Android Studio render @Preview functions in shared code; not part of what the app ships.
+    "androidRuntimeClasspath"(libs.compose.ui.tooling)
     add("kspAndroid", libs.room.compiler)
     add("kspIosArm64", libs.room.compiler)
     add("kspIosSimulatorArm64", libs.room.compiler)
