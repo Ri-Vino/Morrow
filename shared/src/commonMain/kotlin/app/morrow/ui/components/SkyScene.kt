@@ -1,7 +1,6 @@
 package app.morrow.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -9,8 +8,8 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -21,11 +20,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.text.rememberTextMeasurer
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
@@ -52,22 +46,16 @@ fun SkyScene(minuteOfDay: Float, theme: ThemeKind, modifier: Modifier = Modifier
     val ground = MorrowTheme.colors.bg
     val seconds = rememberSceneSeconds()
 
-    val measurer = rememberTextMeasurer()
-    val density = LocalDensity.current
-    val zStyle = MorrowTheme.type.title.copy(fontStyle = FontStyle.Italic, color = Illustration.starlight)
-    // Sizes are in design units: the scene is drawn scaled, so 16 here ends up 16 design units tall.
-    val zs = remember(measurer, zStyle, density) {
-        listOf(16f, 12f, 10f).map { size -> measurer.measure("z", zStyle.copy(fontSize = with(density) { size.toSp() })) }
-    }
+    val zs = rememberZs(Illustration.starlight, sizes = listOf(16f, 12f, 10f))
 
-    Canvas(modifier.fillMaxWidth().aspectRatio(SCENE_WIDTH / SCENE_HEIGHT)) {
+    Canvas(modifier.fillMaxWidth().aspectRatio(SCENE_WIDTH / SCENE_HEIGHT).clipToBounds()) {
         val t = seconds.value
         scale(size.width / SCENE_WIDTH, Offset.Zero) {
             drawRect(sky, size = Size(SCENE_WIDTH, SCENE_HEIGHT))
             drawStars(target.starAlpha, t)
             translate(292f, pipY) {
                 drawPip(target.pip, t)
-                if (target.pip.mood == PipMood.ASLEEP) drawZs(zs, t)
+                if (target.pip.mood == PipMood.ASLEEP) drawZs(zs, t, MoonZs)
             }
             drawPath(HillBack, hillBack)
             drawCottage(house, windowLit, target.doorLit, target.smokeAlpha, t)
@@ -95,19 +83,6 @@ private fun DrawScope.drawStars(alpha: Float, t: Float) {
     }
 }
 
-/** Three z's drifting up and away from the sleeping moon, each 1.2 s behind the last. */
-private fun DrawScope.drawZs(zs: List<TextLayoutResult>, t: Float) {
-    val starts = listOf(Offset(-52f, -34f), Offset(-62f, -48f), Offset(-44f, -56f))
-    zs.forEachIndexed { i, layout ->
-        val elapsed = t - i * 1.2f
-        if (elapsed < 0f) return@forEachIndexed
-        val p = (elapsed / 3.6f) % 1f
-        val alpha = if (p < 0.25f) EaseOut.transform(p / 0.25f) else 1f - EaseOut.transform((p - 0.25f) / 0.75f)
-        val drift = EaseOut.transform(p)
-        val start = starts[i]
-        drawText(layout, topLeft = Offset(start.x + 16f * drift, start.y - 38f * drift - layout.firstBaseline), alpha = alpha)
-    }
-}
 
 private fun DrawScope.drawCottage(
     house: Color,
@@ -140,6 +115,9 @@ private fun flicker(t: Float): Float = when ((t / 3.5f % 1f) * 100f) {
     in 71f..73f -> 0.9f
     else -> 1f
 }
+
+/** Where the z's start, to the moon's upper left. */
+private val MoonZs = listOf(Offset(-52f, -34f), Offset(-62f, -48f), Offset(-44f, -56f))
 
 private val HillBack = svgPath("M0 252 C70 224 140 228 210 242 C270 254 330 230 390 238 L390 330 L0 330 Z")
 private val HillMid = svgPath("M0 272 C80 254 160 264 240 270 C300 275 350 262 390 266 L390 330 L0 330 Z")

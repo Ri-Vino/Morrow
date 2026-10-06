@@ -11,14 +11,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
-
-/** The things that must be allowed for an alarm to ring and show up properly. */
-enum class AlarmPermission(val required: Boolean) {
-    NOTIFICATIONS(required = true),
-    EXACT_ALARMS(required = true),
-    FULL_SCREEN(required = true),
-    BATTERY(required = false),
-}
+import app.morrow.platform.AlarmPermission
 
 class AlarmPermissions(private val context: Context) {
 

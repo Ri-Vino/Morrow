@@ -42,6 +42,8 @@ kotlin {
             implementation(libs.compose.components.resources)
             api(libs.room.runtime)
             implementation(libs.sqlite.bundled)
+            implementation(libs.androidx.datastore.preferences.core)
+            implementation(libs.jetbrains.lifecycle.runtime.compose)
             api(libs.kotlinx.coroutines.core)
             api(libs.kotlinx.datetime)
         }

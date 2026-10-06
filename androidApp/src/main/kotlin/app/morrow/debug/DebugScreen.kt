@@ -1,9 +1,5 @@
 package app.morrow.debug
 
-import android.Manifest
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -33,8 +29,7 @@ import app.morrow.domain.Alarm
 import app.morrow.domain.MissionType
 import app.morrow.domain.nextAlarm
 import app.morrow.morrow
-import app.morrow.permissions.AlarmPermission
-import app.morrow.permissions.AlarmPermissions
+import app.morrow.platform.PermissionGate
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
 import app.morrow.ui.components.Pip
@@ -48,28 +43,14 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
 
-/** Temporary screen for testing the alarm engine, theme and scene. Phase 5 replaces it with Home. */
+/** Developer tools: alarm engine, theme and scene. Home opens it for screens that aren't built yet. */
 @Composable
-fun DebugScreen(resumeCount: Int) {
+fun DebugScreen(permissions: PermissionGate, onBack: () -> Unit) {
     val context = LocalContext.current
     val app = context.morrow
     val scope = rememberCoroutineScope()
     val alarms by app.repository.alarms.collectAsState(initial = emptyList())
-    val permissions = remember { AlarmPermissions(context) }
-    // Re-checked each time the user comes back from a settings screen.
-    val missing = remember(resumeCount) { permissions.missing() }
-
-    val notificationRequest = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (!granted) context.startActivity(permissions.settingsIntent(AlarmPermission.NOTIFICATIONS))
-    }
-
-    fun fix(permission: AlarmPermission) {
-        if (permission == AlarmPermission.NOTIFICATIONS && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            notificationRequest.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else {
-            context.startActivity(permissions.settingsIntent(permission))
-        }
-    }
+    val missing by permissions.missing.collectAsState()
 
     val zone = TimeZone.currentSystemDefault()
     val next = alarms.nextAlarm(Clock.System.now(), zone)
@@ -91,7 +72,10 @@ fun DebugScreen(resumeCount: Int) {
             modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            BasicText("Scene ${hhmm(sceneMinute / 60, sceneMinute % 60)} · theme: ${theme.displayName}", style = text)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                DebugButton("← Back", onClick = onBack)
+                BasicText("Scene ${hhmm(sceneMinute / 60, sceneMinute % 60)} · ${theme.displayName}", style = text)
+            }
             Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
                 DebugButton("Auto", selected = pinned == null) { themeClock.pin(null) }
                 for (kind in ThemeKind.entries) {
@@ -120,7 +104,7 @@ fun DebugScreen(resumeCount: Int) {
                         style = MorrowTheme.type.body.copy(color = colors.warn),
                         modifier = Modifier.weight(1f),
                     )
-                    DebugButton("Allow") { fix(permission) }
+                    DebugButton("Allow") { permissions.request(permission) }
                 }
             }
 

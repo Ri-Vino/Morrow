@@ -8,23 +8,27 @@ import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.ui.graphics.luminance
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import app.morrow.debug.DebugScreen
+import app.morrow.permissions.AndroidPermissionGate
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
-import app.morrow.theme.colors
+import app.morrow.ui.MorrowApp
+import app.morrow.ui.MorrowServices
+import app.morrow.ui.PendingScreens
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
-    private val resumeCount = mutableIntStateOf(0)
+    private lateinit var permissions: AndroidPermissionGate
 
     private val clockChanged = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) = morrow.themeClock.refresh()
@@ -33,22 +37,34 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        permissions = AndroidPermissionGate(this)
         // Force-stopping the app clears its alarms without telling it, so restore them on every launch.
         lifecycleScope.launch { morrow.coordinator.rescheduleAll() }
+
+        val app = morrow
+        val services = MorrowServices(app.repository, app.coordinator, app.themeClock, app.settings, permissions)
         setContent {
-            val theme by morrow.themeClock.theme.collectAsState()
-            LaunchedEffect(theme) { matchSystemBars(theme) }
-            MorrowTheme(theme) { DebugScreen(resumeCount.intValue) }
+            var tools by rememberSaveable { mutableStateOf(false) }
+            BackHandler(enabled = tools) { tools = false }
+            if (tools) {
+                val theme by app.themeClock.theme.collectAsState()
+                MorrowTheme(theme) { DebugScreen(permissions, onBack = { tools = false }) }
+                matchSystemBars(lightIcons = theme == ThemeKind.NIGHT)
+            } else {
+                val openTools = { tools = true }
+                MorrowApp(
+                    services = services,
+                    pending = PendingScreens(newAlarm = openTools, editAlarm = { openTools() }, trySunrise = openTools, settings = openTools),
+                    onSystemBarsChange = ::matchSystemBars,
+                )
+            }
         }
     }
 
-    /** Light status-bar icons on dark themes, dark icons on light ones. */
-    private fun matchSystemBars(theme: ThemeKind) {
-        val style = if (theme.colors().bg.luminance() < 0.5f) {
-            SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
-        } else {
-            SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
-        }
+    /** Light status-bar icons over dark backgrounds, dark ones over light. */
+    private fun matchSystemBars(lightIcons: Boolean) {
+        val transparent = android.graphics.Color.TRANSPARENT
+        val style = if (lightIcons) SystemBarStyle.dark(transparent) else SystemBarStyle.light(transparent, transparent)
         enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
     }
 
@@ -68,7 +84,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        resumeCount.intValue++
+        // The user may have just come back from a settings screen.
+        permissions.refresh()
     }
 
     override fun onStop() {

@@ -18,3 +18,18 @@ fun morrowDatabaseBuilder(): RoomDatabase.Builder<MorrowDatabase> {
     )
     return Room.databaseBuilder<MorrowDatabase>(name = requireNotNull(documents?.path) + "/$DATABASE_NAME")
 }
+
+/** Create one per app. */
+fun morrowSettings(): MorrowSettings = MorrowSettings(createSettingsStore(settingsPath()))
+
+@OptIn(ExperimentalForeignApi::class)
+private fun settingsPath(): String {
+    val documents = NSFileManager.defaultManager.URLForDirectory(
+        directory = NSDocumentDirectory,
+        inDomain = NSUserDomainMask,
+        appropriateForURL = null,
+        create = false,
+        error = null,
+    )
+    return requireNotNull(documents?.path) + "/$SETTINGS_FILE"
+}

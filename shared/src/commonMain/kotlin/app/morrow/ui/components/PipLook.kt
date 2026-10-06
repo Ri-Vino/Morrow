@@ -1,6 +1,6 @@
 package app.morrow.ui.components
 
-enum class PipMood { ASLEEP, OPEN, HAPPY, SHADES, YAWNING }
+enum class PipMood { ASLEEP, OPEN, HAPPY, SHADES, YAWNING, DELIGHTED }
 
 /** How Pip looks. [moon] is Pip's night-time form. */
 data class PipLook(

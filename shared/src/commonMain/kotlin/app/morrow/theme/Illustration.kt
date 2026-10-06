@@ -25,4 +25,14 @@ object Illustration {
     val starlight = Color(0xFFFBEEDD)
     val starlightMuted = Color(0xFFE7CDB6)
     val windowGlow = Color(0xFFF5A65B)
+
+    /** The pre-dawn sky that warms as Pip gets up, in the setup and mission screens. */
+    val dawnNight = Color(0xFF241826)
+    val dawnRose = Color(0xFF9A4757)
+    val dawnGold = Color(0xFFF2B07A)
+    val ground = Color(0xFF1F1411)
+
+    /** Small labels laid over a sky. */
+    val badge = Color(0x8C150E0C)
+    val onBadge = Color(0xFFFFE3C2)
 }

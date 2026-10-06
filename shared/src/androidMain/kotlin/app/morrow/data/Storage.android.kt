@@ -15,3 +15,9 @@ fun morrowDatabaseBuilder(context: Context): RoomDatabase.Builder<MorrowDatabase
         name = storage.getDatabasePath(DATABASE_NAME).absolutePath,
     )
 }
+
+/** Also in device-protected storage, because settings like the alarm sound are needed at ring time. Create one per app. */
+fun morrowSettings(context: Context): MorrowSettings {
+    val path = context.applicationContext.createDeviceProtectedStorageContext().filesDir.resolve(SETTINGS_FILE).absolutePath
+    return MorrowSettings(createSettingsStore(path))
+}
