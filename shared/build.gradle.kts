@@ -39,6 +39,7 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)
             implementation(libs.compose.ui.tooling.preview)
+            implementation(libs.compose.components.resources)
             api(libs.room.runtime)
             implementation(libs.sqlite.bundled)
             api(libs.kotlinx.coroutines.core)
@@ -56,6 +57,10 @@ kotlin {
             implementation(libs.androidx.test.ext.junit)
         }
     }
+}
+
+compose.resources {
+    packageOfResClass = "app.morrow.resources"
 }
 
 room {

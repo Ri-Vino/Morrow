@@ -8,17 +8,19 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import app.morrow.theme.MorrowTheme
 
-/** Unstyled until the theme exists (Phase 3). */
 @Composable
-fun DebugButton(text: String, onClick: () -> Unit) {
+fun DebugButton(text: String, selected: Boolean = false, onClick: () -> Unit) {
+    val colors = MorrowTheme.colors
     BasicText(
         text = text,
-        style = TextStyle(fontSize = 16.sp, textDecoration = TextDecoration.Underline),
+        style = MorrowTheme.type.button.copy(
+            color = if (selected) colors.text else colors.hi,
+            textDecoration = if (selected) null else TextDecoration.Underline,
+        ),
         modifier = Modifier
             .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
             .clickable(role = Role.Button, onClick = onClick)

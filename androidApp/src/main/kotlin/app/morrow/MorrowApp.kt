@@ -7,11 +7,17 @@ import app.morrow.alarms.AlarmCoordinator
 import app.morrow.data.AlarmRepository
 import app.morrow.data.buildMorrowDatabase
 import app.morrow.data.morrowDatabaseBuilder
+import app.morrow.theme.ThemeClock
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class MorrowApp : Application() {
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val database by lazy { buildMorrowDatabase(morrowDatabaseBuilder(this)) }
     val repository by lazy { AlarmRepository(database.alarmDao()) }
     val coordinator by lazy { AlarmCoordinator(repository, AndroidAlarmScheduler(this)) }
+    val themeClock by lazy { ThemeClock(appScope) }
 }
 
 val Context.morrow: MorrowApp get() = applicationContext as MorrowApp
