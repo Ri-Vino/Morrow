@@ -6,11 +6,12 @@ import app.morrow.domain.SleepMath
 import app.morrow.domain.nextAlarm
 import app.morrow.platform.AlarmPermission
 import app.morrow.theme.sunElevation
+import app.morrow.ui.formatDuration
+import app.morrow.ui.hhmm
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
 import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Instant
@@ -136,16 +137,6 @@ val MissionType.displayName: String
         MissionType.SHAKE -> "Shake"
         MissionType.SCAN -> "Scan"
     }
-
-/** Rounds up to the minute, so a wake-up 7 h 19 min 59 s away reads as the clock suggests: 7h 20m. */
-private fun formatDuration(duration: Duration): String {
-    val totalMinutes = (duration.inWholeMilliseconds + 59_999) / 60_000
-    val hours = totalMinutes / 60
-    val minutes = totalMinutes % 60
-    return if (hours > 0) "${hours}h ${minutes.toString().padStart(2, '0')}m" else "$minutes min"
-}
-
-private fun hhmm(hour: Int, minute: Int) = "${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}"
 
 private fun DayOfWeek.fullName() = name.lowercase().replaceFirstChar(Char::uppercase)
 

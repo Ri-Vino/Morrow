@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
                 val openTools = { tools = true }
                 MorrowApp(
                     services = services,
-                    pending = PendingScreens(newAlarm = openTools, editAlarm = { openTools() }, trySunrise = openTools, settings = openTools),
+                    pending = PendingScreens(trySunrise = openTools, preview = { openTools() }, settings = openTools),
                     onSystemBarsChange = ::matchSystemBars,
                 )
             }
