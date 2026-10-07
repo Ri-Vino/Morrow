@@ -124,6 +124,8 @@ fun DebugScreen(permissions: PermissionGate, onBack: () -> Unit) {
                 }
                 DebugButton("Ring now") { RingService.start(context, alarms.firstOrNull()?.id ?: -1) }
             }
+            // Lets a Scan alarm be tried without a printed code.
+            DebugButton("Save kettle code TEST") { scope.launch { app.settings.setKettleCode("TEST") } }
 
             LazyColumn(modifier = Modifier.weight(1f)) {
                 items(alarms, key = Alarm::id) { alarm ->

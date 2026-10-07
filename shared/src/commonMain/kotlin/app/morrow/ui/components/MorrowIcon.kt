@@ -54,6 +54,9 @@ object Icons {
     const val Bell = "M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"
     const val Clock = "M12 7v5l3 2M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18z"
     const val FullScreen = "M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"
+    const val DeleteDigit = "M20 5H9l-6 7 6 7h11zM13 10l4 4M17 10l-4 4"
+    const val Close = "M6 6l12 12M18 6L6 18"
+    const val CameraOff = "M3 3l18 18M9.5 4.5h5L16 7h3a2 2 0 0 1 2 2v8.5M17.5 19H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2M9.9 10.4a3 3 0 0 0 4 4"
     const val Battery = "M4 7h13a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2zM22 11v2M7 10v4M11 10v4"
 
     fun forTheme(theme: ThemeKind) = when (theme) {

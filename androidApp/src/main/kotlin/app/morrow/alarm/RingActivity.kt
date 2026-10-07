@@ -11,6 +11,14 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import app.morrow.missions.AndroidCodeScanner
+import app.morrow.missions.AndroidMotionSensor
+import app.morrow.morrow
+import app.morrow.ui.mission.MissionRoute
+import app.morrow.ui.mission.MissionServices
 import app.morrow.ui.ring.RingScreen
 import app.morrow.ui.ring.ringModel
 
@@ -28,11 +36,18 @@ class RingActivity : ComponentActivity() {
         // Leaving the screen must not be a way to silence the alarm.
         onBackPressedDispatcher.addCallback(this) {}
 
+        val missions = MissionServices(morrow.settings, AndroidMotionSensor(this), AndroidCodeScanner(this))
         setContent {
             val alarm by Ringing.current.collectAsState()
+            var inMission by rememberSaveable { mutableStateOf(false) }
             LaunchedEffect(alarm) { if (alarm == null) finish() }
-            // Until Phase 8 adds missions, starting one stops the alarm.
-            alarm?.let { RingScreen(ringModel(it), onStartMission = { RingService.stop(this) }) }
+            val ringing = alarm ?: return@setContent
+            if (inMission) {
+                // The alarm rings on until the mission is done. If this screen fails, the safety stop still ends it.
+                MissionRoute(ringing.mission, missions, onDone = { RingService.stop(this) })
+            } else {
+                RingScreen(ringModel(ringing), onStartMission = { inMission = true })
+            }
         }
     }
 }

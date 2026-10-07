@@ -29,7 +29,6 @@ import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -58,6 +57,7 @@ import app.morrow.ui.components.drawPip
 import app.morrow.ui.components.pressable
 import app.morrow.ui.components.rememberSceneSeconds
 import app.morrow.ui.components.svgPath
+import app.morrow.ui.components.withAlpha
 import kotlin.math.floor
 
 /** Extra controls when the screen is a preview from Home or Edit rather than a real alarm. */
@@ -312,13 +312,6 @@ private fun pingPong(cycles: Float): Float {
     val whole = floor(cycles)
     val part = cycles - whole
     return if (whole.toInt() % 2 == 0) part else 1f - part
-}
-
-/** Draws [block] as a group at [alpha], so overlapping shapes fade together. */
-private fun DrawScope.withAlpha(alpha: Float, bounds: Rect, block: DrawScope.() -> Unit) {
-    drawContext.canvas.saveLayer(bounds, Paint().apply { this.alpha = alpha })
-    block()
-    drawContext.canvas.restore()
 }
 
 // Shapes from the design canvas.

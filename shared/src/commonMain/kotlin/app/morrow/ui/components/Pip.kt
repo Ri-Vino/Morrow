@@ -8,9 +8,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -158,6 +160,13 @@ private fun DrawScope.drawNightcap() {
     drawPath(NightcapStripe, Illustration.nightcapTrim.copy(alpha = 0.7f), style = line(3f))
     drawRoundRect(Illustration.nightcapTrim, Offset(-29f, -19f), Size(58f, 9f), CornerRadius(4.5f))
     drawCircle(Illustration.nightcapTrim, 6.5f, Offset(42f, -38f))
+}
+
+/** Draws [block] as a group at [alpha], so overlapping shapes fade together. [bounds] must hold everything drawn. */
+internal fun DrawScope.withAlpha(alpha: Float, bounds: Rect, block: DrawScope.() -> Unit) {
+    drawContext.canvas.saveLayer(bounds, Paint().apply { this.alpha = alpha })
+    block()
+    drawContext.canvas.restore()
 }
 
 private fun line(width: Float) = Stroke(width = width, cap = StrokeCap.Round)

@@ -33,4 +33,10 @@ dependencies {
     implementation(projects.shared)
     implementation(libs.androidx.activity.compose)
     implementation(libs.compose.foundation)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.compose)
+    // Reads codes on the phone. ML Kit would add Google's telemetry and the INTERNET permission.
+    implementation(libs.zxing.core)
+    testImplementation(libs.kotlin.test.junit)
 }

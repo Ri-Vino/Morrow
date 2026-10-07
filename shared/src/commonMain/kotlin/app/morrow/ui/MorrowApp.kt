@@ -31,6 +31,7 @@ import app.morrow.theme.ThemeKind
 import app.morrow.theme.isLightSky
 import app.morrow.ui.edit.EditActions
 import app.morrow.ui.edit.EditScreen
+import app.morrow.ui.edit.KettleCodeScreen
 import app.morrow.ui.edit.editModel
 import app.morrow.ui.firstrun.SetupScreen
 import app.morrow.ui.firstrun.WelcomeScreen
@@ -38,6 +39,8 @@ import app.morrow.ui.home.HomeActions
 import app.morrow.ui.home.HomeScreen
 import app.morrow.ui.home.homeModel
 import app.morrow.ui.components.skySceneState
+import app.morrow.ui.mission.MissionRoute
+import app.morrow.ui.mission.MissionServices
 import app.morrow.ui.ring.RingPreview
 import app.morrow.ui.ring.RingScreen
 import app.morrow.ui.ring.ringModel
@@ -58,6 +61,7 @@ class MorrowServices(
     val settings: MorrowSettings,
     val permissions: PermissionGate,
     val alarmSound: AlarmSound,
+    val missions: MissionServices,
 )
 
 /** Screens not built yet. The host shows its debug tools for them. */
@@ -181,13 +185,32 @@ private fun EditRoute(
     PlatformBackHandler(onBack = onDone)
     val now by remember { minuteTicks() }.collectAsStateWithLifecycle(initialValue = Clock.System.now())
     val nowMinute = now.toLocalDateTime(TimeZone.currentSystemDefault()).let { it.hour * 60 + it.minute }
+    val setup by services.settings.missionSetup.collectAsStateWithLifecycle(initialValue = null)
+    var pickingCode by rememberSaveable { mutableStateOf(false) }
 
     val current = draft ?: return
+    val missions = setup ?: return
+    if (pickingCode) {
+        KettleCodeScreen(
+            scanner = services.missions.scanner,
+            onSaved = { code ->
+                scope.launch { services.settings.setKettleCode(code) }
+                draft = current.copy(mission = MissionType.SCAN)
+                pickingCode = false
+            },
+            onCancel = { pickingCode = false },
+        )
+        return
+    }
     EditScreen(
         draft = current,
-        model = editModel(current, nowMinute),
+        model = editModel(current, nowMinute, sumsCount = missions.difficulty.sums, shakeGoal = missions.difficulty.shakes),
         actions = EditActions(
-            onChange = { draft = it },
+            onChange = { changed ->
+                // Scan needs a code to look for, so save one the first time it's picked.
+                val needsCode = changed.mission == MissionType.SCAN && current.mission != MissionType.SCAN && missions.kettleCode == null
+                if (needsCode) pickingCode = true else draft = changed
+            },
             onBack = onDone,
             onDelete = {
                 scope.launch {
@@ -210,6 +233,7 @@ private fun EditRoute(
 @Composable
 private fun RingPreviewRoute(services: MorrowServices, alarm: Alarm, onSystemBarsChange: (Boolean) -> Unit, onExit: () -> Unit) {
     var soundOn by rememberSaveable { mutableStateOf(false) }
+    var inMission by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) { onSystemBarsChange(true) }
     PlatformBackHandler(onBack = onExit)
     DisposableEffect(soundOn) {
@@ -218,11 +242,15 @@ private fun RingPreviewRoute(services: MorrowServices, alarm: Alarm, onSystemBar
     }
     // Leaving the app, or a real alarm taking over the screen, ends the sound for good.
     LifecycleStartEffect(Unit) { onStopOrDispose { soundOn = false } }
-    RingScreen(
-        model = ringModel(alarm),
-        onStartMission = onExit,
-        preview = RingPreview(soundOn, onToggleSound = { soundOn = !soundOn }, onExit = onExit),
-    )
+    if (inMission) {
+        MissionRoute(alarm.mission, services.missions, onDone = onExit)
+    } else {
+        RingScreen(
+            model = ringModel(alarm),
+            onStartMission = { inMission = true },
+            preview = RingPreview(soundOn, onToggleSound = { soundOn = !soundOn }, onExit = onExit),
+        )
+    }
 }
 
 private const val NEW_ALARM = "new"
