@@ -7,12 +7,13 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import app.morrow.R
+import app.morrow.domain.Alarm
 
 internal object RingNotifications {
     const val ID = 1
     private const val CHANNEL = "ringing"
 
-    fun build(context: Context, alarm: RingingAlarm): Notification {
+    fun build(context: Context, alarm: Alarm): Notification {
         ensureChannel(context)
         val ringScreen = PendingIntent.getActivity(
             context,
@@ -23,7 +24,7 @@ internal object RingNotifications {
         )
         return Notification.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_alarm)
-            .setContentTitle(alarm.time)
+            .setContentTitle("%02d:%02d".format(alarm.hour, alarm.minute))
             .setContentText(alarm.label)
             .setCategory(Notification.CATEGORY_ALARM)
             .setVisibility(Notification.VISIBILITY_PUBLIC)

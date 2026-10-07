@@ -17,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
+import app.morrow.alarm.AlarmTone
 import app.morrow.debug.DebugScreen
 import app.morrow.permissions.AndroidPermissionGate
 import app.morrow.theme.MorrowTheme
@@ -42,7 +43,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch { morrow.coordinator.rescheduleAll() }
 
         val app = morrow
-        val services = MorrowServices(app.repository, app.coordinator, app.themeClock, app.settings, permissions)
+        val services = MorrowServices(app.repository, app.coordinator, app.themeClock, app.settings, permissions, AlarmTone(app))
         setContent {
             var tools by rememberSaveable { mutableStateOf(false) }
             BackHandler(enabled = tools) { tools = false }
@@ -51,10 +52,9 @@ class MainActivity : ComponentActivity() {
                 MorrowTheme(theme) { DebugScreen(permissions, onBack = { tools = false }) }
                 matchSystemBars(lightIcons = theme == ThemeKind.NIGHT)
             } else {
-                val openTools = { tools = true }
                 MorrowApp(
                     services = services,
-                    pending = PendingScreens(trySunrise = openTools, preview = { openTools() }, settings = openTools),
+                    pending = PendingScreens(settings = { tools = true }),
                     onSystemBarsChange = ::matchSystemBars,
                 )
             }

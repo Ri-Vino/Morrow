@@ -1,17 +1,16 @@
 package app.morrow.alarm
 
+import app.morrow.domain.Alarm
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-data class RingingAlarm(val id: Long, val time: String, val label: String)
-
-/** What RingService is ringing right now, if anything. RingActivity closes when this becomes null. */
+/** The alarm RingService is ringing right now, if any. RingActivity closes when this becomes null. */
 object Ringing {
-    private val state = MutableStateFlow<RingingAlarm?>(null)
-    val current: StateFlow<RingingAlarm?> = state.asStateFlow()
+    private val state = MutableStateFlow<Alarm?>(null)
+    val current: StateFlow<Alarm?> = state.asStateFlow()
 
-    internal fun set(alarm: RingingAlarm?) {
+    internal fun set(alarm: Alarm?) {
         state.value = alarm
     }
 }

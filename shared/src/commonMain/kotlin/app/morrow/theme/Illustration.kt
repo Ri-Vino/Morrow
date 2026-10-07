@@ -35,4 +35,15 @@ object Illustration {
     /** Small labels laid over a sky. */
     val badge = Color(0x8C150E0C)
     val onBadge = Color(0xFFFFE3C2)
+
+    /** The ringing screen's sky, outermost band first, each warming from its night colour to its dawn one. */
+    val sunriseBands = listOf(
+        Color(0xFF1C1322) to Color(0xFF552A44),
+        Color(0xFF24182A) to Color(0xFF8E4356),
+        Color(0xFF2E1D33) to Color(0xFFC9605C),
+        Color(0xFF3A2236) to Color(0xFFEE9362),
+    )
+    val sunriseHill = Color(0xFF24171F) to Color(0xFF5A2E3A)
+    val sunriseGreeting = Color(0xFFF3DCC6)
+    val birds = Color(0xFF2B1712)
 }

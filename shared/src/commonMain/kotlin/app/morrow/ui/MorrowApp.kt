@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -12,14 +13,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.morrow.alarms.AlarmCoordinator
 import app.morrow.data.AlarmRepository
 import app.morrow.data.MorrowSettings
 import app.morrow.domain.Alarm
 import app.morrow.domain.MissionType
+import app.morrow.platform.AlarmSound
 import app.morrow.platform.PermissionGate
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeClock
@@ -34,6 +38,9 @@ import app.morrow.ui.home.HomeActions
 import app.morrow.ui.home.HomeScreen
 import app.morrow.ui.home.homeModel
 import app.morrow.ui.components.skySceneState
+import app.morrow.ui.ring.RingPreview
+import app.morrow.ui.ring.RingScreen
+import app.morrow.ui.ring.ringModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -50,12 +57,11 @@ class MorrowServices(
     val themeClock: ThemeClock,
     val settings: MorrowSettings,
     val permissions: PermissionGate,
+    val alarmSound: AlarmSound,
 )
 
 /** Screens not built yet. The host shows its debug tools for them. */
 class PendingScreens(
-    val trySunrise: () -> Unit,
-    val preview: (Alarm) -> Unit,
     val settings: () -> Unit,
 )
 
@@ -73,12 +79,31 @@ fun MorrowApp(services: MorrowServices, pending: PendingScreens, onSystemBarsCha
                 null -> Unit // Settings are still loading; avoid flashing the wrong screen.
                 false -> FirstRun(services, theme, onSystemBarsChange)
                 true -> {
+                    // Keeps Home's scroll and Edit's draft while a preview covers them.
+                    val screens = rememberSaveableStateHolder()
                     var editing by rememberSaveable { mutableStateOf<String?>(null) }
+                    var previewing by rememberSaveable(stateSaver = AlarmSaver) { mutableStateOf(null) }
                     val target = editing
-                    if (target == null) {
-                        Home(services, theme, pending, onSystemBarsChange, onEdit = { editing = it?.toString() ?: NEW_ALARM })
-                    } else {
-                        EditRoute(services, theme, target.toLongOrNull(), pending, onSystemBarsChange, onDone = { editing = null })
+                    val preview = previewing
+                    when {
+                        preview != null -> RingPreviewRoute(services, preview, onSystemBarsChange, onExit = { previewing = null })
+                        target == null -> screens.SaveableStateProvider(HOME) {
+                            Home(
+                                services, theme, pending, onSystemBarsChange,
+                                onEdit = { editing = it?.toString() ?: NEW_ALARM },
+                                onPreview = { previewing = it },
+                            )
+                        }
+                        else -> screens.SaveableStateProvider(EDIT) {
+                            EditRoute(
+                                services, theme, target.toLongOrNull(), onSystemBarsChange,
+                                onPreview = { previewing = it },
+                                onDone = {
+                                    editing = null
+                                    screens.removeState(EDIT)
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -111,6 +136,7 @@ private fun Home(
     onSystemBarsChange: (Boolean) -> Unit,
     /** Opens Edit for an alarm, or for a new one when the id is null. */
     onEdit: (Long?) -> Unit,
+    onPreview: (Alarm) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val alarms by services.repository.alarms.collectAsStateWithLifecycle<List<Alarm>?>(initialValue = null)
@@ -130,7 +156,7 @@ private fun Home(
             onToggle = { id, enabled -> scope.launch { services.coordinator.setEnabled(id, enabled) } },
             onOpenAlarm = { onEdit(it) },
             onNewAlarm = { onEdit(null) },
-            onTrySunrise = pending.trySunrise,
+            onTrySunrise = { onPreview(loaded.firstOrNull(Alarm::enabled) ?: loaded.firstOrNull() ?: newAlarm()) },
             onSettings = pending.settings,
             onFixPermissions = { missing.firstOrNull { it.required }?.let(services.permissions::request) },
         ),
@@ -142,8 +168,8 @@ private fun EditRoute(
     services: MorrowServices,
     theme: ThemeKind,
     alarmId: Long?,
-    pending: PendingScreens,
     onSystemBarsChange: (Boolean) -> Unit,
+    onPreview: (Alarm) -> Unit,
     onDone: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -169,7 +195,7 @@ private fun EditRoute(
                     onDone()
                 }
             },
-            onPreview = { pending.preview(current) },
+            onPreview = { onPreview(current) },
             onSave = {
                 scope.launch {
                     services.coordinator.save(current.copy(enabled = true))
@@ -180,7 +206,28 @@ private fun EditRoute(
     )
 }
 
+/** The ringing screen as it will look for [alarm], silent unless the user asks to hear it. */
+@Composable
+private fun RingPreviewRoute(services: MorrowServices, alarm: Alarm, onSystemBarsChange: (Boolean) -> Unit, onExit: () -> Unit) {
+    var soundOn by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) { onSystemBarsChange(true) }
+    PlatformBackHandler(onBack = onExit)
+    DisposableEffect(soundOn) {
+        if (soundOn) services.alarmSound.play()
+        onDispose { services.alarmSound.stop() }
+    }
+    // Leaving the app, or a real alarm taking over the screen, ends the sound for good.
+    LifecycleStartEffect(Unit) { onStopOrDispose { soundOn = false } }
+    RingScreen(
+        model = ringModel(alarm),
+        onStartMission = onExit,
+        preview = RingPreview(soundOn, onToggleSound = { soundOn = !soundOn }, onExit = onExit),
+    )
+}
+
 private const val NEW_ALARM = "new"
+private const val HOME = "home"
+private const val EDIT = "edit"
 
 private fun newAlarm() = Alarm(
     id = 0,
