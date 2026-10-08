@@ -169,7 +169,7 @@ private fun RisingSky(progress: Float, readyText: String) {
     }
 }
 
-private val AlarmPermission.icon: String
+internal val AlarmPermission.icon: String
     get() = when (this) {
         AlarmPermission.NOTIFICATIONS -> Icons.Bell
         AlarmPermission.EXACT_ALARMS -> Icons.Clock

@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -68,7 +69,7 @@ fun PillButton(
     val type = if (height >= 56.dp) MorrowTheme.type.button else MorrowTheme.type.bodyStrong
     Row(
         modifier = modifier
-            .height(height)
+            .heightIn(min = height)
             .pressable(onClick)
             .background(background, CircleShape)
             .then(if (border != null) Modifier.border(1.dp, border, CircleShape) else Modifier)

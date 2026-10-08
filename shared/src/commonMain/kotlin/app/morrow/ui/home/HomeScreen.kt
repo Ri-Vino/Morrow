@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.draw.alpha
@@ -67,10 +74,13 @@ fun HomeScreen(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: 
     val colors = MorrowTheme.colors
     BoxWithConstraints(modifier.fillMaxSize().background(colors.bg)) {
         // In the design the content starts 262 of the scene's 330 units down, over the hills.
-        val contentTop = maxWidth * (262f / 390f)
+        val density = LocalDensity.current
+        var headerHeight by remember { mutableStateOf(0.dp) }
+        // Large text can make the header taller than the sky; then the content starts below it instead.
+        val contentTop = maxOf(maxWidth * (262f / 390f), headerHeight + 16.dp)
         Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             SkyScene(minuteOfDay, theme)
-            Header(model, theme, minuteOfDay, actions.onSettings)
+            Header(model, theme, minuteOfDay, actions.onSettings, Modifier.onSizeChanged { headerHeight = with(density) { it.height.toDp() } })
             Column(
                 modifier = Modifier
                     .padding(top = contentTop, start = 16.dp, end = 16.dp, bottom = 120.dp)
@@ -116,23 +126,30 @@ fun HomeScreen(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: 
 }
 
 @Composable
-private fun Header(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, onSettings: () -> Unit) {
+private fun Header(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, onSettings: () -> Unit, modifier: Modifier = Modifier) {
     val colors = MorrowTheme.colors
     val scene = skySceneState(minuteOfDay, theme)
     val ink by animateColorAsState(scene.ink, tween(1200))
     val inkMuted by animateColorAsState(scene.inkMuted, tween(1200))
     Column(
-        modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(start = 24.dp, end = 24.dp, top = 12.dp),
+        modifier = modifier.fillMaxWidth().statusBarsPadding().padding(start = 24.dp, end = 24.dp, top = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        // With large text the theme chip and settings button wrap below the date rather than squeezing it.
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            itemVerticalAlignment = Alignment.CenterVertically,
+        ) {
             BasicText(
                 model.dateLabel.uppercase(),
                 style = MorrowTheme.type.label.copy(color = inkMuted),
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.padding(end = 8.dp),
             )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Row(
-                modifier = Modifier.height(32.dp).background(colors.bg.copy(alpha = 0.7f), CircleShape).padding(horizontal = 12.dp),
+                modifier = Modifier.heightIn(min = 32.dp).background(colors.bg.copy(alpha = 0.7f), CircleShape).padding(horizontal = 12.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -147,6 +164,7 @@ private fun Header(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, onSet
                 contentAlignment = Alignment.Center,
             ) {
                 MorrowIcon(Icons.Settings, colors.text, contentDescription = "Settings")
+            }
             }
         }
         BasicText(

@@ -3,6 +3,7 @@ package app.morrow.ui.edit
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,6 +38,8 @@ import app.morrow.domain.Alarm
 import app.morrow.domain.MissionType
 import app.morrow.theme.MorrowTheme
 import app.morrow.ui.components.Icons
+import app.morrow.ui.components.TileRows
+import app.morrow.ui.components.largeText
 import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.components.PrimaryButton
 import app.morrow.ui.components.SecondaryButton
@@ -83,12 +86,19 @@ fun EditScreen(draft: Alarm, model: EditModel, actions: EditActions, modifier: M
                 )
             }
         }
-        Row(
-            modifier = Modifier.navigationBarsPadding().padding(24.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            SecondaryButton("Preview", actions.onPreview, Modifier.weight(1f))
-            PrimaryButton("Save alarm", actions.onSave, Modifier.weight(2f))
+        if (largeText()) {
+            Column(Modifier.navigationBarsPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                PrimaryButton("Save alarm", actions.onSave)
+                SecondaryButton("Preview", actions.onPreview)
+            }
+        } else {
+            Row(
+                modifier = Modifier.navigationBarsPadding().padding(24.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                SecondaryButton("Preview", actions.onPreview, Modifier.weight(1f))
+                PrimaryButton("Save alarm", actions.onSave, Modifier.weight(2f))
+            }
         }
     }
 }
@@ -169,13 +179,12 @@ private fun DayChips(days: Set<DayOfWeek>, onChange: (Set<DayOfWeek>) -> Unit) {
 private fun MissionTiles(selected: MissionType, onSelect: (MissionType) -> Unit) {
     val colors = MorrowTheme.colors
     val shape = RoundedCornerShape(20.dp)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        MissionType.entries.forEach { mission ->
+    TileRows(MissionType.entries) { mission ->
             val on = mission == selected
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .height(80.dp)
+                    .heightIn(min = 80.dp)
                     .selectable(on, role = Role.RadioButton) { onSelect(mission) }
                     .background(if (on) colors.surface2 else colors.surface, shape)
                     .border(2.dp, if (on) colors.hi else colors.surface, shape),
@@ -185,7 +194,6 @@ private fun MissionTiles(selected: MissionType, onSelect: (MissionType) -> Unit)
                 MorrowIcon(Icons.forMission(mission), if (on) colors.hi else colors.muted, size = 24.dp)
                 BasicText(mission.displayName, style = MorrowTheme.type.bodyStrong.copy(color = if (on) colors.text else colors.muted))
             }
-        }
     }
 }
 

@@ -7,6 +7,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
@@ -52,6 +53,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import app.morrow.theme.Illustration
@@ -117,13 +119,13 @@ private fun MorningContent(model: MorningModel, seconds: State<Float>, onStartDa
                     keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
+                        .heightIn(min = 56.dp)
                         .background(colors.bg, shape)
                         .border(2.dp, colors.line, shape)
                         .semantics { contentDescription = LABEL },
                     decorationBox = { field ->
                         Box(Modifier.padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
-                            if (intention.isEmpty()) BasicText("e.g. coffee by the window", style = type.bodyLarge.copy(color = colors.muted))
+                            if (intention.isEmpty()) BasicText("e.g. coffee by the window", style = type.bodyLarge.copy(color = colors.muted), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             field()
                         }
                     },

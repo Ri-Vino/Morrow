@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ApplicationInfo
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -19,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import app.morrow.alarm.AlarmTone
 import app.morrow.debug.DebugScreen
+import app.morrow.debug.WithTestFontScale
 import app.morrow.missions.AndroidCodeScanner
 import app.morrow.missions.AndroidMotionSensor
 import app.morrow.permissions.AndroidPermissionGate
@@ -26,7 +28,6 @@ import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
 import app.morrow.ui.MorrowApp
 import app.morrow.ui.MorrowServices
-import app.morrow.ui.PendingScreens
 import app.morrow.ui.mission.MissionServices
 import kotlinx.coroutines.launch
 
@@ -46,21 +47,24 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch { morrow.coordinator.rescheduleAll() }
 
         val app = morrow
+        val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
         val missions = MissionServices(app.settings, AndroidMotionSensor(this), AndroidCodeScanner(this))
         val services = MorrowServices(app.repository, app.coordinator, app.themeClock, app.settings, permissions, AlarmTone(app), missions)
         setContent {
-            var tools by rememberSaveable { mutableStateOf(false) }
-            BackHandler(enabled = tools) { tools = false }
-            if (tools) {
-                val theme by app.themeClock.theme.collectAsState()
-                MorrowTheme(theme) { DebugScreen(permissions, onBack = { tools = false }) }
-                matchSystemBars(lightIcons = theme == ThemeKind.NIGHT)
-            } else {
-                MorrowApp(
-                    services = services,
-                    pending = PendingScreens(settings = { tools = true }),
-                    onSystemBarsChange = ::matchSystemBars,
-                )
+            WithTestFontScale {
+                var tools by rememberSaveable { mutableStateOf(false) }
+                BackHandler(enabled = tools) { tools = false }
+                if (tools) {
+                    val theme by app.themeClock.theme.collectAsState()
+                    MorrowTheme(theme) { DebugScreen(permissions, onBack = { tools = false }) }
+                    matchSystemBars(lightIcons = theme == ThemeKind.NIGHT)
+                } else {
+                    MorrowApp(
+                        services = services,
+                        developerTools = if (debuggable) ({ tools = true }) else null,
+                        onSystemBarsChange = ::matchSystemBars,
+                    )
+                }
             }
         }
     }

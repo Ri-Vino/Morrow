@@ -77,10 +77,10 @@ fun DebugScreen(permissions: PermissionGate, onBack: () -> Unit) {
                 BasicText("Scene ${hhmm(sceneMinute / 60, sceneMinute % 60)} · ${theme.displayName}", style = text)
             }
             Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                DebugButton("Auto", selected = pinned == null) { themeClock.pin(null) }
+                DebugButton("Auto", selected = pinned == null) { scope.launch { app.settings.setPinnedTheme(null) } }
                 for (kind in ThemeKind.entries) {
                     DebugButton(kind.name.lowercase().replaceFirstChar(Char::uppercase), selected = pinned == kind) {
-                        themeClock.pin(kind)
+                        scope.launch { app.settings.setPinnedTheme(kind) }
                     }
                 }
             }
@@ -125,7 +125,11 @@ fun DebugScreen(permissions: PermissionGate, onBack: () -> Unit) {
                 DebugButton("Ring now") { RingService.start(context, alarms.firstOrNull()?.id ?: -1) }
             }
             // Lets a Scan alarm be tried without a printed code.
-            DebugButton("Save kettle code TEST") { scope.launch { app.settings.setKettleCode("TEST") } }
+            Row {
+                DebugButton("Save kettle code TEST") { scope.launch { app.settings.setKettleCode("TEST") } }
+                val extra by TestFontScale.extra.collectAsState()
+                DebugButton("Text 200%", selected = extra != 1f) { TestFontScale.extra.value = if (extra == 1f) 2f else 1f }
+            }
 
             LazyColumn(modifier = Modifier.weight(1f)) {
                 items(alarms, key = Alarm::id) { alarm ->

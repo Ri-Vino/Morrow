@@ -23,6 +23,11 @@ class MorrowApp : Application() {
     val themeClock by lazy { ThemeClock(appScope) }
     val settings by lazy { morrowSettings(this) }
 
+    override fun onCreate() {
+        super.onCreate()
+        appScope.launch { settings.pinnedTheme.collect(themeClock::pin) }
+    }
+
     /** Remembers when the user left the app; the last time before an alarm is a rough bedtime. */
     fun markClosed() {
         appScope.launch { settings.markClosed(Clock.System.now()) }

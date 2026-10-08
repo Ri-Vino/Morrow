@@ -37,6 +37,21 @@ class ThemeColorsTest {
         }
     }
 
+    /** The Ringing and Mission screens' fixed palette, checked against the sky at its warmest, where contrast is lowest. */
+    @Test
+    fun skyTextMeetsContrast() {
+        val dawn = Illustration.sunriseBands.map { it.second }
+        val body = mapOf(
+            "greeting on the top band" to (Illustration.sunriseGreeting to dawn[1]),
+            "time on the top band" to (Illustration.starlight to dawn[1]),
+            "mission title on dawn" to (Illustration.glint to Illustration.dawnRose),
+            "mission label on dawn" to (Illustration.sunriseGreeting to Illustration.dawnRose),
+        )
+        for ((name, pair) in body) assertTrue(contrast(pair.first, pair.second) >= 4.5f, name)
+        // Pip's line is 24 sp semibold, which counts as large text.
+        assertTrue(contrast(Illustration.glint, dawn[2]) >= 3f, "Pip's line on the middle band")
+    }
+
     private fun contrast(a: Color, b: Color): Float {
         val la = a.luminance()
         val lb = b.luminance()

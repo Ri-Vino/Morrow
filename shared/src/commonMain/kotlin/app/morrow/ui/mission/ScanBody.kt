@@ -4,14 +4,12 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -49,6 +47,7 @@ import app.morrow.ui.components.Icons
 import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.components.PrimaryButton
 import app.morrow.ui.components.SecondaryButton
+import app.morrow.ui.components.rememberSceneSeconds
 import app.morrow.ui.components.svgPath
 
 @Composable
@@ -96,11 +95,8 @@ internal fun ScanWindow(scanner: CodeScanner, found: Boolean, wrong: Int, onCode
     }
     val pop = remember { Animatable(0f) }
     LaunchedEffect(found) { if (found) pop.animateTo(1f, tween(600, easing = CubicBezierEasing(0.3f, 1.5f, 0.5f, 1f))) }
-    val sweep by rememberInfiniteTransition().animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(2200, easing = EaseInOut), RepeatMode.Reverse),
-    )
+    // Sweeps down and back every 4.4 s, and stays still when animations are off.
+    val seconds = rememberSceneSeconds()
     val showWrong = wrong > 0 && !found
     val bracket = when {
         found -> Illustration.sunLight
@@ -120,7 +116,7 @@ internal fun ScanWindow(scanner: CodeScanner, found: Boolean, wrong: Int, onCode
             scale(size.width / 250f, Offset.Zero) {
                 drawPath(Brackets, bracket, style = Stroke(5f, cap = StrokeCap.Round))
                 if (!found) {
-                    val y = 26f + 196f * sweep
+                    val y = 26f + 196f * EaseInOut.transform(keyframes((seconds.value / 4.4f) % 1f, 0f, 1f, 0f))
                     drawRect(colors.accent.copy(alpha = 0.25f), Offset(26f, y - 5f), Size(198f, 13f))
                     drawRect(colors.accent, Offset(26f, y), Size(198f, 3f))
                 } else {
@@ -138,7 +134,7 @@ internal fun ScanWindow(scanner: CodeScanner, found: Boolean, wrong: Int, onCode
                     .align(Alignment.BottomCenter)
                     .padding(24.dp)
                     .fillMaxWidth()
-                    .height(40.dp)
+                    .heightIn(min = 40.dp)
                     .background(Illustration.viewfinder.copy(alpha = 0.88f), RoundedCornerShape(20.dp)),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
@@ -154,7 +150,7 @@ internal fun ScanWindow(scanner: CodeScanner, found: Boolean, wrong: Int, onCode
 private fun CameraOff() {
     val colors = MorrowTheme.colors
     Column(
-        modifier = Modifier.size(250.dp).background(Illustration.viewfinder, RoundedCornerShape(30.dp)).padding(24.dp),
+        modifier = Modifier.width(250.dp).heightIn(min = 250.dp).background(Illustration.viewfinder, RoundedCornerShape(30.dp)).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
     ) {

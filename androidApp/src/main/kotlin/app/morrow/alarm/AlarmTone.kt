@@ -10,20 +10,25 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.core.net.toUri
+import app.morrow.R
+import app.morrow.domain.WakeSound
 import app.morrow.platform.AlarmSound
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
-/** The alarm sound on the alarm stream, so it plays with media muted, ramping up from quiet over [RAMP]. */
+/** The alarm sound on the alarm stream, so it plays with media muted, ramping up from quiet. */
 class AlarmTone(private val context: Context) : AlarmSound {
 
     private val handler = Handler(Looper.getMainLooper())
     private var player: MediaPlayer? = null
     private var tone: ToneGenerator? = null
     private var rampStartedAt = 0L
+    private var rampMillis = 60_000L
 
-    private val ramp = object : Runnable {
+    private val rampStep = object : Runnable {
         override fun run() {
-            val progress = ((System.currentTimeMillis() - rampStartedAt) / RAMP.inWholeMilliseconds.toFloat()).coerceIn(0f, 1f)
+            val progress = ((System.currentTimeMillis() - rampStartedAt) / rampMillis.toFloat()).coerceIn(0f, 1f)
             // Quadratic, because loudness is perceived roughly logarithmically.
             val volume = MIN_VOLUME + (1f - MIN_VOLUME) * progress * progress
             player?.setVolume(volume, volume)
@@ -31,9 +36,10 @@ class AlarmTone(private val context: Context) : AlarmSound {
         }
     }
 
-    override fun play() {
+    override fun play(sound: WakeSound, ramp: Duration) {
         if (player != null || tone != null) return
-        for (uri in soundCandidates()) {
+        rampMillis = ramp.inWholeMilliseconds.coerceAtLeast(1)
+        for (uri in soundCandidates(sound)) {
             val started = runCatching {
                 MediaPlayer().apply {
                     setAudioAttributes(AlarmAudio)
@@ -47,7 +53,7 @@ class AlarmTone(private val context: Context) : AlarmSound {
             started.onSuccess {
                 player = it
                 rampStartedAt = System.currentTimeMillis()
-                handler.post(ramp)
+                handler.post(rampStep)
                 return
             }
             Log.w(TAG, "Couldn't play $uri", started.exceptionOrNull())
@@ -60,7 +66,7 @@ class AlarmTone(private val context: Context) : AlarmSound {
 
     override fun stop() {
         try {
-            handler.removeCallbacks(ramp)
+            handler.removeCallbacks(rampStep)
             player?.let { runCatching { it.stop() }; it.release() }
             tone?.release()
         } finally {
@@ -69,7 +75,9 @@ class AlarmTone(private val context: Context) : AlarmSound {
         }
     }
 
-    private fun soundCandidates(): List<Uri> = listOfNotNull(
+    /** The chosen sound, then the phone's own alarm sound in case the bundled one won't play. */
+    private fun soundCandidates(sound: WakeSound): List<Uri> = listOfNotNull(
+        "android.resource://${context.packageName}/${sound.resource}".toUri(),
         RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM),
         RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
         RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE),
@@ -78,7 +86,6 @@ class AlarmTone(private val context: Context) : AlarmSound {
     companion object {
         private const val TAG = "AlarmTone"
         private const val MIN_VOLUME = 0.05f
-        private val RAMP = 60.seconds
 
         val AlarmAudio: AudioAttributes = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_ALARM)
@@ -86,3 +93,10 @@ class AlarmTone(private val context: Context) : AlarmSound {
             .build()
     }
 }
+
+private val WakeSound.resource: Int
+    get() = when (this) {
+        WakeSound.BIRDSONG -> R.raw.birdsong
+        WakeSound.WIND_CHIMES -> R.raw.wind_chimes
+        WakeSound.SOFT_PIANO -> R.raw.soft_piano
+    }

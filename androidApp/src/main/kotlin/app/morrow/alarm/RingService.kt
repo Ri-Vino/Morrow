@@ -13,6 +13,7 @@ import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import app.morrow.data.AlarmSetup
 import app.morrow.domain.Alarm
 import app.morrow.domain.MissionType
 import app.morrow.morrow
@@ -20,11 +21,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Runs only while an alarm rings: sound on the alarm stream with a slow volume ramp, vibration and a wake lock.
@@ -73,9 +77,14 @@ class RingService : Service() {
                     setReferenceCounted(false)
                     acquire((RING_LIMIT + 1.minutes).inWholeMilliseconds)
                 }
-            sound.play()
             startVibration()
             handler.postDelayed(::stopRinging, RING_LIMIT.inWholeMilliseconds)
+            scope.launch {
+                // If the settings can't be read quickly, ring with the defaults rather than not at all.
+                val setup = runCatching { withTimeoutOrNull(1.seconds) { morrow.settings.alarmSetup.first() } }.getOrNull()
+                    ?: AlarmSetup.Default
+                if (wakeLock != null) sound.play(setup.sound, setup.ramp.duration)
+            }
         }
 
         scope.launch {

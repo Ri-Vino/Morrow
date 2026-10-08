@@ -8,6 +8,9 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import app.morrow.domain.Difficulty
+import app.morrow.domain.VolumeRamp
+import app.morrow.domain.WakeSound
+import app.morrow.theme.ThemeKind
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import okio.Path.Companion.toPath
@@ -25,9 +28,32 @@ class MorrowSettings internal constructor(private val store: DataStore<Preferenc
     /** What missions need at ring time. */
     val missionSetup: Flow<MissionSetup> = store.data.map { prefs ->
         MissionSetup(
-            difficulty = prefs[DifficultyKey]?.let { name -> Difficulty.entries.firstOrNull { it.name == name } } ?: Difficulty.NORMAL,
+            difficulty = prefs[DifficultyKey].toEnum(Difficulty.NORMAL),
             kettleCode = prefs[KettleCode],
         )
+    }
+
+    /** What the alarm sounds like, needed at ring time. */
+    val alarmSetup: Flow<AlarmSetup> = store.data.map { prefs ->
+        AlarmSetup(
+            sound = prefs[SoundKey].toEnum(WakeSound.BIRDSONG),
+            ramp = prefs[RampKey].toEnum(VolumeRamp.ONE_MINUTE),
+        )
+    }
+
+    suspend fun setSound(sound: WakeSound) {
+        store.edit { it[SoundKey] = sound.name }
+    }
+
+    suspend fun setRamp(ramp: VolumeRamp) {
+        store.edit { it[RampKey] = ramp.name }
+    }
+
+    /** A theme to keep whatever the time, or null to follow the clock. */
+    val pinnedTheme: Flow<ThemeKind?> = store.data.map { prefs -> prefs[PinnedTheme]?.let { name -> ThemeKind.entries.firstOrNull { it.name == name } } }
+
+    suspend fun setPinnedTheme(theme: ThemeKind?) {
+        store.edit { if (theme == null) it.remove(PinnedTheme) else it[PinnedTheme] = theme.name }
     }
 
     suspend fun setDifficulty(difficulty: Difficulty) {
@@ -62,11 +88,23 @@ class MorrowSettings internal constructor(private val store: DataStore<Preferenc
         val Intention = stringPreferencesKey("intention")
         val LastClosedAt = longPreferencesKey("last_closed_at")
         val DifficultyKey = stringPreferencesKey("difficulty")
+        val SoundKey = stringPreferencesKey("sound")
+        val RampKey = stringPreferencesKey("volume_ramp")
+        val PinnedTheme = stringPreferencesKey("pinned_theme")
         val KettleCode = stringPreferencesKey("kettle_code")
     }
 }
 
 data class MissionSetup(val difficulty: Difficulty, val kettleCode: String?)
+
+data class AlarmSetup(val sound: WakeSound, val ramp: VolumeRamp) {
+    companion object {
+        val Default = AlarmSetup(WakeSound.BIRDSONG, VolumeRamp.ONE_MINUTE)
+    }
+}
+
+/** The stored name of one of [E]'s entries, or [default] if it's missing or no longer exists. */
+private inline fun <reified E : Enum<E>> String?.toEnum(default: E): E = enumValues<E>().firstOrNull { it.name == this } ?: default
 
 internal const val SETTINGS_FILE = "morrow.preferences_pb"
 

@@ -19,6 +19,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import app.morrow.MainActivity
+import app.morrow.debug.WithTestFontScale
 import app.morrow.missions.AndroidCodeScanner
 import app.morrow.missions.AndroidMotionSensor
 import app.morrow.morrow
@@ -49,28 +50,30 @@ class RingActivity : ComponentActivity() {
 
         val missions = MissionServices(morrow.settings, AndroidMotionSensor(this), AndroidCodeScanner(this))
         setContent {
-            val alarm by Ringing.current.collectAsState()
-            var stage by rememberSaveable { mutableStateOf(Stage.RINGING) }
-            var wokeAt by rememberSaveable { mutableLongStateOf(0L) }
-            // The alarm stops when the mission is done, or at the safety stop; only the first leads to Morning.
-            LaunchedEffect(alarm, stage) { if (alarm == null && stage != Stage.MORNING) finish() }
-            LaunchedEffect(stage) { matchSystemBars(lightIcons = stage != Stage.MORNING) }
+            WithTestFontScale {
+                val alarm by Ringing.current.collectAsState()
+                var stage by rememberSaveable { mutableStateOf(Stage.RINGING) }
+                var wokeAt by rememberSaveable { mutableLongStateOf(0L) }
+                // The alarm stops when the mission is done, or at the safety stop; only the first leads to Morning.
+                LaunchedEffect(alarm, stage) { if (alarm == null && stage != Stage.MORNING) finish() }
+                LaunchedEffect(stage) { matchSystemBars(lightIcons = stage != Stage.MORNING) }
 
-            val ringing = alarm
-            when {
-                stage == Stage.MORNING -> MorningRoute(morrow.settings, Instant.fromEpochMilliseconds(wokeAt), onStartDay = ::startDay)
-                ringing == null -> Unit
-                // The alarm rings on until the mission is done. If this screen fails, the safety stop still ends it.
-                stage == Stage.MISSION -> MissionRoute(
-                    ringing.mission,
-                    missions,
-                    onDone = {
-                        wokeAt = Clock.System.now().toEpochMilliseconds()
-                        stage = Stage.MORNING
-                        RingService.stop(this)
-                    },
-                )
-                else -> RingScreen(ringModel(ringing), onStartMission = { stage = Stage.MISSION })
+                val ringing = alarm
+                when {
+                    stage == Stage.MORNING -> MorningRoute(morrow.settings, Instant.fromEpochMilliseconds(wokeAt), onStartDay = ::startDay)
+                    ringing == null -> Unit
+                    // The alarm rings on until the mission is done. If this screen fails, the safety stop still ends it.
+                    stage == Stage.MISSION -> MissionRoute(
+                        ringing.mission,
+                        missions,
+                        onDone = {
+                            wokeAt = Clock.System.now().toEpochMilliseconds()
+                            stage = Stage.MORNING
+                            RingService.stop(this)
+                        },
+                    )
+                    else -> RingScreen(ringModel(ringing), onStartMission = { stage = Stage.MISSION })
+                }
             }
         }
     }

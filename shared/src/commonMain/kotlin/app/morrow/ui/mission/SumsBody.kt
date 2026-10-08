@@ -6,6 +6,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -63,7 +64,7 @@ internal fun SumsBody(state: SumsState, mission: SumsMission) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .heightIn(min = 64.dp)
                 .graphicsLayer { translationX = shakeOffset(shake.value).dp.toPx() }
                 .background(colors.bg, shape)
                 .border(2.dp, if (missed) Illustration.mistake else colors.line, shape)
@@ -113,7 +114,7 @@ private fun RowScope.Key(onClick: () -> Unit, background: Color, label: String?,
     Box(
         modifier = Modifier
             .weight(1f)
-            .height(56.dp)
+            .heightIn(min = 56.dp)
             .pressable(onClick)
             .background(background, RoundedCornerShape(20.dp))
             .then(if (label != null) Modifier.semantics { contentDescription = label } else Modifier),
