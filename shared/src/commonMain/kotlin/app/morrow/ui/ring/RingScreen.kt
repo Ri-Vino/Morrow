@@ -35,7 +35,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -54,6 +53,7 @@ import app.morrow.ui.components.PillButton
 import app.morrow.ui.components.PipLook
 import app.morrow.ui.components.PipMood
 import app.morrow.ui.components.drawPip
+import app.morrow.ui.components.fadeUpIn
 import app.morrow.ui.components.pressable
 import app.morrow.ui.components.rememberSceneSeconds
 import app.morrow.ui.components.svgPath
@@ -93,17 +93,17 @@ private fun RingContent(
             BasicText(
                 "Rise and shine",
                 style = type.button.copy(color = Illustration.sunriseGreeting),
-                modifier = Modifier.enter { textIn(0) },
+                modifier = Modifier.fadeUpIn { textIn(0) },
             )
             BasicText(
                 model.time,
                 style = type.hero.copy(color = colors.text, fontFeatureSettings = "tnum"),
-                modifier = Modifier.padding(top = 8.dp).enter { textIn(0) },
+                modifier = Modifier.padding(top = 8.dp).fadeUpIn { textIn(0) },
             )
             Row(
                 modifier = Modifier
                     .padding(top = 16.dp)
-                    .enter { textIn(1) }
+                    .fadeUpIn { textIn(1) }
                     .background(Illustration.ground.copy(alpha = 0.45f), RoundedCornerShape(16.dp))
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -115,7 +115,7 @@ private fun RingContent(
             BasicText(
                 "“Morning! I’m up — your turn.”",
                 style = type.title.copy(color = Illustration.glint, fontStyle = FontStyle.Italic, textAlign = TextAlign.Center),
-                modifier = Modifier.padding(top = 24.dp).enter { textIn(2) },
+                modifier = Modifier.padding(top = 24.dp).fadeUpIn { textIn(2) },
             )
         }
 
@@ -148,13 +148,6 @@ private fun RingContent(
             }
         }
     }
-}
-
-/** Fades in while rising 16 dp into place. Reads [progress] while drawing, so it doesn't recompose every frame. */
-private fun Modifier.enter(progress: () -> Float) = graphicsLayer {
-    val p = progress()
-    alpha = p
-    translationY = 16.dp.toPx() * (1f - p)
 }
 
 @Composable

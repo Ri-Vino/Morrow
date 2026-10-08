@@ -79,6 +79,8 @@ class RingService : Service() {
         }
 
         scope.launch {
+            // Yesterday's "one small thing" lasts until the next alarm, which is this one.
+            morrow.settings.clearIntention()
             val alarm = morrow.repository.get(alarmId) ?: return@launch
             Ringing.set(alarm)
             getSystemService(NotificationManager::class.java).notify(RingNotifications.ID, RingNotifications.build(this@RingService, alarm))

@@ -12,6 +12,8 @@ import app.morrow.theme.ThemeClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlin.time.Clock
 
 class MorrowApp : Application() {
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -20,6 +22,11 @@ class MorrowApp : Application() {
     val coordinator by lazy { AlarmCoordinator(repository, AndroidAlarmScheduler(this)) }
     val themeClock by lazy { ThemeClock(appScope) }
     val settings by lazy { morrowSettings(this) }
+
+    /** Remembers when the user left the app; the last time before an alarm is a rough bedtime. */
+    fun markClosed() {
+        appScope.launch { settings.markClosed(Clock.System.now()) }
+    }
 }
 
 val Context.morrow: MorrowApp get() = applicationContext as MorrowApp

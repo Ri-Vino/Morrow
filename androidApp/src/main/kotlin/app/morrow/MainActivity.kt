@@ -95,6 +95,7 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         unregisterReceiver(clockChanged)
         morrow.themeClock.pause()
+        morrow.markClosed()
         super.onStop()
     }
 }

@@ -27,6 +27,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -152,6 +154,13 @@ private fun Header(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, onSet
             style = MorrowTheme.type.display.copy(color = ink),
             modifier = Modifier.semantics { heading() },
         )
+        model.lookingForward?.let {
+            BasicText(
+                it,
+                style = MorrowTheme.type.bodyLarge.copy(color = inkMuted, fontFamily = MorrowTheme.type.title.fontFamily, fontStyle = FontStyle.Italic),
+                modifier = Modifier.widthIn(max = 200.dp),
+            )
+        }
     }
 }
 

@@ -20,6 +20,8 @@ import kotlin.time.Instant
 data class HomeModel(
     val dateLabel: String,
     val greeting: String,
+    /** The Morning screen's answer, until the next alarm rings. */
+    val lookingForward: String?,
     /** Null when there are no alarms at all; the empty state takes its place. */
     val sleepCard: SleepCard?,
     /** Why alarms can't ring, if they can't. */
@@ -40,7 +42,7 @@ data class AlarmRow(
     val sunUp: Boolean,
 )
 
-fun homeModel(alarms: List<Alarm>, now: Instant, zone: TimeZone, missing: List<AlarmPermission>): HomeModel {
+fun homeModel(alarms: List<Alarm>, now: Instant, zone: TimeZone, missing: List<AlarmPermission>, intention: String? = null): HomeModel {
     val local = now.toLocalDateTime(zone)
     val minute = local.hour * 60 + local.minute
     val blockers = missing.filter { it.required }
@@ -53,6 +55,7 @@ fun homeModel(alarms: List<Alarm>, now: Instant, zone: TimeZone, missing: List<A
             minute < 21 * 60 -> "Good evening"
             else -> "Good night"
         },
+        lookingForward = intention?.takeIf(String::isNotBlank)?.let { "Looking forward to $it" },
         sleepCard = if (alarms.isEmpty()) null else sleepCard(alarms, now, zone, blocked = blockers.isNotEmpty()),
         banner = bannerText(blockers),
         alarmCount = if (alarms.isEmpty()) "" else "${alarms.count { it.enabled }} of ${alarms.size} on",

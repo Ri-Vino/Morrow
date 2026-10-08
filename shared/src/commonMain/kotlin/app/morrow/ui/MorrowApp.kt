@@ -8,6 +8,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -41,6 +42,7 @@ import app.morrow.ui.home.homeModel
 import app.morrow.ui.components.skySceneState
 import app.morrow.ui.mission.MissionRoute
 import app.morrow.ui.mission.MissionServices
+import app.morrow.ui.morning.MorningRoute
 import app.morrow.ui.ring.RingPreview
 import app.morrow.ui.ring.RingScreen
 import app.morrow.ui.ring.ringModel
@@ -145,6 +147,7 @@ private fun Home(
     val scope = rememberCoroutineScope()
     val alarms by services.repository.alarms.collectAsStateWithLifecycle<List<Alarm>?>(initialValue = null)
     val missing by services.permissions.missing.collectAsStateWithLifecycle()
+    val intention by services.settings.intention.collectAsStateWithLifecycle(initialValue = null)
     val now by remember { minuteTicks() }.collectAsStateWithLifecycle(initialValue = Clock.System.now())
     val zone = TimeZone.currentSystemDefault()
     val minute = now.toLocalDateTime(zone).let { it.hour * 60 + it.minute }.toFloat()
@@ -153,7 +156,7 @@ private fun Home(
 
     val loaded = alarms ?: return
     HomeScreen(
-        model = homeModel(loaded, now, zone, missing),
+        model = homeModel(loaded, now, zone, missing, intention),
         theme = theme,
         minuteOfDay = minute,
         actions = HomeActions(
@@ -232,9 +235,11 @@ private fun EditRoute(
 /** The ringing screen as it will look for [alarm], silent unless the user asks to hear it. */
 @Composable
 private fun RingPreviewRoute(services: MorrowServices, alarm: Alarm, onSystemBarsChange: (Boolean) -> Unit, onExit: () -> Unit) {
+    val scope = rememberCoroutineScope()
     var soundOn by rememberSaveable { mutableStateOf(false) }
-    var inMission by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(Unit) { onSystemBarsChange(true) }
+    var stage by rememberSaveable { mutableStateOf(PreviewStage.RINGING) }
+    var wokeAt by rememberSaveable { mutableLongStateOf(0L) }
+    LaunchedEffect(stage) { onSystemBarsChange(stage != PreviewStage.MORNING) }
     PlatformBackHandler(onBack = onExit)
     DisposableEffect(soundOn) {
         if (soundOn) services.alarmSound.play()
@@ -242,16 +247,35 @@ private fun RingPreviewRoute(services: MorrowServices, alarm: Alarm, onSystemBar
     }
     // Leaving the app, or a real alarm taking over the screen, ends the sound for good.
     LifecycleStartEffect(Unit) { onStopOrDispose { soundOn = false } }
-    if (inMission) {
-        MissionRoute(alarm.mission, services.missions, onDone = onExit)
-    } else {
-        RingScreen(
+    when (stage) {
+        PreviewStage.RINGING -> RingScreen(
             model = ringModel(alarm),
-            onStartMission = { inMission = true },
+            onStartMission = { stage = PreviewStage.MISSION },
             preview = RingPreview(soundOn, onToggleSound = { soundOn = !soundOn }, onExit = onExit),
+        )
+        PreviewStage.MISSION -> MissionRoute(
+            alarm.mission,
+            services.missions,
+            onDone = {
+                soundOn = false
+                wokeAt = Clock.System.now().toEpochMilliseconds()
+                stage = PreviewStage.MORNING
+            },
+        )
+        PreviewStage.MORNING -> MorningRoute(
+            settings = services.settings,
+            wokeAt = Instant.fromEpochMilliseconds(wokeAt),
+            onStartDay = { intention ->
+                scope.launch {
+                    if (intention.isNotEmpty()) services.settings.setIntention(intention)
+                    onExit()
+                }
+            },
         )
     }
 }
+
+private enum class PreviewStage { RINGING, MISSION, MORNING }
 
 private const val NEW_ALARM = "new"
 private const val HOME = "home"

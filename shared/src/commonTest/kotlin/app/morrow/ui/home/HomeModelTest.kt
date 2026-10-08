@@ -46,6 +46,14 @@ class HomeModelTest {
     }
 
     @Test
+    fun theMorningAnswerShowsUnderTheGreeting() {
+        val at = LocalDateTime.parse("2026-10-08T08:00").toInstant(london)
+        assertEquals("Looking forward to coffee by the window", homeModel(emptyList(), at, london, emptyList(), "coffee by the window").lookingForward)
+        assertEquals(null, homeModel(emptyList(), at, london, emptyList(), "  ").lookingForward)
+        assertEquals(null, home("2026-10-08T08:00").lookingForward)
+    }
+
+    @Test
     fun dateLabelSpellsOutTheDay() {
         assertEquals("Tuesday 6 October", home("2026-10-06T07:40").dateLabel)
     }
