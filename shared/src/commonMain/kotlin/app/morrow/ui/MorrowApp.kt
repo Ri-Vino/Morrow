@@ -24,6 +24,7 @@ import app.morrow.data.AlarmRepository
 import app.morrow.data.MorrowSettings
 import app.morrow.domain.Alarm
 import app.morrow.domain.MissionType
+import app.morrow.domain.nextAlarm
 import app.morrow.platform.AlarmSound
 import app.morrow.platform.PermissionGate
 import app.morrow.theme.MorrowTheme
@@ -163,7 +164,8 @@ private fun Home(
             onToggle = { id, enabled -> scope.launch { services.coordinator.setEnabled(id, enabled) } },
             onOpenAlarm = { onEdit(it) },
             onNewAlarm = { onEdit(null) },
-            onTrySunrise = { onPreview(loaded.firstOrNull(Alarm::enabled) ?: loaded.firstOrNull() ?: newAlarm()) },
+            // The alarm the sleep card is about.
+            onTrySunrise = { onPreview(loaded.nextAlarm(Clock.System.now(), zone)?.alarm ?: loaded.firstOrNull() ?: newAlarm()) },
             onSettings = pending.settings,
             onFixPermissions = { missing.firstOrNull { it.required }?.let(services.permissions::request) },
         ),

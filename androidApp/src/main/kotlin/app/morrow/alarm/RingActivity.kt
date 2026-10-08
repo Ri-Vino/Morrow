@@ -95,13 +95,11 @@ class RingActivity : ComponentActivity() {
         }
     }
 
-    /** Opens the app as its launcher icon would, bringing back its task rather than stacking a second Home. */
+    /** Opens Home, reusing the one already open rather than stacking a second. */
     private fun openHome() {
-        val launch = Intent(this, MainActivity::class.java)
-            .setAction(Intent.ACTION_MAIN)
-            .addCategory(Intent.CATEGORY_LAUNCHER)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
-        startActivity(launch)
+        val home = Intent(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        startActivity(home)
         finish()
     }
 
