@@ -10,6 +10,7 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.performTextInput
 import app.morrow.domain.Difficulty
 import app.morrow.missions.TypeMission
@@ -63,7 +64,7 @@ class SentenceGamesTest {
         val mission = TypeMission(1, Difficulty.NORMAL, Random(2))
         showType(mission)
 
-        compose.onNodeWithContentDescription("Your sentence").performTextInput(mission.state.value.sentence.lowercase())
+        compose.onNodeWithContentDescription("Your sentence").typeWords(mission.state.value.sentence.lowercase())
         compose.waitForIdle()
 
         assertTrue(mission.state.value.done)
@@ -97,7 +98,7 @@ class SentenceGamesTest {
         showType(mission)
         val first = mission.state.value.sentence
 
-        compose.onNodeWithContentDescription("Your sentence").performTextInput(first)
+        compose.onNodeWithContentDescription("Your sentence").typeWords(first)
         compose.waitForIdle()
 
         val next = mission.state.value.sentence
@@ -174,4 +175,10 @@ class SentenceGamesTest {
             assertTrue(text.isNotBlank() || description.isNotBlank(), "an unlabelled control")
         }
     }
+}
+
+/** Enters [text] a word at a time, as a keyboard would: a whole sentence at once counts as pasting. */
+internal fun SemanticsNodeInteraction.typeWords(text: String) {
+    val words = text.split(" ")
+    words.forEachIndexed { i, word -> performTextInput(if (i < words.lastIndex) "$word " else word) }
 }

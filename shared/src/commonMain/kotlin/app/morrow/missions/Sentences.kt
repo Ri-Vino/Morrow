@@ -44,7 +44,7 @@ private val Gentle = listOf(
     "The world is quiet and calm.",
     "Dew sparkles on the grass.",
     "Wiggle your toes awake.",
-    "Time to leave the cozy bed.",
+    "Time to leave the cosy bed.",
     "Hello again lovely world.",
     "Rise slowly and stay cheerful.",
     "Oranges taste like sunshine.",

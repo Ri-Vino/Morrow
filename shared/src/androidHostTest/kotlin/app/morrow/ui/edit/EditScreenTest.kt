@@ -159,7 +159,7 @@ class EditScreenTest {
 
     @Test
     fun theEstimateFollowsTheRounds() {
-        show(alarm(games = listOf(GameStep(MissionType.SUMS, 7))))
+        show(alarm(games = listOf(GameStep(MissionType.SUMS, 5))))
         compose.onNodeWithText("About 1 min to finish").performScrollTo()
 
         compose.onNodeWithContentDescription("More sums rounds").performClick()

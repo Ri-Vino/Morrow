@@ -14,6 +14,16 @@ class TypeMissionTest {
     private fun mission(rounds: Int = 2, difficulty: Difficulty = Difficulty.NORMAL) = TypeMission(rounds, difficulty, Random(3))
 
     @Test
+    fun aPastedSentenceIsIgnored() {
+        val mission = TypeMission(rounds = 1, Difficulty.NORMAL, Random(1))
+
+        mission.type(mission.state.value.sentence)
+
+        assertEquals("", mission.state.value.typed)
+        assertEquals(0, mission.state.value.finished)
+    }
+
+    @Test
     fun theSentenceComesFromTheDifficulty() {
         for (difficulty in Difficulty.entries) {
             assertTrue(mission(difficulty = difficulty).state.value.sentence in sentences(difficulty))
@@ -37,11 +47,11 @@ class TypeMissionTest {
         val firstWords = sentence.substringBefore(' ')
         val second = sentence.substringAfter(' ').substringBefore(' ')
 
-        mission.type(firstWords.uppercase())
+        mission.typeOut(firstWords.uppercase())
         assertEquals(firstWords.length, mission.state.value.matched)
         assertNull(mission.state.value.typoWord)
 
-        mission.type("  $firstWords    ${second.lowercase()}")
+        mission.typeOut("  $firstWords    ${second.lowercase()}")
         assertEquals(firstWords.length + 1 + second.length, mission.state.value.matched)
         assertNull(mission.state.value.typoWord)
     }
@@ -52,14 +62,14 @@ class TypeMissionTest {
         val sentence = mission.state.value.sentence
         val words = sentence.removeSuffix(".").split(' ')
 
-        mission.type(words[0] + " " + "#")
+        mission.typeOut(words[0] + " " + "#")
         assertEquals(words[1], mission.state.value.typoWord)
         assertEquals(words[0].length + 1, mission.state.value.matched)
 
-        mission.type("#")
+        mission.typeOut("#")
         assertEquals(words[0], mission.state.value.typoWord)
 
-        mission.type(words.dropLast(1).joinToString(" ") + " #")
+        mission.typeOut(words.dropLast(1).joinToString(" ") + " #")
         assertEquals(words.last(), mission.state.value.typoWord)
     }
 
@@ -67,7 +77,7 @@ class TypeMissionTest {
     fun anExtraLetterAfterAFinishedWordPointsBackAtThatWord() {
         val mission = mission()
         val first = mission.state.value.sentence.substringBefore(' ')
-        mission.type(first + "x")
+        mission.typeOut(first + "x")
         assertEquals(first, mission.state.value.typoWord)
     }
 
@@ -75,8 +85,8 @@ class TypeMissionTest {
     fun aTypoClearsOnceItIsFixed() {
         val mission = mission()
         val first = mission.state.value.sentence.substringBefore(' ')
-        mission.type(first + "x")
-        mission.type(first)
+        mission.typeOut(first + "x")
+        mission.typeOut(first)
         assertNull(mission.state.value.typoWord)
     }
 
@@ -86,10 +96,10 @@ class TypeMissionTest {
         val sentence = mission.state.value.sentence
         val first = sentence.substringBefore(' ')
 
-        mission.type(first)
+        mission.typeOut(first)
         assertEquals(first.length.toFloat() / sentence.length / 2, mission.state.value.progress)
 
-        mission.type(first + "x")
+        mission.typeOut(first + "x")
         assertEquals(0f, mission.state.value.progress)
     }
 
@@ -98,7 +108,7 @@ class TypeMissionTest {
         val mission = mission(rounds = 3)
         val first = mission.state.value.sentence
 
-        mission.type(first)
+        mission.typeOut(first)
 
         val state = mission.state.value
         assertEquals(1, state.finished)
@@ -119,7 +129,7 @@ class TypeMissionTest {
             { it.removeSuffix(".").uppercase() + "  " },
         )) {
             val mission = mission(rounds = 1)
-            mission.type(variant(mission.state.value.sentence))
+            mission.typeOut(variant(mission.state.value.sentence))
             assertTrue(mission.state.value.done, "variant failed")
         }
     }
@@ -128,9 +138,9 @@ class TypeMissionTest {
     fun aMissingWordOrLetterIsNotAMatch() {
         val mission = mission(rounds = 1)
         val sentence = mission.state.value.sentence
-        mission.type(sentence.removeSuffix(".").dropLast(1))
+        mission.typeOut(sentence.removeSuffix(".").dropLast(1))
         assertFalse(mission.state.value.done)
-        mission.type(sentence.removeSuffix(".") + "s")
+        mission.typeOut(sentence.removeSuffix(".") + "s")
         assertFalse(mission.state.value.done)
     }
 
@@ -140,7 +150,7 @@ class TypeMissionTest {
         val seen = mutableListOf<String>()
         repeat(5) {
             seen += mission.state.value.sentence
-            mission.type(mission.state.value.sentence)
+            mission.typeOut(mission.state.value.sentence)
         }
         assertEquals(5, seen.toSet().size)
         assertTrue(mission.state.value.done)
@@ -149,12 +159,18 @@ class TypeMissionTest {
     @Test
     fun finishingAllRoundsIsDoneAndLaterInputIsIgnored() {
         val mission = mission(rounds = 2)
-        repeat(2) { mission.type(mission.state.value.sentence) }
+        repeat(2) { mission.typeOut(mission.state.value.sentence) }
         val done = mission.state.value
         assertTrue(done.done)
         assertEquals(1f, done.progress)
 
-        mission.type("something else")
+        mission.typeOut("something else")
         assertEquals(done, mission.state.value)
     }
+}
+
+/** Types [text] a word at a time, as a person would: the field only ever grows by a word. */
+private fun TypeMission.typeOut(text: String) {
+    val words = text.split(" ")
+    words.indices.forEach { i -> type(words.take(i + 1).joinToString(" ")) }
 }

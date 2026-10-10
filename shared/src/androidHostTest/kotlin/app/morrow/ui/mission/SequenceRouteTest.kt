@@ -213,7 +213,7 @@ class SequenceRouteTest {
         compose.onNodeWithContentDescription("Game 2 of 2, Type, now").assertExists()
         val sentence = shownSentence()
         val field = compose.onNodeWithContentDescription("Your sentence")
-        field.performTextInput(sentence.dropLast(4))
+        field.typeWords(sentence.dropLast(4))
         assertNotDone()
 
         field.performTextInput(sentence.takeLast(4))
@@ -232,7 +232,7 @@ class SequenceRouteTest {
             val before = soFar()
             var chip = 0
             while (soFar() == before) {
-                compose.onAllNodes(hasClickAction())[chip++].performClick()
+                compose.onAllNodes(hasClickAction())[chip++].performScrollTo().performClick()
                 compose.waitForIdle()
                 if (soFar() == before) {
                     wrongTaps++

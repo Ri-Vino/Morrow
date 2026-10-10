@@ -61,8 +61,21 @@ class GamesMigrationTest {
         }
     }
 
-    /** A database as version 1 of the app left it, from shared/schemas/.../1.json, holding [rows]. */
-    private fun writeVersion1(vararg rows: String) {
+    @Test
+    fun idsOfDeletedAlarmsAreNotReused() = runTest {
+        writeVersion1("(1, 6, 30, 'Work days', 31, 'SUMS', 1)", "(12, 7, 0, 'Gone', 0, 'SUMS', 1)", then = "DELETE FROM alarms WHERE id = 12")
+
+        val database = buildMorrowDatabase(Room.databaseBuilder<MorrowDatabase>(context, file.absolutePath))
+        try {
+            val id = AlarmRepository(database.alarmDao()).save(Alarm(0, 8, 0, "New", emptySet(), listOf(GameStep(MissionType.SUMS, 2)), enabled = true))
+            assertEquals(13, id)
+        } finally {
+            database.close()
+        }
+    }
+
+    /** A database as version 1 of the app left it, from shared/schemas/.../1.json, holding [rows], after running [then]. */
+    private fun writeVersion1(vararg rows: String, then: String? = null) {
         file.parentFile?.mkdirs()
         val connection = BundledSQLiteDriver().open(file.absolutePath)
         try {
@@ -74,6 +87,7 @@ class GamesMigrationTest {
             connection.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)")
             connection.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '49a48e8c78d22015b4214ac8ec0f8882')")
             rows.forEach { connection.execSQL("INSERT INTO alarms (id, hour, minute, label, days, mission, enabled) VALUES $it") }
+            then?.let(connection::execSQL)
             connection.execSQL("PRAGMA user_version = 1")
         } finally {
             connection.close()

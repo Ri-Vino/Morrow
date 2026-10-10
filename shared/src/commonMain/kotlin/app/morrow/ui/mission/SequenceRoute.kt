@@ -43,8 +43,9 @@ class MissionServices(val settings: MorrowSettings, val motion: MotionSensor, va
 @Composable
 fun SequenceRoute(games: List<GameStep>, services: MissionServices, onDone: () -> Unit) {
     val setup by services.settings.missionSetup.collectAsState(initial = null)
-    var steps by rememberSaveable(stateSaver = StepsSaver) { mutableStateOf(games) }
-    var index by rememberSaveable { mutableIntStateOf(0) }
+    // Starts again if the games change, as when the ringing alarm's own games replace the placeholder's.
+    var steps by rememberSaveable(games, stateSaver = StepsSaver) { mutableStateOf(games) }
+    var index by rememberSaveable(games) { mutableIntStateOf(0) }
     val loaded = setup ?: return
     val current = steps[index]
     val step = Step(steps, index, onFinished = { if (index == steps.lastIndex) onDone() else index++ })

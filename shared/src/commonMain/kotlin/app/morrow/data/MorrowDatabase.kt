@@ -46,6 +46,15 @@ internal object GamesMigration : Migration(1, 2) {
                 "CASE `mission` WHEN 'BREATHE' THEN 'BREATHE:3' WHEN 'SHAKE' THEN 'SHAKE:3' WHEN 'SCAN' THEN 'SCAN:1' " +
                 "ELSE 'SUMS:3' END, `enabled` FROM `alarms`",
         )
+        // Ids of deleted alarms stay used, as before: the copy would otherwise restart the count at the highest id left.
+        connection.execSQL(
+            "UPDATE sqlite_sequence SET `seq` = (SELECT MAX(`seq`) FROM sqlite_sequence WHERE `name` IN ('alarms', 'alarms_new')) " +
+                "WHERE `name` = 'alarms_new'",
+        )
+        connection.execSQL(
+            "INSERT INTO sqlite_sequence (`name`, `seq`) SELECT 'alarms_new', `seq` FROM sqlite_sequence WHERE `name` = 'alarms' " +
+                "AND NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE `name` = 'alarms_new')",
+        )
         connection.execSQL("DROP TABLE `alarms`")
         connection.execSQL("ALTER TABLE `alarms_new` RENAME TO `alarms`")
     }

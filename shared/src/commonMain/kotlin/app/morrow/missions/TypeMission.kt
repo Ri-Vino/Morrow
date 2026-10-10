@@ -44,6 +44,8 @@ class TypeMission(private val rounds: Int, difficulty: Difficulty, private val r
     fun type(text: String) {
         val current = mutableState.value
         if (current.done) return
+        // A whole sentence arriving at once was pasted, not typed. Swiping a word in still works.
+        if (text.length - current.typed.length > MAX_INSERT) return
         if (!sameSentence(text, current.sentence)) {
             mutableState.value = current.copy(typed = text)
             return
@@ -61,6 +63,8 @@ class TypeMission(private val rounds: Int, difficulty: Difficulty, private val r
         return fresh.random(random).also { used += it }
     }
 }
+
+private const val MAX_INSERT = 14
 
 /** Lower case, with runs of spaces made one and none at the start. A space at the end stays, as a word may follow it. */
 private fun tidyTyped(text: String): String = text.lowercase().replace(Spaces, " ").trimStart()

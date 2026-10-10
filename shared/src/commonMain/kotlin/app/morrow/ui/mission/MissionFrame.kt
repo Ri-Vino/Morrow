@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -78,7 +79,7 @@ internal fun MissionFrame(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top,
             ) {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(Modifier.weight(1f).padding(end = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     BasicText("WAKE-UP MISSION", style = type.label.copy(color = Illustration.sunriseGreeting))
                     BasicText(model.title, style = type.title.copy(color = Illustration.glint), modifier = Modifier.semantics { heading() })
                     if (chips.isNotEmpty()) StepChips(chips)
@@ -117,7 +118,7 @@ internal fun MissionFrame(
 
 @Composable
 private fun StepChips(chips: List<StepChip>) {
-    Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         chips.forEach { chip ->
             val background = when (chip.state) {
                 ChipState.DONE -> Illustration.sun

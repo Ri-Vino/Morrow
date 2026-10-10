@@ -46,6 +46,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.zIndex
@@ -465,6 +466,7 @@ private fun PlainIconButton(
         modifier = Modifier
             .size(44.dp)
             .pressable({ if (enabled) onClick() })
+            .semantics { if (!enabled) disabled() }
             .alpha(if (enabled) 1f else 0.35f),
         contentAlignment = Alignment.Center,
     ) {

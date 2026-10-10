@@ -37,6 +37,7 @@
 
         <activity
             android:name=".alarm.RingActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|keyboard|keyboardHidden"
             android:directBootAware="true"
             android:excludeFromRecents="true"
             android:exported="false"
@@ -44,6 +45,7 @@
             android:showWhenLocked="true"
             android:taskAffinity=""
             android:turnScreenOn="true"
+            android:windowSoftInputMode="adjustResize"
             tools:targetApi="27" />
 
         <service

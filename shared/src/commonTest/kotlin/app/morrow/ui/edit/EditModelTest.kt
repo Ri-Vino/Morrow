@@ -13,6 +13,7 @@ import app.morrow.domain.MissionType.UNSCRAMBLE
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import app.morrow.domain.rules
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -120,10 +121,16 @@ class EditModelTest {
 
     @Test
     fun estimateAddsUpEachRound() {
-        assertEquals(36 + 12 + 24 + 40, gamesSeconds(games(SUMS to 3, BREATHE to 2, SHAKE to 3, SCAN to 1).games))
+        assertEquals(45 + 12 + 24 + 40, gamesSeconds(games(SUMS to 3, BREATHE to 2, SHAKE to 3, SCAN to 1).games))
         assertEquals(Estimate("About 2 min to finish", tooLong = false), editModel(games(SUMS to 3, BREATHE to 2, SHAKE to 3, SCAN to 1), nowMinute = 600).estimate)
-        assertEquals(4 * 20 + 3 * 15, gamesSeconds(games(TYPE to 4, UNSCRAMBLE to 3).games))
+        assertEquals(4 * 30 + 3 * 20, gamesSeconds(games(TYPE to 4, UNSCRAMBLE to 3).games))
         assertEquals("About 1 min to finish", editModel(games(BREATHE to 1), nowMinute = 600).estimate.text)
+    }
+
+    @Test
+    fun everyGameAtItsMostIsTooLong() {
+        val all = MissionType.entries.map { GameStep(it, it.rules.maxRounds) }
+        assertTrue(editModel(games(*all.map { it.type to it.rounds }.toTypedArray()), nowMinute = 600).estimate.tooLong)
     }
 
     @Test

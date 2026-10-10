@@ -29,7 +29,7 @@ class GamesTest {
     fun eachGameHasItsLimitsAndUsualRounds() {
         assertEquals(listOf(10, 5, 5, 5, 6, 1), MissionType.entries.map { it.rules.maxRounds })
         assertEquals(listOf(3, 2, 2, 3, 3, 1), MissionType.entries.map { it.rules.defaultRounds })
-        assertEquals(listOf(12, 20, 15, 6, 8, 40), MissionType.entries.map { it.rules.secondsPerRound })
+        assertEquals(listOf(15, 30, 20, 6, 8, 40), MissionType.entries.map { it.rules.secondsPerRound })
         assertEquals(GameStep(MissionType.SHAKE, 3), GameStep(MissionType.SHAKE))
         assertFailsWith<IllegalArgumentException> { GameStep(MissionType.SHAKE, 7) }
         assertFailsWith<IllegalArgumentException> { GameStep(MissionType.SUMS, 0) }
