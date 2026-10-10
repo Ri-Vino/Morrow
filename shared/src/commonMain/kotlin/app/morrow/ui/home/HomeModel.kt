@@ -6,7 +6,9 @@ import app.morrow.domain.SleepMath
 import app.morrow.domain.nextAlarm
 import app.morrow.platform.AlarmPermission
 import app.morrow.theme.sunElevation
+import app.morrow.ui.displayName
 import app.morrow.ui.formatDuration
+import app.morrow.ui.gamesText
 import app.morrow.ui.hhmm
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.TimeZone
@@ -36,7 +38,10 @@ data class AlarmRow(
     val id: Long,
     val time: String,
     val details: String,
-    val mission: MissionType,
+    /** For the row's icon. */
+    val firstGame: MissionType,
+    /** The first game, and how many more follow, such as "Sums +1". */
+    val games: String,
     val enabled: Boolean,
     /** Whether the sun is up at the alarm's time, for its little sun or moon icon. */
     val sunUp: Boolean,
@@ -64,7 +69,8 @@ fun homeModel(alarms: List<Alarm>, now: Instant, zone: TimeZone, missing: List<A
                 id = alarm.id,
                 time = hhmm(alarm.hour, alarm.minute),
                 details = "${alarm.label} · ${describeDays(alarm.days)}",
-                mission = alarm.mission,
+                firstGame = alarm.games.first().type,
+                games = alarm.games.first().type.displayName + if (alarm.games.size > 1) " +${alarm.games.size - 1}" else "",
                 enabled = alarm.enabled,
                 sunUp = sunElevation((alarm.hour * 60 + alarm.minute).toFloat()) >= 0,
             )
@@ -92,7 +98,7 @@ private fun sleepCard(alarms: List<Alarm>, now: Instant, zone: TimeZone, blocked
         until >= 1.days -> SleepCard(
             lead = "Next wake-up",
             big = "${at.dayOfWeek.shortName()} $time",
-            detail = "${alarm.label} · ${alarm.mission.displayName} mission. Pip will be up before you.",
+            detail = "${alarm.label} · ${gamesText(alarm.games)}. Pip will be up before you.",
             night = night,
         )
         night && until <= 14.hours -> {
@@ -107,7 +113,7 @@ private fun sleepCard(alarms: List<Alarm>, now: Instant, zone: TimeZone, blocked
         else -> SleepCard(
             lead = "Pip wakes you in",
             big = formatDuration(until),
-            detail = "${alarm.label}, $day at $time · ${alarm.mission.displayName} mission",
+            detail = "${alarm.label}, $day at $time · ${gamesText(alarm.games)}",
             night = night,
         )
     }
@@ -134,14 +140,6 @@ fun describeDays(days: Set<DayOfWeek>): String = when (days) {
     setOf(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY) -> "Weekends"
     else -> days.sorted().joinToString(" ") { it.shortName() }
 }
-
-val MissionType.displayName: String
-    get() = when (this) {
-        MissionType.SUMS -> "Sums"
-        MissionType.BREATHE -> "Breathe"
-        MissionType.SHAKE -> "Shake"
-        MissionType.SCAN -> "Scan"
-    }
 
 private fun DayOfWeek.fullName() = name.lowercase().replaceFirstChar(Char::uppercase)
 

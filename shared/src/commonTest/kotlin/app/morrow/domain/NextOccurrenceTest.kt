@@ -25,7 +25,7 @@ private fun alarm(
     days: Set<DayOfWeek> = emptySet(),
     enabled: Boolean = true,
     id: Long = 1,
-) = Alarm(id = id, hour = hour, minute = minute, label = "Test", days = days, mission = MissionType.SUMS, enabled = enabled)
+) = Alarm(id = id, hour = hour, minute = minute, label = "Test", days = days, games = DefaultGames, enabled = enabled)
 
 // 2026-10-05 is a Monday.
 class NextOccurrenceTest {

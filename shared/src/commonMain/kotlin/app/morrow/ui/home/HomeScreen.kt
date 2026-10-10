@@ -277,8 +277,8 @@ private fun AlarmRowView(row: AlarmRow, actions: HomeActions) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            MorrowIcon(Icons.forMission(row.mission), colors.hi, size = 14.dp, strokeWidth = 2.2f)
-            BasicText(row.mission.displayName, style = MorrowTheme.type.label.copy(color = colors.hi, letterSpacing = MorrowTheme.type.caption.letterSpacing))
+            MorrowIcon(Icons.forMission(row.firstGame), colors.hi, size = 14.dp, strokeWidth = 2.2f)
+            BasicText(row.games, style = MorrowTheme.type.label.copy(color = colors.hi, letterSpacing = MorrowTheme.type.caption.letterSpacing))
         }
         MorrowToggle(row.enabled, { actions.onToggle(row.id, it) }, contentDescription = "${row.details} at ${row.time}")
     }

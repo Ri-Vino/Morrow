@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import app.morrow.domain.Alarm
+import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -28,7 +29,8 @@ class AlarmDaoTest {
 
     @Test
     fun roundTripThroughSqlite() = runTest {
-        val weekend = Alarm(0, 9, 0, "Slow Sunday", setOf(SATURDAY, SUNDAY), MissionType.BREATHE, enabled = true)
+        val games = listOf(GameStep(MissionType.BREATHE, 2), GameStep(MissionType.SUMS, 4))
+        val weekend = Alarm(0, 9, 0, "Slow Sunday", setOf(SATURDAY, SUNDAY), games, enabled = true)
 
         val id = repository.save(weekend)
         assertEquals(listOf(weekend.copy(id = id)), repository.alarms.first())

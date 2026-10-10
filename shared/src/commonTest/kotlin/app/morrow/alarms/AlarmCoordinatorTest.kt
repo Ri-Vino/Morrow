@@ -3,7 +3,7 @@ package app.morrow.alarms
 import app.morrow.data.AlarmRepository
 import app.morrow.data.FakeAlarmDao
 import app.morrow.domain.Alarm
-import app.morrow.domain.MissionType
+import app.morrow.domain.DefaultGames
 import app.morrow.platform.AlarmScheduler
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.DayOfWeek
@@ -29,7 +29,7 @@ class AlarmCoordinatorTest {
     private val coordinator = AlarmCoordinator(repository, scheduler, clock) { london }
 
     private fun alarm(hour: Int, minute: Int, days: Set<DayOfWeek> = emptySet(), enabled: Boolean = true, id: Long = 0) =
-        Alarm(id = id, hour = hour, minute = minute, label = "Work", days = days, mission = MissionType.SUMS, enabled = enabled)
+        Alarm(id = id, hour = hour, minute = minute, label = "Work", days = days, games = DefaultGames, enabled = enabled)
 
     @Test
     fun savingAnEnabledAlarmSchedulesItsNextOccurrence() = runTest {

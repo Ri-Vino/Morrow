@@ -10,8 +10,9 @@ import app.morrow.domain.Alarm
 import app.morrow.theme.Illustration
 import app.morrow.theme.mix
 import app.morrow.ui.components.Icons
+import app.morrow.ui.displayName
+import app.morrow.ui.gamesText
 import app.morrow.ui.hhmm
-import app.morrow.ui.home.displayName
 
 data class RingModel(
     val time: String,
@@ -21,12 +22,12 @@ data class RingModel(
 )
 
 fun ringModel(alarm: Alarm): RingModel {
-    val mission = alarm.mission.displayName
+    val first = alarm.games.first().type
     return RingModel(
         time = hhmm(alarm.hour, alarm.minute),
-        label = listOf(alarm.label.trim(), "$mission mission").filter(String::isNotEmpty).joinToString(" · "),
-        missionIcon = Icons.forMission(alarm.mission),
-        startLabel = "I’m up — start ${mission.lowercase()}",
+        label = listOf(alarm.label.trim(), gamesText(alarm.games)).filter(String::isNotEmpty).joinToString(" · "),
+        missionIcon = Icons.forMission(first),
+        startLabel = "I’m up — start ${first.displayName.lowercase()}",
     )
 }
 

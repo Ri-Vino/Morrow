@@ -1,5 +1,6 @@
 package app.morrow.missions
 
+import app.morrow.domain.Difficulty
 import app.morrow.platform.Acceleration
 import app.morrow.platform.MotionSensor
 import kotlinx.coroutines.channels.awaitClose
@@ -29,6 +30,35 @@ class SumsMissionTest {
         val sums = List(300) { randomSum(random) }
         assertTrue(sums.all { it.answer > 0 })
         for (sign in listOf("+", "−", "×")) assertTrue(sums.any { sign in it.question }, "no $sign sums")
+    }
+
+    @Test
+    fun gentleSumsAreSmallAdditionsAndSubtractions() {
+        val random = Random(3)
+        val sums = List(300) { randomSum(random, Difficulty.GENTLE) }
+        assertTrue(sums.all { it.answer in 1..29 })
+        assertTrue(sums.none { "×" in it.question })
+        assertTrue(sums.all { sum -> sum.question.split(" ").let { it[0].toInt() < 30 && it[2].toInt() < 30 } })
+    }
+
+    @Test
+    fun toughSumsUseBiggerNumbersAndHarderTimesTables() {
+        val random = Random(5)
+        val sums = List(300) { randomSum(random, Difficulty.TOUGH) }
+        assertTrue(sums.all { it.answer > 0 })
+        val (times, others) = sums.partition { "×" in it.question }
+        assertTrue(times.isNotEmpty() && times.all { sum -> sum.question.split(" ").let { it[0].toInt() >= 6 && it[2].toInt() >= 6 } })
+        assertTrue(others.isNotEmpty() && others.all { it.question.split(" ")[0].toInt() >= 120 })
+    }
+
+    @Test
+    fun theDifficultyCarriesOnToEverySum() {
+        val mission = SumsMission(count = 5, Random(2), Difficulty.GENTLE)
+        repeat(4) {
+            assertTrue(mission.state.value.sum.answer < 30)
+            mission.answer(mission.state.value.sum.answer)
+        }
+        assertTrue(mission.state.value.sum.answer < 30)
     }
 
     @Test
@@ -82,7 +112,7 @@ class SumsMissionTest {
 class BreatheMissionTest {
 
     private val time = TestTimeSource()
-    private val mission = BreatheMission(time)
+    private val mission = BreatheMission(time = time)
 
     private fun breathe() {
         mission.press()
@@ -97,7 +127,7 @@ class BreatheMissionTest {
         mission.tick()
         assertEquals(0.25f, mission.state.value.hold)
         assertTrue(mission.state.value.holding)
-        assertEquals(0.25f / BREATHS, mission.state.value.progress)
+        assertEquals(0.25f / 3, mission.state.value.progress)
     }
 
     @Test
@@ -131,6 +161,29 @@ class BreatheMissionTest {
         mission.press()
         assertFalse(mission.state.value.holding)
     }
+
+    @Test
+    fun theAlarmSetsHowManyBreaths() {
+        val long = BreatheMission(5, time)
+        fun breatheLong() {
+            long.press()
+            time += BreatheMission.HOLD
+            long.tick()
+        }
+        breatheLong()
+        assertEquals(BreatheNote.MORE, long.state.value.note)
+        assertEquals(4, long.state.value.left)
+        repeat(3) { breatheLong() }
+        assertFalse(long.state.value.done)
+        breatheLong()
+        assertTrue(long.state.value.done)
+
+        val one = BreatheMission(1, time)
+        one.press()
+        time += BreatheMission.HOLD
+        one.tick()
+        assertTrue(one.state.value.done)
+    }
 }
 
 class ShakeMissionTest {
@@ -155,6 +208,17 @@ class ShakeMissionTest {
         assertTrue(detector.isShake(jolt(100)))
         assertFalse(detector.isShake(jolt(150)))
         assertTrue(detector.isShake(jolt(400)))
+    }
+
+    @Test
+    fun aHigherThresholdNeedsAFirmerShake() {
+        val firm = ShakeDetector(threshold = Difficulty.TOUGH.shakeForce)
+        val soft = ShakeDetector(threshold = Difficulty.GENTLE.shakeForce)
+        // About 2.1 g: enough for Gentle and Normal, not for Tough.
+        val medium = Acceleration(20.6f, 0f, 0f, 0)
+        assertTrue(soft.isShake(medium))
+        assertTrue(ShakeDetector(threshold = Difficulty.NORMAL.shakeForce).isShake(medium))
+        assertFalse(firm.isShake(medium))
     }
 
     @Test

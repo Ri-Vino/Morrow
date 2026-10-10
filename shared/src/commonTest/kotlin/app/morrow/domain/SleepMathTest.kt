@@ -15,7 +15,7 @@ private val london = TimeZone.of("Europe/London")
 class SleepMathTest {
 
     private fun alarm(hour: Int, minute: Int, enabled: Boolean = true) =
-        Alarm(id = 1, hour = hour, minute = minute, label = "Work days", days = emptySet(), mission = MissionType.SUMS, enabled = enabled)
+        Alarm(id = 1, hour = hour, minute = minute, label = "Work days", days = emptySet(), games = DefaultGames, enabled = enabled)
 
     @Test
     fun timeUntilTheNextAlarm() {

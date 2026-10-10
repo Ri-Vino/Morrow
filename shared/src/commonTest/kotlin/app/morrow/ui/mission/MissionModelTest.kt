@@ -41,6 +41,21 @@ class MissionModelTest {
     }
 
     @Test
+    fun breatheCountsTheAlarmsBreaths() {
+        val state = BreatheState(breaths = 1, hold = 0f, holding = false, note = BreatheNote.MORE, count = 5)
+        assertEquals("Slow breaths", breatheModel(state).title)
+        assertEquals("1 of 5", breatheModel(state).count)
+        assertEquals("Lovely. Four more.", breatheHint(state))
+    }
+
+    @Test
+    fun pipFollowsTheWholeSequence() {
+        assertEquals("Mmm… five more minutes?", sumsModel(sums(0)).pipLine)
+        assertEquals("Ooh, I can see the light.", sumsModel(sums(0), overall = 0.5f).pipLine)
+        assertEquals("Nearly there, keep going!", shakeModel(ShakeState(shakes = 30, goal = 30), overall = 0.9f).pipLine)
+    }
+
+    @Test
     fun shakeCountsUpToTheGoal() {
         val model = shakeModel(ShakeState(shakes = 9, goal = 30))
         assertEquals("9 of 30", model.count)

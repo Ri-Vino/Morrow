@@ -5,6 +5,12 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.semantics.contentDescription
+import app.morrow.ui.components.Icons
+import app.morrow.ui.components.MorrowIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,9 +56,17 @@ import app.morrow.ui.components.drawPip
 import app.morrow.ui.components.svgPath
 import app.morrow.ui.components.withAlpha
 
-/** Every mission's screen: a strip of sky where Pip rises with [progress], the mission's header and Pip's line, then [body]. */
+/**
+ * Every mission's screen: a strip of sky where Pip rises with [progress], the mission's header with a chip for each
+ * game in the sequence, if there's more than one, and Pip's line, then [body].
+ */
 @Composable
-internal fun MissionFrame(model: MissionModel, progress: Float, body: @Composable ColumnScope.() -> Unit) {
+internal fun MissionFrame(
+    model: MissionModel,
+    progress: Float,
+    chips: List<StepChip> = emptyList(),
+    body: @Composable ColumnScope.() -> Unit,
+) {
     val colors = MorrowTheme.colors
     val type = MorrowTheme.type
     Column(Modifier.fillMaxSize().background(colors.bg)) {
@@ -66,6 +80,7 @@ internal fun MissionFrame(model: MissionModel, progress: Float, body: @Composabl
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     BasicText("WAKE-UP MISSION", style = type.label.copy(color = Illustration.sunriseGreeting))
                     BasicText(model.title, style = type.title.copy(color = Illustration.glint), modifier = Modifier.semantics { heading() })
+                    if (chips.isNotEmpty()) StepChips(chips)
                 }
                 BasicText(
                     model.count,
@@ -95,6 +110,30 @@ internal fun MissionFrame(model: MissionModel, progress: Float, body: @Composabl
                 horizontalAlignment = Alignment.CenterHorizontally,
                 content = body,
             )
+        }
+    }
+}
+
+@Composable
+private fun StepChips(chips: List<StepChip>) {
+    Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        chips.forEach { chip ->
+            val background = when (chip.state) {
+                ChipState.DONE -> Illustration.sun
+                ChipState.NOW -> Illustration.onBadge.copy(alpha = 0.2f)
+                ChipState.NEXT -> Illustration.ground.copy(alpha = 0.5f)
+            }
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .background(background, CircleShape)
+                    .then(if (chip.state == ChipState.NOW) Modifier.border(2.dp, Illustration.onBadge, CircleShape) else Modifier)
+                    .semantics { contentDescription = chip.label },
+                contentAlignment = Alignment.Center,
+            ) {
+                val tint = if (chip.state == ChipState.DONE) Illustration.sunInk else Illustration.onBadge
+                MorrowIcon(Icons.forMission(chip.type), tint, size = 16.dp, strokeWidth = 2.2f)
+            }
         }
     }
 }

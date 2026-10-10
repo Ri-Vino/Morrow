@@ -36,7 +36,6 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import app.morrow.missions.BREATHS
 import app.morrow.missions.BreatheMission
 import app.morrow.missions.BreatheState
 import app.morrow.theme.Illustration
@@ -54,7 +53,7 @@ internal fun BreatheBody(state: BreatheState, mission: BreatheMission) {
         BasicText(breatheLabel(state), style = MorrowTheme.type.title.copy(color = colors.text), modifier = Modifier.heightIn(min = 32.dp))
         HoldButton(state.hold, mission)
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            repeat(BREATHS) { i -> BreathDot(on = i < state.breaths) }
+            repeat(state.count) { i -> BreathDot(on = i < state.breaths) }
         }
         BasicText(
             breatheHint(state),

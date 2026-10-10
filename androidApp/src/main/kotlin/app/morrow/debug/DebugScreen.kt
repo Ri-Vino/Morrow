@@ -26,7 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.morrow.alarm.RingService
 import app.morrow.domain.Alarm
-import app.morrow.domain.MissionType
+import app.morrow.domain.DefaultGames
 import app.morrow.domain.nextAlarm
 import app.morrow.morrow
 import app.morrow.platform.PermissionGate
@@ -119,7 +119,7 @@ fun DebugScreen(permissions: PermissionGate, onBack: () -> Unit) {
             Row {
                 DebugButton("Add alarm in 1 min") {
                     val inAMinute = (Clock.System.now() + 1.minutes).toLocalDateTime(zone)
-                    val alarm = Alarm(0, inAMinute.hour, inAMinute.minute, "Test", emptySet(), MissionType.SUMS, enabled = true)
+                    val alarm = Alarm(0, inAMinute.hour, inAMinute.minute, "Test", emptySet(), DefaultGames, enabled = true)
                     scope.launch { app.coordinator.save(alarm) }
                 }
                 DebugButton("Ring now") { RingService.start(context, alarms.firstOrNull()?.id ?: -1) }

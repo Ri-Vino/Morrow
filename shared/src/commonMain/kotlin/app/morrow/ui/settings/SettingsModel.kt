@@ -1,7 +1,6 @@
 package app.morrow.ui.settings
 
 import app.morrow.domain.Difficulty
-import app.morrow.missions.BREATHS
 import app.morrow.platform.AlarmPermission
 import app.morrow.theme.ThemeKind
 
@@ -10,6 +9,8 @@ data class SettingsModel(
     val followDescription: String,
     /** The theme showing now: the pinned one, or the clock's. */
     val shownTheme: ThemeKind,
+    /** What the chosen difficulty means for a round. */
+    val difficultyLevel: String,
     val difficultyDescription: String,
     val permissions: List<PermissionStatus>,
 )
@@ -28,7 +29,12 @@ fun settingsModel(
         followClock = pinned == null,
         followDescription = if (pinned == null) "Now showing ${shown.displayName}" else "Pinned to ${shown.displayName}",
         shownTheme = shown,
-        difficultyDescription = "${difficulty.sums} sums · $BREATHS breaths · ${difficulty.shakes} shakes",
+        difficultyLevel = when (difficulty) {
+            Difficulty.GENTLE -> "Gentler rounds: small sums, soft shakes."
+            Difficulty.NORMAL -> "Everyday rounds: two-digit sums."
+            Difficulty.TOUGH -> "Tougher rounds: bigger sums, firm shakes."
+        },
+        difficultyDescription = "How hard each round is. The number of rounds is set on each alarm.",
         permissions = asked.map { PermissionStatus(it, granted = it !in missing) },
     )
 }

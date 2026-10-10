@@ -1,7 +1,13 @@
 package app.morrow.ui.edit
 
 import app.morrow.domain.Alarm
+import app.morrow.domain.DefaultGames
+import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
+import app.morrow.domain.MissionType.BREATHE
+import app.morrow.domain.MissionType.SCAN
+import app.morrow.domain.MissionType.SHAKE
+import app.morrow.domain.MissionType.SUMS
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -12,8 +18,10 @@ import kotlin.test.assertTrue
 
 class EditModelTest {
 
-    private fun alarm(hour: Int, minute: Int, id: Long = 1, mission: MissionType = MissionType.SUMS) =
-        Alarm(id, hour, minute, "Alarm", emptySet(), mission, enabled = true)
+    private fun alarm(hour: Int, minute: Int, id: Long = 1, games: List<GameStep> = DefaultGames) =
+        Alarm(id, hour, minute, "Alarm", emptySet(), games, enabled = true)
+
+    private fun games(vararg steps: Pair<MissionType, Int>) = alarm(7, 0, games = steps.map { (type, rounds) -> GameStep(type, rounds) })
 
     /** The point on the dial for [minuteOfDay]: midnight at the top, going clockwise. */
     private fun pointFor(minuteOfDay: Double): Pair<Float, Float> {
@@ -87,14 +95,80 @@ class EditModelTest {
     }
 
     @Test
-    fun missionDescriptionsUseTheMissionSize() {
-        assertEquals(
-            "Solve 3 quick sums. Best if you sleep through anything.",
-            editModel(alarm(7, 0), nowMinute = 600).missionDescription,
-        )
-        assertEquals(
-            "Shake your phone 45 times to get the blood moving.",
-            editModel(alarm(7, 0, mission = MissionType.SHAKE), nowMinute = 600, shakeGoal = 45).missionDescription,
-        )
+    fun gameRowsListTheGamesInPlayOrder() {
+        val rows = editModel(games(SHAKE to 3, SUMS to 1, BREATHE to 5, SCAN to 1), nowMinute = 600).games
+        assertEquals(listOf(1, 2, 3, 4), rows.map { it.step })
+        assertEquals(listOf("Shake", "Sums", "Breathe", "Scan"), rows.map { it.name })
+        assertEquals(listOf("30 shakes", "1 sum", "5 slow breaths", "Your kettle code"), rows.map { it.roundsText })
+        assertEquals(listOf(true, true, true, false), rows.map { it.counted })
+        assertEquals(listOf(true, false, true, false), rows.map { it.canFewer })
+        assertEquals(listOf(true, true, false, false), rows.map { it.canMore })
+        assertEquals(listOf(false, true, true, true), rows.map { it.canMoveUp })
+        assertEquals(listOf(true, true, true, false), rows.map { it.canMoveDown })
+        assertTrue(rows.all { it.removable })
+    }
+
+    @Test
+    fun theOnlyGameCantBeRemoved() {
+        val row = editModel(alarm(7, 0), nowMinute = 600).games.single()
+        assertFalse(row.removable)
+        assertFalse(row.canMoveUp || row.canMoveDown)
+        assertEquals("3 sums", row.roundsText)
+    }
+
+    @Test
+    fun estimateAddsUpEachRound() {
+        assertEquals(36 + 12 + 24 + 40, gamesSeconds(games(SUMS to 3, BREATHE to 2, SHAKE to 3, SCAN to 1).games))
+        assertEquals(Estimate("About 2 min to finish", tooLong = false), editModel(games(SUMS to 3, BREATHE to 2, SHAKE to 3, SCAN to 1), nowMinute = 600).estimate)
+        assertEquals("About 1 min to finish", editModel(games(BREATHE to 1), nowMinute = 600).estimate.text)
+    }
+
+    @Test
+    fun overEightMinutesTheEstimateWarns() {
+        assertEquals(Estimate("About 8 min to finish", tooLong = false), estimate(480))
+        assertEquals(Estimate("About 8 min. Pip stops singing at 10, so keep it shorter.", tooLong = true), estimate(481))
+        assertEquals(Estimate("About 9 min. Pip stops singing at 10, so keep it shorter.", tooLong = true), estimate(540))
+    }
+
+    @Test
+    fun theAddSheetListsEveryGameAndDimsTheAddedOnes() {
+        val model = editModel(games(BREATHE to 3, SCAN to 1), nowMinute = 600)
+        assertEquals(MissionType.entries, model.gameChoices.map { it.type })
+        assertEquals(listOf(false, true, false, true), model.gameChoices.map { it.added })
+        assertEquals("Quick mental maths. Best if you sleep through anything.", model.gameChoices.first().description)
+        assertTrue(model.canAddGame)
+        assertFalse(editModel(games(SUMS to 3, BREATHE to 3, SHAKE to 3, SCAN to 1), nowMinute = 600).canAddGame)
+    }
+
+    @Test
+    fun roundsStayWithinTheGamesLimits() {
+        val draft = games(SUMS to 3, SHAKE to 6)
+        assertEquals(4, draft.withRounds(SUMS, 4).games[0].rounds)
+        assertEquals(1, draft.withRounds(SUMS, 0).games[0].rounds)
+        assertEquals(6, draft.withRounds(SHAKE, 7).games[1].rounds)
+    }
+
+    @Test
+    fun addingAppendsWithTheUsualRoundsOnce() {
+        val draft = alarm(7, 0).withGame(SHAKE)
+        assertEquals(listOf(GameStep(SUMS, 3), GameStep(SHAKE, 3)), draft.games)
+        assertEquals(draft, draft.withGame(SHAKE))
+    }
+
+    @Test
+    fun removingKeepsAtLeastOneGame() {
+        val draft = games(SUMS to 3, BREATHE to 2)
+        assertEquals(listOf(GameStep(BREATHE, 2)), draft.withoutGame(SUMS).games)
+        assertEquals(listOf(GameStep(BREATHE, 2)), draft.withoutGame(SUMS).withoutGame(BREATHE).games)
+    }
+
+    @Test
+    fun movingChangesThePlayOrderAndStopsAtTheEnds() {
+        val draft = games(SUMS to 3, BREATHE to 2, SCAN to 1)
+        assertEquals(listOf(BREATHE, SUMS, SCAN), draft.withGameMoved(BREATHE, -1).games.map { it.type })
+        assertEquals(listOf(BREATHE, SCAN, SUMS), draft.withGameMoved(SUMS, 2).games.map { it.type })
+        assertEquals(draft, draft.withGameMoved(SUMS, -1))
+        assertEquals(draft, draft.withGameMoved(SCAN, 1))
+        assertEquals(draft, draft.withGameMoved(SHAKE, 1))
     }
 }

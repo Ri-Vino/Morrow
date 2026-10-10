@@ -51,4 +51,6 @@ object Illustration {
     val mistake = Color(0xFFE8806A)
     /** Behind the camera picture. */
     val viewfinder = Color(0xFF150E0C)
+    /** Dims the screen behind a bottom sheet. */
+    val scrim = Color(0x730F0A08)
 }

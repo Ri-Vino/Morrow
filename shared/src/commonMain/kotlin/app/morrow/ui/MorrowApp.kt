@@ -24,7 +24,10 @@ import app.morrow.data.AlarmRepository
 import app.morrow.data.AlarmSetup
 import app.morrow.data.MorrowSettings
 import app.morrow.domain.Alarm
+import app.morrow.domain.DefaultGames
 import app.morrow.domain.MissionType
+import app.morrow.domain.decodeGames
+import app.morrow.domain.encodeGames
 import app.morrow.domain.nextAlarm
 import app.morrow.platform.AlarmSound
 import app.morrow.platform.PermissionGate
@@ -36,14 +39,15 @@ import app.morrow.ui.edit.EditActions
 import app.morrow.ui.edit.EditScreen
 import app.morrow.ui.edit.KettleCodeScreen
 import app.morrow.ui.edit.editModel
+import app.morrow.ui.edit.withGame
 import app.morrow.ui.firstrun.SetupScreen
 import app.morrow.ui.firstrun.WelcomeScreen
 import app.morrow.ui.home.HomeActions
 import app.morrow.ui.home.HomeScreen
 import app.morrow.ui.home.homeModel
 import app.morrow.ui.components.skySceneState
-import app.morrow.ui.mission.MissionRoute
 import app.morrow.ui.mission.MissionServices
+import app.morrow.ui.mission.SequenceRoute
 import app.morrow.ui.morning.MorningRoute
 import app.morrow.ui.ring.RingPreview
 import app.morrow.ui.settings.SettingsActions
@@ -222,7 +226,7 @@ private fun EditRoute(
             scanner = services.missions.scanner,
             onSaved = { code ->
                 scope.launch { services.settings.setKettleCode(code) }
-                draft = current.copy(mission = MissionType.SCAN)
+                draft = current.withGame(MissionType.SCAN)
                 pickingCode = false
             },
             onCancel = { pickingCode = false },
@@ -231,11 +235,12 @@ private fun EditRoute(
     }
     EditScreen(
         draft = current,
-        model = editModel(current, nowMinute, sumsCount = missions.difficulty.sums, shakeGoal = missions.difficulty.shakes),
+        model = editModel(current, nowMinute),
         actions = EditActions(
             onChange = { changed ->
-                // Scan needs a code to look for, so save one the first time it's picked.
-                val needsCode = changed.mission == MissionType.SCAN && current.mission != MissionType.SCAN && missions.kettleCode == null
+                // Scan needs a code to look for, so save one the first time it's added.
+                val needsCode = changed.games.any { it.type == MissionType.SCAN } &&
+                    current.games.none { it.type == MissionType.SCAN } && missions.kettleCode == null
                 if (needsCode) pickingCode = true else draft = changed
             },
             onBack = onDone,
@@ -314,8 +319,8 @@ private fun RingPreviewRoute(services: MorrowServices, alarm: Alarm, onSystemBar
             onStartMission = { stage = PreviewStage.MISSION },
             preview = RingPreview(soundOn, onToggleSound = { soundOn = !soundOn }, onExit = onExit),
         )
-        PreviewStage.MISSION -> MissionRoute(
-            alarm.mission,
+        PreviewStage.MISSION -> SequenceRoute(
+            alarm.games,
             services.missions,
             onDone = {
                 soundOn = false
@@ -339,20 +344,20 @@ private fun RingPreviewRoute(services: MorrowServices, alarm: Alarm, onSystemBar
 private enum class PreviewStage { RINGING, MISSION, MORNING }
 
 /**
- * After the system's alarm screen, which on iOS can only stop the alarm or open the app: the alarm's mission,
- * with its sound playing until the mission is done, then Morning.
+ * After the system's alarm screen, which on iOS can only stop the alarm or open the app: the alarm's games,
+ * with its sound playing until the last one is done, then Morning.
  */
 @Composable
 private fun WakeRoute(services: MorrowServices, alarmId: Long, onSystemBarsChange: (Boolean) -> Unit, onDone: () -> Unit) {
     val scope = rememberCoroutineScope()
-    var mission by rememberSaveable(alarmId) { mutableStateOf<MissionType?>(null) }
+    var games by rememberSaveable(alarmId) { mutableStateOf<String?>(null) }
     var wokeAt by rememberSaveable(alarmId) { mutableStateOf<Long?>(null) }
     LaunchedEffect(alarmId) {
-        if (mission != null) return@LaunchedEffect
+        if (games != null) return@LaunchedEffect
         // Yesterday's "one small thing" lasts until the next alarm, which is this one.
         services.settings.clearIntention()
         services.coordinator.onRang(alarmId)
-        mission = services.repository.get(alarmId)?.mission ?: MissionType.SUMS
+        games = encodeGames(services.repository.get(alarmId)?.games ?: DefaultGames)
     }
     val ringing = wokeAt == null
     val setup by services.settings.alarmSetup.collectAsStateWithLifecycle(initialValue = null)
@@ -364,7 +369,7 @@ private fun WakeRoute(services: MorrowServices, alarmId: Long, onSystemBarsChang
     LaunchedEffect(ringing) { onSystemBarsChange(ringing) }
 
     val woke = wokeAt
-    val chosen = mission
+    val chosen = games
     when {
         woke != null -> MorningRoute(
             settings = services.settings,
@@ -376,7 +381,7 @@ private fun WakeRoute(services: MorrowServices, alarmId: Long, onSystemBarsChang
                 }
             },
         )
-        chosen != null -> MissionRoute(chosen, services.missions, onDone = { wokeAt = Clock.System.now().toEpochMilliseconds() })
+        chosen != null -> SequenceRoute(decodeGames(chosen), services.missions, onDone = { wokeAt = Clock.System.now().toEpochMilliseconds() })
     }
 }
 
@@ -390,7 +395,7 @@ private fun newAlarm() = Alarm(
     minute = 0,
     label = "Alarm",
     days = DayOfWeek.entries.take(5).toSet(),
-    mission = MissionType.SUMS,
+    games = DefaultGames,
     enabled = true,
 )
 
@@ -398,7 +403,7 @@ private fun newAlarm() = Alarm(
 private val AlarmSaver = Saver<Alarm?, List<Any>>(
     save = { alarm ->
         alarm?.let {
-            listOf(it.id, it.hour, it.minute, it.label, it.days.joinToString(",") { day -> day.name }, it.mission.name, it.enabled)
+            listOf(it.id, it.hour, it.minute, it.label, it.days.joinToString(",") { day -> day.name }, encodeGames(it.games), it.enabled)
         }
     },
     restore = { saved ->
@@ -408,7 +413,7 @@ private val AlarmSaver = Saver<Alarm?, List<Any>>(
             minute = saved[2] as Int,
             label = saved[3] as String,
             days = (saved[4] as String).split(",").filter(String::isNotEmpty).map(DayOfWeek::valueOf).toSet(),
-            mission = MissionType.valueOf(saved[5] as String),
+            games = decodeGames(saved[5] as String).ifEmpty { DefaultGames },
             enabled = saved[6] as Boolean,
         )
     },

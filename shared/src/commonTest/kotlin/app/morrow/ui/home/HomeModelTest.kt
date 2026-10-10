@@ -1,6 +1,7 @@
 package app.morrow.ui.home
 
 import app.morrow.domain.Alarm
+import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
 import app.morrow.platform.AlarmPermission
 import kotlinx.datetime.DayOfWeek
@@ -31,7 +32,8 @@ class HomeModelTest {
         mission: MissionType = MissionType.SUMS,
         enabled: Boolean = true,
         id: Long = 1,
-    ) = Alarm(id, hour, minute, label, days, mission, enabled)
+        more: List<MissionType> = emptyList(),
+    ) = Alarm(id, hour, minute, label, days, (listOf(mission) + more).map { GameStep(it) }, enabled)
 
     private fun home(at: String, vararg alarms: Alarm, missing: List<AlarmPermission> = emptyList()) =
         homeModel(alarms.toList(), LocalDateTime.parse(at).toInstant(london), london, missing)
@@ -92,7 +94,7 @@ class HomeModelTest {
         val card = home("2026-10-06T13:00", alarm(15, 30, label = "Gym", mission = MissionType.SCAN)).sleepCard!!
         assertEquals("Pip wakes you in", card.lead)
         assertEquals("2h 30m", card.big)
-        assertEquals("Gym, today at 15:30 · Scan mission", card.detail)
+        assertEquals("Gym, today at 15:30 · Scan", card.detail)
     }
 
     @Test
@@ -113,7 +115,7 @@ class HomeModelTest {
         val card = home("2026-10-06T08:00", alarm(6, 30, label = "Work", days = setOf(MONDAY))).sleepCard!!
         assertEquals("Next wake-up", card.lead)
         assertEquals("Mon 06:30", card.big)
-        assertEquals("Work · Sums mission. Pip will be up before you.", card.detail)
+        assertEquals("Work · Sums. Pip will be up before you.", card.detail)
     }
 
     @Test
@@ -147,16 +149,16 @@ class HomeModelTest {
     fun rowsDescribeEachAlarm() {
         val model = home(
             "2026-10-06T21:40",
-            alarm(6, 30, "Work days", weekdays, id = 1),
+            alarm(6, 30, "Work days", weekdays, id = 1, more = listOf(MissionType.BREATHE)),
             alarm(9, 0, "Slow Sunday", setOf(SUNDAY), MissionType.BREATHE, id = 2),
             alarm(5, 45, "Gym", setOf(MONDAY, WEDNESDAY, FRIDAY), MissionType.SCAN, enabled = false, id = 3),
         )
         assertEquals("2 of 3 on", model.alarmCount)
         assertEquals(
             listOf(
-                AlarmRow(1, "06:30", "Work days · Weekdays", MissionType.SUMS, enabled = true, sunUp = true),
-                AlarmRow(2, "09:00", "Slow Sunday · Sun", MissionType.BREATHE, enabled = true, sunUp = true),
-                AlarmRow(3, "05:45", "Gym · Mon Wed Fri", MissionType.SCAN, enabled = false, sunUp = false),
+                AlarmRow(1, "06:30", "Work days · Weekdays", MissionType.SUMS, "Sums +1", enabled = true, sunUp = true),
+                AlarmRow(2, "09:00", "Slow Sunday · Sun", MissionType.BREATHE, "Breathe", enabled = true, sunUp = true),
+                AlarmRow(3, "05:45", "Gym · Mon Wed Fri", MissionType.SCAN, "Scan", enabled = false, sunUp = false),
             ),
             model.rows,
         )

@@ -43,7 +43,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import app.morrow.domain.Alarm
-import app.morrow.domain.MissionType
+import app.morrow.domain.DefaultGames
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
@@ -313,7 +313,7 @@ private val BigSmile = svgPath("M-14 20 q14 14 28 0")
 private val HillRise = svgPath("M0 640 C90 610 170 618 250 632 C310 642 350 626 390 630 L390 848 L0 848 Z")
 private val HillFront = svgPath("M0 690 C110 672 250 690 390 676 L390 848 L0 848 Z")
 
-private val PreviewModel = ringModel(Alarm(1, 6, 30, "Work days", emptySet(), MissionType.SUMS, enabled = true))
+private val PreviewModel = ringModel(Alarm(1, 6, 30, "Work days", emptySet(), DefaultGames, enabled = true))
 
 @Preview(widthDp = 390, heightDp = 844)
 @Composable

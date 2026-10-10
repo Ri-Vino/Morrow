@@ -101,6 +101,7 @@ fun SettingsScreen(model: SettingsModel, choices: SettingsChoices, actions: Sett
             }
             Section("Mission difficulty") {
                 SegmentedControl(Difficulty.entries, choices.difficulty, Difficulty::displayName, actions.onDifficulty)
+                Note(model.difficultyLevel)
                 Note(model.difficultyDescription)
             }
             Section("Alarm sound") {

@@ -29,9 +29,12 @@ class SettingsModelTest {
     }
 
     @Test
-    fun difficultySpellsOutEachMission() {
-        assertEquals("2 sums · 3 breaths · 20 shakes", settingsModel(null, ThemeKind.NOON, Difficulty.GENTLE, AndroidPermissions, emptyList()).difficultyDescription)
-        assertEquals("5 sums · 3 breaths · 45 shakes", settingsModel(null, ThemeKind.NOON, Difficulty.TOUGH, AndroidPermissions, emptyList()).difficultyDescription)
+    fun difficultySaysHowHardEachRoundIs() {
+        fun model(difficulty: Difficulty) = settingsModel(null, ThemeKind.NOON, difficulty, AndroidPermissions, emptyList())
+        assertEquals("Gentler rounds: small sums, soft shakes.", model(Difficulty.GENTLE).difficultyLevel)
+        assertEquals("Everyday rounds: two-digit sums.", model(Difficulty.NORMAL).difficultyLevel)
+        assertEquals("Tougher rounds: bigger sums, firm shakes.", model(Difficulty.TOUGH).difficultyLevel)
+        assertEquals("How hard each round is. The number of rounds is set on each alarm.", model(Difficulty.TOUGH).difficultyDescription)
     }
 
     @Test

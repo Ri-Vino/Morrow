@@ -18,6 +18,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import app.morrow.data.MorrowSettings
 import app.morrow.data.createSettingsStore
+import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
 import app.morrow.missions.BreatheMission
 import app.morrow.missions.BreatheNote
@@ -44,9 +45,9 @@ import kotlin.test.assertFalse
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TestTimeSource
 
-/** The alarm stops when a mission calls done, so each mission must call it once it's finished and not before. */
+/** The alarm stops when the sequence calls done, so it must call it once the last game is finished and not before. */
 @RunWith(RobolectricTestRunner::class)
-class MissionRouteTest {
+class SequenceRouteTest {
 
     @get:Rule
     val compose = createComposeRule(effectContext = NoMotion)
@@ -60,7 +61,7 @@ class MissionRouteTest {
 
     @Test
     fun sumsAreDoneOnlyWhenEverySumIsRight() {
-        start(MissionType.SUMS)
+        start(GameStep(MissionType.SUMS, 3))
 
         answer(rightAnswer() + 1)
         compose.onNodeWithContentDescription("Not quite. Try again.").assertExists()
@@ -76,7 +77,7 @@ class MissionRouteTest {
 
     @Test
     fun shakingToTheGoalFinishesAndSwitchesTheSensorOff() {
-        start(MissionType.SHAKE)
+        start(GameStep(MissionType.SHAKE, 3))
 
         repeat(29) { motion.jolt(it) }
         compose.waitUntil { compose.onAllNodes(hasText("29 of 30")).fetchSemanticsNodes().isNotEmpty() }
@@ -89,7 +90,7 @@ class MissionRouteTest {
 
     @Test
     fun withNoMotionSensorShakeCanSwitchToSums() {
-        start(MissionType.SHAKE, motion = FakeMotionSensor(available = false))
+        start(GameStep(MissionType.SHAKE, 3), motion = FakeMotionSensor(available = false))
 
         compose.onNodeWithText("Switch to sums instead").performScrollTo().performClick()
 
@@ -101,7 +102,7 @@ class MissionRouteTest {
     fun scanFindsOnlyTheSavedCodeAndThenTurnsTheCameraOff() {
         val settings = settings()
         runBlocking { settings.setKettleCode("kettle-7") }
-        start(MissionType.SCAN, settings)
+        start(GameStep(MissionType.SCAN, 1), settings = settings)
 
         scanner.codes.trySend("someone-elses-kettle")
         compose.waitUntil { compose.onAllNodes(hasText("Not your kettle code")).fetchSemanticsNodes().isNotEmpty() }
@@ -115,7 +116,7 @@ class MissionRouteTest {
     @Test
     fun withTheCameraOffScanCanSwitchToSums() {
         scanner.cameraAllowed.value = false
-        start(MissionType.SCAN)
+        start(GameStep(MissionType.SCAN, 1))
 
         compose.onNodeWithText("Camera is off").assertExists()
         compose.onNodeWithText("Switch to sums instead").performScrollTo().performClick()
@@ -127,7 +128,7 @@ class MissionRouteTest {
     @Test
     fun lettingGoOfPipEarlyStartsTheBreathAgain() {
         val time = TestTimeSource()
-        val mission = BreatheMission(time)
+        val mission = BreatheMission(time = time)
         // Holding Pip redraws every frame, so frames are stepped by hand rather than run until the screen is still.
         compose.mainClock.autoAdvance = false
         compose.setContent {
@@ -156,8 +157,55 @@ class MissionRouteTest {
         compose.onNodeWithText("Lovely. Two more.").assertExists()
     }
 
-    private fun start(type: MissionType, settings: MorrowSettings = settings(), motion: MotionSensor = this.motion) {
-        compose.setContent { MissionRoute(type, MissionServices(settings, motion, scanner), onDone = { done = true }) }
+    @Test
+    fun twoGamesAreDoneOnlyAfterTheSecond() {
+        start(GameStep(MissionType.SUMS, 1), GameStep(MissionType.SHAKE, 1))
+        compose.onNodeWithContentDescription("Game 1 of 2, Sums, now").assertExists()
+        compose.onNodeWithContentDescription("Game 2 of 2, Shake, next").assertExists()
+
+        answer(rightAnswer())
+        compose.onNodeWithText("Nice one! Next up: shake it off.").assertExists()
+        compose.onNodeWithContentDescription("Game 1 of 2, Sums, done").assertExists()
+        assertNotDone()
+
+        compose.onNodeWithText("Shake it off").assertExists()
+        compose.onNodeWithContentDescription("Game 2 of 2, Shake, now").assertExists()
+        compose.onNodeWithText("0 of 10").assertExists()
+        repeat(9) { motion.jolt(it) }
+        compose.waitUntil { compose.onAllNodes(hasText("9 of 10")).fetchSemanticsNodes().isNotEmpty() }
+        assertNotDone()
+
+        motion.jolt(9)
+        assertFinishes()
+    }
+
+    @Test
+    fun switchingToSumsReplacesOnlyTheGameThatCantBePlayed() {
+        scanner.cameraAllowed.value = false
+        start(GameStep(MissionType.SCAN, 1), GameStep(MissionType.SUMS, 1))
+
+        compose.onNodeWithText("Switch to sums instead").performScrollTo().performClick()
+        compose.onNodeWithText("Wake-up sums").assertExists()
+        compose.onNodeWithContentDescription("Game 1 of 2, Sums, now").assertExists()
+        compose.onNodeWithText("1 of 3").assertExists()
+        repeat(3) { answer(rightAnswer()) }
+        assertNotDone()
+
+        compose.onNodeWithContentDescription("Game 2 of 2, Sums, now").assertExists()
+        compose.onNodeWithText("1 of 1").assertExists()
+        answer(rightAnswer())
+        assertFinishes()
+    }
+
+    @Test
+    fun aSingleGameHasNoChips() {
+        start(GameStep(MissionType.SUMS, 2))
+        compose.onNodeWithText("1 of 2").assertExists()
+        compose.onNodeWithContentDescription("Game 1 of 1", substring = true).assertDoesNotExist()
+    }
+
+    private fun start(vararg games: GameStep, settings: MorrowSettings = settings(), motion: MotionSensor = this.motion) {
+        compose.setContent { SequenceRoute(games.toList(), MissionServices(settings, motion, scanner), onDone = { done = true }) }
         // The mission appears once its settings have loaded from disk.
         compose.waitUntil { compose.onAllNodes(hasText("WAKE-UP MISSION")).fetchSemanticsNodes().isNotEmpty() }
     }

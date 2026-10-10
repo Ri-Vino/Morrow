@@ -34,7 +34,10 @@ class ShakeMission(goal: Int, private val detector: ShakeDetector = ShakeDetecto
     }
 }
 
-/** A shake is a jolt of at least [threshold] times gravity. One jolt lasts several readings, so shakes are at least [gap] apart. */
+/**
+ * A shake is a jolt of at least [threshold] times gravity, which the difficulty sets. One jolt lasts several readings,
+ * so shakes are at least [gap] apart.
+ */
 class ShakeDetector(private val threshold: Float = 2f, private val gap: Duration = 250.milliseconds) {
 
     private var lastShakeAt: Long? = null

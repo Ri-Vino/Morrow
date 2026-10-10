@@ -7,9 +7,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
-const val BREATHS = 3
-
-enum class BreatheNote { TOO_QUICK, TWO_MORE, ONE_MORE }
+enum class BreatheNote { TOO_QUICK, MORE, TWO_MORE, ONE_MORE }
 
 data class BreatheState(
     val breaths: Int,
@@ -17,14 +15,18 @@ data class BreatheState(
     val hold: Float,
     val holding: Boolean,
     val note: BreatheNote?,
+    /** Breaths needed to finish. */
+    val count: Int = 3,
 ) : MissionState {
-    override val progress: Float get() = (breaths + hold) / BREATHS
+    override val progress: Float get() = (breaths + hold) / count
+
+    val left: Int get() = count - breaths
 }
 
-/** Hold Pip for one slow breath of [HOLD], three times. Letting go early starts that breath again. */
-class BreatheMission(private val time: TimeSource = TimeSource.Monotonic) : Mission<BreatheState> {
+/** Hold Pip for one slow breath of [HOLD], [count] times. Letting go early starts that breath again. */
+class BreatheMission(count: Int = 3, private val time: TimeSource = TimeSource.Monotonic) : Mission<BreatheState> {
 
-    private val mutableState = MutableStateFlow(BreatheState(breaths = 0, hold = 0f, holding = false, note = null))
+    private val mutableState = MutableStateFlow(BreatheState(breaths = 0, hold = 0f, holding = false, note = null, count = count))
     override val state: StateFlow<BreatheState> = mutableState.asStateFlow()
     private var pressedAt: TimeMark? = null
 
@@ -43,13 +45,14 @@ class BreatheMission(private val time: TimeSource = TimeSource.Monotonic) : Miss
             return
         }
         pressedAt = null
-        val breaths = state.value.breaths + 1
-        val note = when (breaths) {
-            1 -> BreatheNote.TWO_MORE
-            2 -> BreatheNote.ONE_MORE
-            else -> null
+        val breathed = state.value.copy(breaths = state.value.breaths + 1, hold = 0f, holding = false)
+        val note = when (breathed.left) {
+            0 -> null
+            1 -> BreatheNote.ONE_MORE
+            2 -> BreatheNote.TWO_MORE
+            else -> BreatheNote.MORE
         }
-        mutableState.value = BreatheState(breaths = breaths, hold = 0f, holding = false, note = note)
+        mutableState.value = breathed.copy(note = note)
     }
 
     fun release() {

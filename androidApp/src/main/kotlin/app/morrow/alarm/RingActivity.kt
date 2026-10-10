@@ -23,8 +23,8 @@ import app.morrow.debug.WithTestFontScale
 import app.morrow.missions.AndroidCodeScanner
 import app.morrow.missions.AndroidMotionSensor
 import app.morrow.morrow
-import app.morrow.ui.mission.MissionRoute
 import app.morrow.ui.mission.MissionServices
+import app.morrow.ui.mission.SequenceRoute
 import app.morrow.ui.morning.MorningRoute
 import app.morrow.ui.ring.RingScreen
 import app.morrow.ui.ring.ringModel
@@ -54,7 +54,7 @@ class RingActivity : ComponentActivity() {
                 val alarm by Ringing.current.collectAsState()
                 var stage by rememberSaveable { mutableStateOf(Stage.RINGING) }
                 var wokeAt by rememberSaveable { mutableLongStateOf(0L) }
-                // The alarm stops when the mission is done, or at the safety stop; only the first leads to Morning.
+                // The alarm stops when the games are done, or at the safety stop; only the first leads to Morning.
                 LaunchedEffect(alarm, stage) { if (alarm == null && stage != Stage.MORNING) finish() }
                 LaunchedEffect(stage) { matchSystemBars(lightIcons = stage != Stage.MORNING) }
 
@@ -62,9 +62,9 @@ class RingActivity : ComponentActivity() {
                 when {
                     stage == Stage.MORNING -> MorningRoute(morrow.settings, Instant.fromEpochMilliseconds(wokeAt), onStartDay = ::startDay)
                     ringing == null -> Unit
-                    // The alarm rings on until the mission is done. If this screen fails, the safety stop still ends it.
-                    stage == Stage.MISSION -> MissionRoute(
-                        ringing.mission,
+                    // The alarm rings on until the last game is done. If this screen fails, the safety stop still ends it.
+                    stage == Stage.MISSION -> SequenceRoute(
+                        ringing.games,
                         missions,
                         onDone = {
                             wokeAt = Clock.System.now().toEpochMilliseconds()

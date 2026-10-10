@@ -15,7 +15,7 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import app.morrow.data.AlarmSetup
 import app.morrow.domain.Alarm
-import app.morrow.domain.MissionType
+import app.morrow.domain.DefaultGames
 import app.morrow.morrow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -136,7 +136,7 @@ class RingService : Service() {
     /** Shown until the alarm's details load, or if the alarm was deleted as it went off. */
     private fun placeholder(alarmId: Long): Alarm {
         val now = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-        return Alarm(alarmId, now.hour, now.minute, "Alarm", emptySet(), MissionType.SUMS, enabled = true)
+        return Alarm(alarmId, now.hour, now.minute, "Alarm", emptySet(), DefaultGames, enabled = true)
     }
 
     companion object {

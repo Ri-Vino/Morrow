@@ -14,7 +14,7 @@ data class MorrowColors(
     val accent: Color,
     val onAccent: Color,
     val hi: Color,
-    /** Only for problems that stop an alarm ringing. */
+    /** Only for problems with an alarm: one that can't ring, or games that outlast its singing. */
     val warn: Color,
     val onWarn: Color,
     val knobOff: Color,

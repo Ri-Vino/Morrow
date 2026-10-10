@@ -2,6 +2,7 @@ package app.morrow.data
 
 import app.cash.turbine.test
 import app.morrow.domain.Alarm
+import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.DayOfWeek
@@ -20,7 +21,7 @@ class AlarmRepositoryTest {
     private val repository = AlarmRepository(dao)
 
     private fun alarm(hour: Int, minute: Int, days: Set<DayOfWeek> = emptySet(), id: Long = 0) =
-        Alarm(id = id, hour = hour, minute = minute, label = "Gym", days = days, mission = MissionType.SCAN, enabled = true)
+        Alarm(id = id, hour = hour, minute = minute, label = "Gym", days = days, games = listOf(GameStep(MissionType.SCAN, 1)), enabled = true)
 
     @Test
     fun newAlarmGetsAnIdAndShowsUpInTheFlow() = runTest {

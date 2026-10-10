@@ -3,7 +3,9 @@ package app.morrow.data
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import app.morrow.domain.Alarm
-import app.morrow.domain.MissionType
+import app.morrow.domain.DefaultGames
+import app.morrow.domain.decodeGames
+import app.morrow.domain.encodeGames
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.isoDayNumber
 
@@ -15,7 +17,8 @@ data class AlarmEntity(
     val label: String,
     /** Bit 0 is Monday, bit 6 is Sunday. */
     val days: Int,
-    val mission: MissionType,
+    /** In play order, as [encodeGames] writes them, for example "SUMS:3,BREATHE:2". */
+    val games: String,
     val enabled: Boolean,
 )
 
@@ -25,7 +28,7 @@ internal fun Alarm.toEntity() = AlarmEntity(
     minute = minute,
     label = label,
     days = days.fold(0) { mask, day -> mask or (1 shl (day.isoDayNumber - 1)) },
-    mission = mission,
+    games = encodeGames(games),
     enabled = enabled,
 )
 
@@ -35,6 +38,6 @@ internal fun AlarmEntity.toAlarm() = Alarm(
     minute = minute,
     label = label,
     days = DayOfWeek.entries.filterTo(mutableSetOf()) { days and (1 shl (it.isoDayNumber - 1)) != 0 },
-    mission = mission,
+    games = decodeGames(games).distinctBy { it.type }.ifEmpty { DefaultGames },
     enabled = enabled,
 )

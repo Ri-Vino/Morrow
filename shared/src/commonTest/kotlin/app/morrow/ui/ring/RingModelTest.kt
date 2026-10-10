@@ -1,6 +1,7 @@
 package app.morrow.ui.ring
 
 import app.morrow.domain.Alarm
+import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
 import app.morrow.theme.Illustration
 import kotlin.test.Test
@@ -9,20 +10,28 @@ import kotlin.test.assertTrue
 
 class RingModelTest {
 
-    private fun alarm(label: String, mission: MissionType = MissionType.SUMS) =
-        Alarm(1, 6, 5, label, emptySet(), mission, enabled = true)
+    private fun alarm(label: String, vararg games: MissionType = arrayOf(MissionType.SUMS)) =
+        Alarm(1, 6, 5, label, emptySet(), games.map { GameStep(it) }, enabled = true)
 
     @Test
-    fun showsTimeLabelAndMission() {
+    fun showsTimeLabelAndGames() {
         val model = ringModel(alarm("Work days", MissionType.BREATHE))
         assertEquals("06:05", model.time)
-        assertEquals("Work days · Breathe mission", model.label)
+        assertEquals("Work days · Breathe", model.label)
         assertEquals("I’m up — start breathe", model.startLabel)
     }
 
     @Test
-    fun blankLabelShowsOnlyTheMission() {
-        assertEquals("Sums mission", ringModel(alarm("  ")).label)
+    fun severalGamesAreNamedInOrderAndStartWithTheFirst() {
+        val model = ringModel(alarm("Work days", MissionType.SHAKE, MissionType.SUMS, MissionType.SCAN))
+        assertEquals("Work days · Shake, Sums and Scan", model.label)
+        assertEquals("I’m up — start shake", model.startLabel)
+        assertEquals("Work days · Sums and Breathe", ringModel(alarm("Work days", MissionType.SUMS, MissionType.BREATHE)).label)
+    }
+
+    @Test
+    fun blankLabelShowsOnlyTheGames() {
+        assertEquals("Sums", ringModel(alarm("  ")).label)
     }
 
     @Test

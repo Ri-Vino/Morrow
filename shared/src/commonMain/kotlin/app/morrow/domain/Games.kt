@@ -1,0 +1,41 @@
+package app.morrow.domain
+
+/** One game in an alarm's wake-up sequence, played for [rounds] rounds. */
+data class GameStep(val type: MissionType, val rounds: Int) {
+    init {
+        require(rounds in 1..type.rules.maxRounds) { "$type takes 1..${type.rules.maxRounds} rounds, was $rounds" }
+    }
+
+    /** A new step of [type] with its usual number of rounds. */
+    constructor(type: MissionType) : this(type, type.rules.defaultRounds)
+}
+
+/** How many rounds a game allows and starts with, and roughly how long one round takes, for Edit's estimate. */
+data class GameRules(val maxRounds: Int, val defaultRounds: Int, val secondsPerRound: Int)
+
+val MissionType.rules: GameRules
+    get() = when (this) {
+        MissionType.SUMS -> GameRules(maxRounds = 10, defaultRounds = 3, secondsPerRound = 12)
+        MissionType.BREATHE -> GameRules(maxRounds = 5, defaultRounds = 3, secondsPerRound = 6)
+        MissionType.SHAKE -> GameRules(maxRounds = 6, defaultRounds = 3, secondsPerRound = 8)
+        MissionType.SCAN -> GameRules(maxRounds = 1, defaultRounds = 1, secondsPerRound = 40)
+    }
+
+/** One round of Shake is this many shakes. */
+const val SHAKES_PER_ROUND = 10
+
+/** What a new alarm plays, and the fallback whenever an alarm's games can't be read. */
+val DefaultGames = listOf(GameStep(MissionType.SUMS, 3))
+
+/** Games as stored, for example "SUMS:3,BREATHE:2". */
+fun encodeGames(games: List<GameStep>): String = games.joinToString(",") { "${it.type.name}:${it.rounds}" }
+
+/**
+ * Reads [encodeGames]' text. Steps of a game this version doesn't know are left out, and rounds are kept within
+ * the game's limits, so an alarm can always ring. Repeated games are kept.
+ */
+fun decodeGames(text: String): List<GameStep> = text.split(",").mapNotNull { part ->
+    val type = MissionType.entries.firstOrNull { it.name == part.substringBefore(":").trim() } ?: return@mapNotNull null
+    val rounds = part.substringAfter(":", "").trim().toIntOrNull() ?: type.rules.defaultRounds
+    GameStep(type, rounds.coerceIn(1, type.rules.maxRounds))
+}
