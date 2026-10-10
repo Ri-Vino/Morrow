@@ -57,6 +57,8 @@ object Icons {
     const val DeleteDigit = "M20 5H9l-6 7 6 7h11zM13 10l4 4M17 10l-4 4"
     const val Close = "M6 6l12 12M18 6L6 18"
     const val CameraOff = "M3 3l18 18M9.5 4.5h5L16 7h3a2 2 0 0 1 2 2v8.5M17.5 19H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2M9.9 10.4a3 3 0 0 0 4 4"
+    const val Type = "M3 6.5A1.5 1.5 0 0 1 4.5 5h15A1.5 1.5 0 0 1 21 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5zM7 9.5h.01M10.5 9.5h.01M14 9.5h.01M17.5 9.5h.01M7 13h.01M17.5 13h.01M9 15.5h6"
+    const val Unscramble = "M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"
     const val Battery = "M4 7h13a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2zM22 11v2M7 10v4M11 10v4"
 
     fun forTheme(theme: ThemeKind) = when (theme) {
@@ -68,6 +70,8 @@ object Icons {
 
     fun forMission(mission: MissionType) = when (mission) {
         MissionType.SUMS -> "M4 7h6M7 4v6M14 7h6M4.5 14.5l5 5M9.5 14.5l-5 5M14 15.5h6M14 18.5h6"
+        MissionType.TYPE -> Type
+        MissionType.UNSCRAMBLE -> Unscramble
         MissionType.BREATHE -> "M3 9h11a3 3 0 1 0-3-3M3 13h15a3 3 0 1 1-3 3M3 17h7"
         MissionType.SHAKE -> "M9 3h6a1.5 1.5 0 0 1 1.5 1.5v15A1.5 1.5 0 0 1 15 21H9a1.5 1.5 0 0 1-1.5-1.5v-15A1.5 1.5 0 0 1 9 3zM4 8v8M20 8v8M11 18h2"
         MissionType.SCAN -> "M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M8 12h8"

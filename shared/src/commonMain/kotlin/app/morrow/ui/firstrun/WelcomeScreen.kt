@@ -45,7 +45,7 @@ private class Promise(val title: String, val detail: String, val icon: String)
 private val Promises = listOf(
     Promise("Rings on time, every time", "Your phone’s own alarm clock does the waking.", Icons.Clock),
     Promise("A sunrise, not a siren", "The sky warms up and the sound grows slowly.", Icons.Sunrise),
-    Promise("A small mission to get you up", "Sums, breaths, shakes or a kettle hunt.", Icons.Check),
+    Promise("A small mission to get you up", "Sums, sentences, breaths, shakes or a kettle hunt.", Icons.Check),
 )
 
 @Composable

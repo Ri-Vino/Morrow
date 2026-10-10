@@ -31,9 +31,9 @@ class SettingsModelTest {
     @Test
     fun difficultySaysHowHardEachRoundIs() {
         fun model(difficulty: Difficulty) = settingsModel(null, ThemeKind.NOON, difficulty, AndroidPermissions, emptyList())
-        assertEquals("Gentler rounds: small sums, soft shakes.", model(Difficulty.GENTLE).difficultyLevel)
-        assertEquals("Everyday rounds: two-digit sums.", model(Difficulty.NORMAL).difficultyLevel)
-        assertEquals("Tougher rounds: bigger sums, firm shakes.", model(Difficulty.TOUGH).difficultyLevel)
+        assertEquals("Gentler rounds: small sums, short sentences, soft shakes.", model(Difficulty.GENTLE).difficultyLevel)
+        assertEquals("Everyday rounds: two-digit sums and short sentences.", model(Difficulty.NORMAL).difficultyLevel)
+        assertEquals("Tougher rounds: bigger sums, longer sentences, firm shakes.", model(Difficulty.TOUGH).difficultyLevel)
         assertEquals("How hard each round is. The number of rounds is set on each alarm.", model(Difficulty.TOUGH).difficultyDescription)
     }
 

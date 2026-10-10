@@ -16,6 +16,8 @@ data class GameRules(val maxRounds: Int, val defaultRounds: Int, val secondsPerR
 val MissionType.rules: GameRules
     get() = when (this) {
         MissionType.SUMS -> GameRules(maxRounds = 10, defaultRounds = 3, secondsPerRound = 12)
+        MissionType.TYPE -> GameRules(maxRounds = 5, defaultRounds = 2, secondsPerRound = 20)
+        MissionType.UNSCRAMBLE -> GameRules(maxRounds = 5, defaultRounds = 2, secondsPerRound = 15)
         MissionType.BREATHE -> GameRules(maxRounds = 5, defaultRounds = 3, secondsPerRound = 6)
         MissionType.SHAKE -> GameRules(maxRounds = 6, defaultRounds = 3, secondsPerRound = 8)
         MissionType.SCAN -> GameRules(maxRounds = 1, defaultRounds = 1, secondsPerRound = 40)

@@ -15,6 +15,9 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.onChildren
+import androidx.compose.ui.test.onParent
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import app.morrow.data.MorrowSettings
 import app.morrow.data.createSettingsStore
@@ -42,6 +45,7 @@ import org.robolectric.RobolectricTestRunner
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TestTimeSource
 
@@ -198,6 +202,50 @@ class SequenceRouteTest {
     }
 
     @Test
+    fun typeIsDoneOnlyOnceTheWholeSentenceIsTyped() {
+        start(GameStep(MissionType.SUMS, 1), GameStep(MissionType.TYPE, 1))
+
+        answer(rightAnswer())
+        compose.onNodeWithText("Nice one! Next up: type it out.").assertExists()
+        assertNotDone()
+
+        compose.onNodeWithText("Type it out").assertExists()
+        compose.onNodeWithContentDescription("Game 2 of 2, Type, now").assertExists()
+        val sentence = shownSentence()
+        val field = compose.onNodeWithContentDescription("Your sentence")
+        field.performTextInput(sentence.dropLast(4))
+        assertNotDone()
+
+        field.performTextInput(sentence.takeLast(4))
+        assertFinishes()
+    }
+
+    @Test
+    fun unscrambleIsDoneOnlyOnceEveryWordIsTappedInOrder() {
+        start(GameStep(MissionType.UNSCRAMBLE, 1))
+        compose.onNodeWithText("Unscramble").assertExists()
+
+        // The order is hidden, so try the chips one by one: a wrong tap places nothing and never finishes the game.
+        val total = soFar().let { chipCount() }
+        var wrongTaps = 0
+        repeat(total) {
+            val before = soFar()
+            var chip = 0
+            while (soFar() == before) {
+                compose.onAllNodes(hasClickAction())[chip++].performClick()
+                compose.waitForIdle()
+                if (soFar() == before) {
+                    wrongTaps++
+                    assertNotDone()
+                }
+            }
+        }
+
+        assertTrue(wrongTaps > 0)
+        assertFinishes()
+    }
+
+    @Test
     fun aSingleGameHasNoChips() {
         start(GameStep(MissionType.SUMS, 2))
         compose.onNodeWithText("1 of 2").assertExists()
@@ -237,6 +285,15 @@ class SequenceRouteTest {
             else -> a.toInt() * b.toInt()
         }
     }
+
+    /** The sentence Type asks for, shown just under its "TYPE THIS" label. */
+    private fun shownSentence(): String = compose.onNodeWithText("TYPE THIS").onParent().onChildren()[1]
+        .fetchSemanticsNode().config[SemanticsProperties.Text].joinToString("") { it.text }
+
+    private fun soFar(): String = compose.onNodeWithContentDescription("So far", substring = true)
+        .fetchSemanticsNode().config[SemanticsProperties.ContentDescription].single()
+
+    private fun chipCount(): Int = compose.onAllNodes(hasClickAction()).fetchSemanticsNodes().size
 
     private fun answer(value: Int) {
         value.toString().forEach { digit ->

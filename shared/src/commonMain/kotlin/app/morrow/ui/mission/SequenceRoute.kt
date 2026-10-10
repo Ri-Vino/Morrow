@@ -25,6 +25,8 @@ import app.morrow.missions.ScanMission
 import app.morrow.missions.ShakeDetector
 import app.morrow.missions.ShakeMission
 import app.morrow.missions.SumsMission
+import app.morrow.missions.TypeMission
+import app.morrow.missions.UnscrambleMission
 import app.morrow.platform.CodeScanner
 import app.morrow.platform.MotionSensor
 import app.morrow.theme.MorrowTheme
@@ -52,6 +54,8 @@ fun SequenceRoute(games: List<GameStep>, services: MissionServices, onDone: () -
         key(index, current) {
             when (current.type) {
                 MissionType.SUMS -> Sums(current.rounds, loaded, step)
+                MissionType.TYPE -> Type(current.rounds, loaded, step)
+                MissionType.UNSCRAMBLE -> Unscramble(current.rounds, loaded, step)
                 MissionType.BREATHE -> Breathe(current.rounds, step)
                 MissionType.SHAKE -> Shake(current.rounds, loaded, services.motion, step, switchToSums)
                 MissionType.SCAN -> Scan(loaded, services, step, switchToSums)
@@ -70,6 +74,21 @@ private fun Sums(rounds: Int, setup: MissionSetup, step: Step) {
     val mission = remember { SumsMission(rounds, difficulty = setup.difficulty) }
     val state by mission.state.collectAsState()
     StepFrame(step, sumsModel(state, step.overall(state.progress)), state.progress) { SumsBody(state, mission) }
+}
+
+@Composable
+private fun Type(rounds: Int, setup: MissionSetup, step: Step) {
+    val mission = remember { TypeMission(rounds, setup.difficulty) }
+    val state by mission.state.collectAsState()
+    // The keyboard comes up as the step starts, so the first sentence can be typed straight away.
+    StepFrame(step, typeModel(state, step.overall(state.progress)), state.progress) { TypeBody(state, mission, autoFocus = true) }
+}
+
+@Composable
+private fun Unscramble(rounds: Int, setup: MissionSetup, step: Step) {
+    val mission = remember { UnscrambleMission(rounds, setup.difficulty) }
+    val state by mission.state.collectAsState()
+    StepFrame(step, unscrambleModel(state, step.overall(state.progress)), state.progress) { UnscrambleBody(state, mission) }
 }
 
 @Composable

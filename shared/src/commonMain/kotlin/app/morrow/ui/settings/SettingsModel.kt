@@ -30,9 +30,9 @@ fun settingsModel(
         followDescription = if (pinned == null) "Now showing ${shown.displayName}" else "Pinned to ${shown.displayName}",
         shownTheme = shown,
         difficultyLevel = when (difficulty) {
-            Difficulty.GENTLE -> "Gentler rounds: small sums, soft shakes."
-            Difficulty.NORMAL -> "Everyday rounds: two-digit sums."
-            Difficulty.TOUGH -> "Tougher rounds: bigger sums, firm shakes."
+            Difficulty.GENTLE -> "Gentler rounds: small sums, short sentences, soft shakes."
+            Difficulty.NORMAL -> "Everyday rounds: two-digit sums and short sentences."
+            Difficulty.TOUGH -> "Tougher rounds: bigger sums, longer sentences, firm shakes."
         },
         difficultyDescription = "How hard each round is. The number of rounds is set on each alarm.",
         permissions = asked.map { PermissionStatus(it, granted = it !in missing) },

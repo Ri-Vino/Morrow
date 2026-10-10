@@ -8,6 +8,8 @@ import app.morrow.domain.MissionType.BREATHE
 import app.morrow.domain.MissionType.SCAN
 import app.morrow.domain.MissionType.SHAKE
 import app.morrow.domain.MissionType.SUMS
+import app.morrow.domain.MissionType.TYPE
+import app.morrow.domain.MissionType.UNSCRAMBLE
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -120,6 +122,7 @@ class EditModelTest {
     fun estimateAddsUpEachRound() {
         assertEquals(36 + 12 + 24 + 40, gamesSeconds(games(SUMS to 3, BREATHE to 2, SHAKE to 3, SCAN to 1).games))
         assertEquals(Estimate("About 2 min to finish", tooLong = false), editModel(games(SUMS to 3, BREATHE to 2, SHAKE to 3, SCAN to 1), nowMinute = 600).estimate)
+        assertEquals(4 * 20 + 3 * 15, gamesSeconds(games(TYPE to 4, UNSCRAMBLE to 3).games))
         assertEquals("About 1 min to finish", editModel(games(BREATHE to 1), nowMinute = 600).estimate.text)
     }
 
@@ -134,10 +137,10 @@ class EditModelTest {
     fun theAddSheetListsEveryGameAndDimsTheAddedOnes() {
         val model = editModel(games(BREATHE to 3, SCAN to 1), nowMinute = 600)
         assertEquals(MissionType.entries, model.gameChoices.map { it.type })
-        assertEquals(listOf(false, true, false, true), model.gameChoices.map { it.added })
+        assertEquals(listOf(false, false, false, true, false, true), model.gameChoices.map { it.added })
         assertEquals("Quick mental maths. Best if you sleep through anything.", model.gameChoices.first().description)
         assertTrue(model.canAddGame)
-        assertFalse(editModel(games(SUMS to 3, BREATHE to 3, SHAKE to 3, SCAN to 1), nowMinute = 600).canAddGame)
+        assertFalse(editModel(games(SUMS to 3, TYPE to 2, UNSCRAMBLE to 2, BREATHE to 3, SHAKE to 3, SCAN to 1), nowMinute = 600).canAddGame)
     }
 
     @Test

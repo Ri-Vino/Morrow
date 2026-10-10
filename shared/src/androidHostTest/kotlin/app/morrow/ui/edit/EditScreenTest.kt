@@ -120,6 +120,20 @@ class EditScreenTest {
     }
 
     @Test
+    fun theAddSheetListsSixGamesAndCanAddType() {
+        show(alarm())
+
+        compose.onNodeWithText("Add a game").performScrollTo().performClick()
+        listOf("Sums", "Type", "Unscramble", "Breathe", "Shake", "Scan").forEach {
+            compose.onNode(hasText(it) and (hasClickAction() or hasText("Added"))).assertExists()
+        }
+        compose.onNode(hasText("Type") and hasClickAction()).performScrollTo().performClick()
+
+        assertEquals(listOf(GameStep(MissionType.SUMS, 3), GameStep(MissionType.TYPE, 2)), draft.games)
+        compose.onNodeWithText("2 sentences").assertExists()
+    }
+
+    @Test
     fun aGameCanBeRemovedUnlessItsTheLastOne() {
         show(alarm(games = listOf(GameStep(MissionType.SUMS, 3), GameStep(MissionType.SHAKE, 2))))
 
