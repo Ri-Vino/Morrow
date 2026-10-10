@@ -117,7 +117,7 @@ fun SkyDial(minuteOfDay: Int, onMinuteChange: (Int) -> Unit, modifier: Modifier 
         scale(unit, Offset.Zero) {
             // The mini sky, a disc 196 across, with Pip at the chosen time.
             translate(30f, 30f) {
-                clipPath(Path().apply { addOval(Rect(0f, 0f, 196f, 196f)) }) {
+                clipPath(MiniSky) {
                     drawRect(sky, size = Size(196f, 196f))
                     val stars = (-elevation * 2.5f).coerceIn(0f, 1f)
                     if (stars > 0f) DialStars.forEach { (x, y, r) -> drawCircle(Illustration.starlight.copy(alpha = stars), r, Offset(x, y)) }
@@ -170,6 +170,7 @@ fun SkyDial(minuteOfDay: Int, onMinuteChange: (Int) -> Unit, modifier: Modifier 
     }
 }
 
+private val MiniSky = Path().apply { addOval(Rect(0f, 0f, 196f, 196f)) }
 private val DialStars = listOf(Triple(40f, 50f, 1.4f), Triple(78f, 30f, 1.1f), Triple(130f, 44f, 1.5f), Triple(160f, 76f, 1.1f), Triple(56f, 88f, 1.1f), Triple(110f, 80f, 1.2f))
 private val DialHillBack = svgPath("M0 128 C50 112 110 118 196 122 L196 196 L0 196 Z")
 private val DialHillFront = svgPath("M0 152 C70 140 130 154 196 142 L196 196 L0 196 Z")

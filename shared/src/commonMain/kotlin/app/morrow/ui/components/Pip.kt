@@ -83,10 +83,7 @@ internal const val PIP_EXTENT = 124f
 
 /** Draws Pip centred on the origin, in design units. [seconds] drives breathing and the turning rays. */
 internal fun DrawScope.drawPip(look: PipLook, seconds: Float) {
-    if (look.glow) {
-        val glow = if (look.moon) Illustration.moonGlow.copy(alpha = 0.4f) else Illustration.sunLight.copy(alpha = 0.55f)
-        drawCircle(Brush.radialGradient(listOf(glow, glow.copy(alpha = 0f)), Offset.Zero, 62f), 62f, Offset.Zero)
-    }
+    if (look.glow) drawCircle(if (look.moon) MoonGlow else SunGlow, 62f, Offset.Zero)
     if (look.rays && !look.moon) {
         rotate(seconds * 6f, Offset.Zero) { // one turn a minute
             repeat(12) { ray ->
@@ -162,16 +159,30 @@ private fun DrawScope.drawNightcap() {
     drawCircle(Illustration.nightcapTrim, 6.5f, Offset(42f, -38f))
 }
 
-/** Draws [block] as a group at [alpha], so overlapping shapes fade together. [bounds] must hold everything drawn. */
+/**
+ * Draws [block] as a group at [alpha], so overlapping shapes fade together. [bounds] must hold everything drawn.
+ * Only a partly faded group needs the offscreen layer, which is costly to draw each frame.
+ */
 internal fun DrawScope.withAlpha(alpha: Float, bounds: Rect, block: DrawScope.() -> Unit) {
-    drawContext.canvas.saveLayer(bounds, Paint().apply { this.alpha = alpha })
-    block()
-    drawContext.canvas.restore()
+    when {
+        alpha <= 0f -> Unit
+        alpha >= 1f -> block()
+        else -> {
+            drawContext.canvas.saveLayer(bounds, Paint().apply { this.alpha = alpha })
+            block()
+            drawContext.canvas.restore()
+        }
+    }
 }
 
 private fun line(width: Float) = Stroke(width = width, cap = StrokeCap.Round)
 
 internal fun svgPath(data: String): Path = PathParser().parsePathString(data).toPath()
+
+private fun glow(color: Color) = Brush.radialGradient(listOf(color, color.copy(alpha = 0f)), Offset.Zero, 62f)
+
+private val MoonGlow = glow(Illustration.moonGlow.copy(alpha = 0.4f))
+private val SunGlow = glow(Illustration.sunLight.copy(alpha = 0.55f))
 
 // Shapes from the design canvas, in design units around Pip's centre.
 private val HappyEyes = svgPath("M-15 -1 q5 -6 10 0M5 -1 q5 -6 10 0")
