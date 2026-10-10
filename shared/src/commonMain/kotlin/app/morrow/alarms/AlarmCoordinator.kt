@@ -37,6 +37,16 @@ class AlarmCoordinator(
         repository.getAll().forEach(::sync)
     }
 
+    /**
+     * For iOS, where the system rings and stops alarms without waking the app. Given the ids the system still holds,
+     * turns off one-off alarms that have rung since and puts back repeating ones it has lost.
+     */
+    suspend fun catchUp(stillScheduled: Set<Long>) {
+        repository.getAll()
+            .filter { it.enabled && it.id !in stillScheduled }
+            .forEach { if (it.repeats) sync(it) else repository.setEnabled(it.id, false) }
+    }
+
     suspend fun onRang(id: Long) {
         val alarm = repository.get(id) ?: return
         if (alarm.repeats) {

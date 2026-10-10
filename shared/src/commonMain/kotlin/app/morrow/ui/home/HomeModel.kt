@@ -118,6 +118,8 @@ private fun bannerText(blockers: List<AlarmPermission>): String? = when {
     blockers.isEmpty() -> null
     blockers == listOf(AlarmPermission.EXACT_ALARMS) ->
         "Morrow lost permission to set exact alarms. Nothing will go off until you allow it again."
+    blockers == listOf(AlarmPermission.ALARMS) ->
+        "Morrow isn’t allowed to set alarms. Nothing will go off until you allow it."
     else -> {
         val names = blockers.map { it.title.lowercase() }
         val list = if (names.size == 1) names.single() else names.dropLast(1).joinToString(", ") + " and " + names.last()

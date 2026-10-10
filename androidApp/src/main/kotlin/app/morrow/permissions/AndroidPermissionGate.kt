@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import app.morrow.platform.AlarmPermission
+import app.morrow.platform.AndroidPermissions
 import app.morrow.platform.PermissionGate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class AndroidPermissionGate(private val activity: ComponentActivity) : PermissionGate {
 
     private val checks = AlarmPermissions(activity)
+    override val asked: List<AlarmPermission> = AndroidPermissions
     private val state = MutableStateFlow(checks.missing())
     override val missing: StateFlow<List<AlarmPermission>> = state.asStateFlow()
 

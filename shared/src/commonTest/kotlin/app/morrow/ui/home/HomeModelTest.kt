@@ -124,6 +124,12 @@ class HomeModelTest {
     }
 
     @Test
+    fun iosBannerSaysAlarmsArentAllowed() {
+        val model = home("2026-10-06T23:10", alarm(6, 30), missing = listOf(AlarmPermission.ALARMS))
+        assertEquals("Morrow isn’t allowed to set alarms. Nothing will go off until you allow it.", model.banner)
+    }
+
+    @Test
     fun bannerNamesEveryMissingRequiredPermission() {
         val model = home(
             "2026-10-06T23:10",

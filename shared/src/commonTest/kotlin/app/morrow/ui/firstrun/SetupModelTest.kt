@@ -1,6 +1,8 @@
 package app.morrow.ui.firstrun
 
 import app.morrow.platform.AlarmPermission
+import app.morrow.platform.AndroidPermissions
+import app.morrow.platform.IosPermissions
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -10,7 +12,7 @@ class SetupModelTest {
 
     @Test
     fun nothingAllowedYet() {
-        val model = setupModel(AlarmPermission.entries)
+        val model = setupModel(AndroidPermissions, AndroidPermissions)
         assertEquals("0 of 4 ready", model.readyText)
         assertEquals(0f, model.progress)
         assertFalse(model.ready)
@@ -19,7 +21,7 @@ class SetupModelTest {
 
     @Test
     fun requiredOnesAllowedIsReadyEvenWithoutBattery() {
-        val model = setupModel(listOf(AlarmPermission.BATTERY))
+        val model = setupModel(AndroidPermissions, listOf(AlarmPermission.BATTERY))
         assertEquals("3 of 4 ready", model.readyText)
         assertEquals(0.75f, model.progress)
         assertTrue(model.ready)
@@ -28,7 +30,7 @@ class SetupModelTest {
 
     @Test
     fun everythingAllowed() {
-        val model = setupModel(emptyList())
+        val model = setupModel(AndroidPermissions, emptyList())
         assertEquals("4 of 4 ready", model.readyText)
         assertEquals(1f, model.progress)
         assertTrue(model.ready)
@@ -37,6 +39,19 @@ class SetupModelTest {
 
     @Test
     fun aMissingRequiredPermissionIsNotReady() {
-        assertFalse(setupModel(listOf(AlarmPermission.FULL_SCREEN)).ready)
+        assertFalse(setupModel(AndroidPermissions, listOf(AlarmPermission.FULL_SCREEN)).ready)
+    }
+
+    @Test
+    fun iosAsksForOnePermission() {
+        val waiting = setupModel(IosPermissions, IosPermissions)
+        assertEquals("0 of 1 ready", waiting.readyText)
+        assertFalse(waiting.ready)
+        assertEquals("Alarms can’t ring until this is allowed.", waiting.note)
+
+        val allowed = setupModel(IosPermissions, emptyList())
+        assertEquals("1 of 1 ready", allowed.readyText)
+        assertTrue(allowed.ready)
+        assertEquals("All set. Pip is ready when you are.", allowed.note)
     }
 }

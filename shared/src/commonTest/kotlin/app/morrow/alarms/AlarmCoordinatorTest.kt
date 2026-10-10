@@ -127,6 +127,37 @@ class AlarmCoordinatorTest {
     }
 
     @Test
+    fun catchingUpTurnsOffOneOffAlarmsThatRang() = runTest {
+        val rang = coordinator.save(alarm(7, 30))
+        val waiting = coordinator.save(alarm(9, 0))
+
+        coordinator.catchUp(stillScheduled = setOf(waiting))
+
+        assertEquals(false, repository.get(rang)?.enabled)
+        assertEquals(true, repository.get(waiting)?.enabled)
+    }
+
+    @Test
+    fun catchingUpPutsBackLostRepeatingAlarms() = runTest {
+        val id = repository.save(alarm(7, 30, days = setOf(MONDAY)))
+
+        coordinator.catchUp(stillScheduled = emptySet())
+
+        assertEquals(true, repository.get(id)?.enabled)
+        assertEquals(local("2026-10-05T07:30"), scheduler.scheduled[id])
+    }
+
+    @Test
+    fun catchingUpLeavesDisabledAlarmsAlone() = runTest {
+        val id = repository.save(alarm(7, 30, enabled = false))
+
+        coordinator.catchUp(stillScheduled = emptySet())
+
+        assertEquals(false, repository.get(id)?.enabled)
+        assertNull(scheduler.scheduled[id])
+    }
+
+    @Test
     fun ringingForADeletedAlarmDoesNothing() = runTest {
         coordinator.onRang(42)
         assertEquals(emptyMap(), scheduler.scheduled)

@@ -55,13 +55,14 @@ import app.morrow.ui.components.svgPath
 
 @Composable
 fun SetupScreen(
+    asked: List<AlarmPermission>,
     missing: List<AlarmPermission>,
     onAllow: (AlarmPermission) -> Unit,
     onContinue: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MorrowTheme.colors
-    val model = setupModel(missing)
+    val model = setupModel(asked, missing)
     Column(modifier.fillMaxSize().background(colors.bg).statusBarsPadding()) {
         Column(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(start = 24.dp, end = 24.dp, top = 16.dp),
@@ -74,7 +75,7 @@ fun SetupScreen(
                 modifier = Modifier.semantics { heading() },
             )
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                AlarmPermission.entries.forEach { permission ->
+                asked.forEach { permission ->
                     PermissionRow(permission, granted = permission !in missing) { onAllow(permission) }
                 }
             }
@@ -175,6 +176,7 @@ internal val AlarmPermission.icon: String
         AlarmPermission.EXACT_ALARMS -> Icons.Clock
         AlarmPermission.FULL_SCREEN -> Icons.FullScreen
         AlarmPermission.BATTERY -> Icons.Battery
+        AlarmPermission.ALARMS -> Icons.Bell
     }
 
 private val SetupHill = svgPath("M0 84 C70 70 140 76 210 80 C270 83 310 72 342 76 L342 116 L0 116 Z")

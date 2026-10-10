@@ -76,9 +76,16 @@ class MorrowServices(
  * The app: first run until it's finished, then Home.
  * [onSystemBarsChange] says whether the status bar icons should be light, to stay readable over the sky.
  * [developerTools] opens the host's debug tools from Settings; pass null in release builds.
+ * [waking] is an alarm whose mission to run, on iOS where the system rings the alarm; [onWoken] follows Morning.
  */
 @Composable
-fun MorrowApp(services: MorrowServices, developerTools: (() -> Unit)?, onSystemBarsChange: (lightIcons: Boolean) -> Unit) {
+fun MorrowApp(
+    services: MorrowServices,
+    developerTools: (() -> Unit)?,
+    onSystemBarsChange: (lightIcons: Boolean) -> Unit,
+    waking: Long? = null,
+    onWoken: () -> Unit = {},
+) {
     val theme by services.themeClock.theme.collectAsState()
     val firstRunDone by services.settings.firstRunDone.collectAsState(initial = null)
     MorrowTheme(theme) {
@@ -95,6 +102,7 @@ fun MorrowApp(services: MorrowServices, developerTools: (() -> Unit)?, onSystemB
                     val target = editing
                     val preview = previewing
                     when {
+                        waking != null -> WakeRoute(services, waking, onSystemBarsChange, onDone = onWoken)
                         preview != null -> RingPreviewRoute(services, preview, onSystemBarsChange, onExit = { previewing = null })
                         inSettings -> SettingsRoute(services, theme, developerTools, onSystemBarsChange, onBack = { inSettings = false })
                         target == null -> screens.SaveableStateProvider(HOME) {
@@ -132,6 +140,7 @@ private fun FirstRun(services: MorrowServices, theme: ThemeKind, onSystemBarsCha
         WelcomeScreen(onContinue = { setup = true })
     } else {
         SetupScreen(
+            asked = services.permissions.asked,
             missing = missing,
             onAllow = services.permissions::request,
             onContinue = { scope.launch { services.settings.markFirstRunDone() } },
@@ -258,7 +267,7 @@ private fun SettingsRoute(
     val difficulty = missions?.difficulty ?: return
     val sound = alarm ?: return
     SettingsScreen(
-        model = settingsModel(pinned, theme, difficulty, missing),
+        model = settingsModel(pinned, theme, difficulty, services.permissions.asked, missing),
         choices = SettingsChoices(difficulty, sound.sound, sound.ramp),
         actions = SettingsActions(
             onBack = onBack,
@@ -319,6 +328,48 @@ private fun RingPreviewRoute(services: MorrowServices, alarm: Alarm, onSystemBar
 }
 
 private enum class PreviewStage { RINGING, MISSION, MORNING }
+
+/**
+ * After the system's alarm screen, which on iOS can only stop the alarm or open the app: the alarm's mission,
+ * with its sound playing until the mission is done, then Morning.
+ */
+@Composable
+private fun WakeRoute(services: MorrowServices, alarmId: Long, onSystemBarsChange: (Boolean) -> Unit, onDone: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var mission by rememberSaveable(alarmId) { mutableStateOf<MissionType?>(null) }
+    var wokeAt by rememberSaveable(alarmId) { mutableStateOf<Long?>(null) }
+    LaunchedEffect(alarmId) {
+        if (mission != null) return@LaunchedEffect
+        // Yesterday's "one small thing" lasts until the next alarm, which is this one.
+        services.settings.clearIntention()
+        services.coordinator.onRang(alarmId)
+        mission = services.repository.get(alarmId)?.mission ?: MissionType.SUMS
+    }
+    val ringing = wokeAt == null
+    val setup by services.settings.alarmSetup.collectAsStateWithLifecycle(initialValue = null)
+    DisposableEffect(ringing, setup) {
+        val sound = setup
+        if (ringing && sound != null) services.alarmSound.play(sound.sound, sound.ramp.duration)
+        onDispose { services.alarmSound.stop() }
+    }
+    LaunchedEffect(ringing) { onSystemBarsChange(ringing) }
+
+    val woke = wokeAt
+    val chosen = mission
+    when {
+        woke != null -> MorningRoute(
+            settings = services.settings,
+            wokeAt = Instant.fromEpochMilliseconds(woke),
+            onStartDay = { intention ->
+                scope.launch {
+                    if (intention.isNotEmpty()) services.settings.setIntention(intention)
+                    onDone()
+                }
+            },
+        )
+        chosen != null -> MissionRoute(chosen, services.missions, onDone = { wokeAt = Clock.System.now().toEpochMilliseconds() })
+    }
+}
 
 private const val NEW_ALARM = "new"
 private const val HOME = "home"

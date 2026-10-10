@@ -16,14 +16,20 @@ data class SettingsModel(
 
 data class PermissionStatus(val permission: AlarmPermission, val granted: Boolean)
 
-fun settingsModel(pinned: ThemeKind?, byClock: ThemeKind, difficulty: Difficulty, missing: List<AlarmPermission>): SettingsModel {
+fun settingsModel(
+    pinned: ThemeKind?,
+    byClock: ThemeKind,
+    difficulty: Difficulty,
+    asked: List<AlarmPermission>,
+    missing: List<AlarmPermission>,
+): SettingsModel {
     val shown = pinned ?: byClock
     return SettingsModel(
         followClock = pinned == null,
         followDescription = if (pinned == null) "Now showing ${shown.displayName}" else "Pinned to ${shown.displayName}",
         shownTheme = shown,
         difficultyDescription = "${difficulty.sums} sums · $BREATHS breaths · ${difficulty.shakes} shakes",
-        permissions = AlarmPermission.entries.map { PermissionStatus(it, granted = it !in missing) },
+        permissions = asked.map { PermissionStatus(it, granted = it !in missing) },
     )
 }
 

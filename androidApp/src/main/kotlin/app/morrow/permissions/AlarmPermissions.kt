@@ -12,10 +12,11 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import app.morrow.platform.AlarmPermission
+import app.morrow.platform.AndroidPermissions
 
 class AlarmPermissions(private val context: Context) {
 
-    fun missing(): List<AlarmPermission> = AlarmPermission.entries.filterNot(::isGranted)
+    fun missing(): List<AlarmPermission> = AndroidPermissions.filterNot(::isGranted)
 
     fun isGranted(permission: AlarmPermission): Boolean = when (permission) {
         AlarmPermission.NOTIFICATIONS -> notificationManager.areNotificationsEnabled() &&
@@ -28,6 +29,7 @@ class AlarmPermissions(private val context: Context) {
         // Only phones known to put background apps to sleep aggressively need this.
         AlarmPermission.BATTERY -> !hasAggressiveBatterySaver() ||
             context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)
+        AlarmPermission.ALARMS -> true // iOS only.
     }
 
     /** The system screen where the user can allow [permission]. Notifications on Android 13+ are requested at runtime instead. */
@@ -40,6 +42,7 @@ class AlarmPermissions(private val context: Context) {
             AlarmPermission.EXACT_ALARMS -> Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, packageUri)
             AlarmPermission.FULL_SCREEN -> Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, packageUri)
             AlarmPermission.BATTERY -> Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            AlarmPermission.ALARMS -> Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri)
         }
     }
 

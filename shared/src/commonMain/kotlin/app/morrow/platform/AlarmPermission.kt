@@ -10,11 +10,23 @@ enum class AlarmPermission(val required: Boolean, val title: String) {
 
     /** Only matters on phones that put background apps to sleep aggressively. */
     BATTERY(required = false, title = "Unrestricted battery"),
+
+    /** iOS's single alarm permission, from AlarmKit, which covers what the Android ones do. */
+    ALARMS(required = true, title = "Alarms"),
 }
+
+/** The permissions Android asks for, in the order they're shown. */
+val AndroidPermissions = listOf(AlarmPermission.NOTIFICATIONS, AlarmPermission.EXACT_ALARMS, AlarmPermission.FULL_SCREEN, AlarmPermission.BATTERY)
+
+/** The one permission iOS asks for. */
+val IosPermissions = listOf(AlarmPermission.ALARMS)
 
 /** The platform's view of [AlarmPermission]s. */
 interface PermissionGate {
-    /** Permissions not granted yet, in [AlarmPermission] order. */
+    /** The permissions this platform asks for, in the order they're shown. */
+    val asked: List<AlarmPermission>
+
+    /** Permissions from [asked] not granted yet, in the same order. */
     val missing: StateFlow<List<AlarmPermission>>
 
     /** Re-reads every permission; call when the app comes back to the foreground. */
