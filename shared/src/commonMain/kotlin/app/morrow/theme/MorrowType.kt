@@ -39,17 +39,14 @@ internal fun morrowType(): MorrowType {
         Font(Res.font.figtree, FontWeight.SemiBold, variationSettings = FontVariation.Settings(FontVariation.weight(600))),
     )
 
-    // Fraunces is set at its optical size for each display size, with the soft axis fully on as in the design.
+    // Fraunces is set at its optical size for each display size. Its weight of 600 and fully soft shapes, as in the
+    // design, are built into the file by tools/trim_fraunces.py.
     @Composable
     fun fraunces(size: Int) = FontFamily(
         Font(
             Res.font.fraunces,
             FontWeight.SemiBold,
-            variationSettings = FontVariation.Settings(
-                FontVariation.weight(600),
-                FontVariation.Setting("opsz", size.toFloat()),
-                FontVariation.Setting("SOFT", 100f),
-            ),
+            variationSettings = FontVariation.Settings(FontVariation.Setting("opsz", size.toFloat())),
         ),
     )
 
