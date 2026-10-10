@@ -99,7 +99,8 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         unregisterReceiver(clockChanged)
         morrow.themeClock.pause()
-        morrow.markClosed()
+        // Turning the phone isn't leaving the app, and needn't write to disk.
+        if (!isChangingConfigurations) morrow.markClosed()
         super.onStop()
     }
 }
