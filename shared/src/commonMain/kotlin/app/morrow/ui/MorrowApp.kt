@@ -52,6 +52,9 @@ import app.morrow.ui.settings.SettingsScreen
 import app.morrow.ui.settings.settingsModel
 import app.morrow.ui.ring.RingScreen
 import app.morrow.ui.ring.ringModel
+import app.morrow.ui.tabs.Tab
+import app.morrow.ui.tabs.TabHost
+import app.morrow.ui.tabs.TabSaver
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -73,7 +76,7 @@ class MorrowServices(
 )
 
 /**
- * The app: first run until it's finished, then Home.
+ * The app: first run until it's finished, then the Alarms, World and Timers tabs.
  * [onSystemBarsChange] says whether the status bar icons should be light, to stay readable over the sky.
  * [developerTools] opens the host's debug tools from Settings; pass null in release builds.
  * [waking] is an alarm whose mission to run, on iOS where the system rings the alarm; [onWoken] follows Morning.
@@ -99,19 +102,25 @@ fun MorrowApp(
                     var editing by rememberSaveable { mutableStateOf<String?>(null) }
                     var previewing by rememberSaveable(stateSaver = AlarmSaver) { mutableStateOf(null) }
                     var inSettings by rememberSaveable { mutableStateOf(false) }
+                    var tab by rememberSaveable(stateSaver = TabSaver) { mutableStateOf(Tab.ALARMS) }
                     val target = editing
                     val preview = previewing
                     when {
                         waking != null -> WakeRoute(services, waking, onSystemBarsChange, onDone = onWoken)
                         preview != null -> RingPreviewRoute(services, preview, onSystemBarsChange, onExit = { previewing = null })
                         inSettings -> SettingsRoute(services, theme, developerTools, onSystemBarsChange, onBack = { inSettings = false })
-                        target == null -> screens.SaveableStateProvider(HOME) {
-                            Home(
-                                services, theme, onSystemBarsChange,
-                                onEdit = { editing = it?.toString() ?: NEW_ALARM },
-                                onPreview = { previewing = it },
-                                onSettings = { inSettings = true },
-                            )
+                        target == null -> {
+                            if (tab != Tab.ALARMS) LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
+                            TabHost(tab, onSelect = { tab = it }) {
+                                screens.SaveableStateProvider(HOME) {
+                                    Home(
+                                        services, theme, onSystemBarsChange,
+                                        onEdit = { editing = it?.toString() ?: NEW_ALARM },
+                                        onPreview = { previewing = it },
+                                        onSettings = { inSettings = true },
+                                    )
+                                }
+                            }
                         }
                         else -> screens.SaveableStateProvider(EDIT) {
                             EditRoute(
