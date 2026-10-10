@@ -1,0 +1,33 @@
+# The Xcode project, generated rather than checked in. On a Mac, from this folder: xcodegen generate
+name: Morrow
+options:
+  bundleIdPrefix: app.morrow
+  deploymentTarget:
+    iOS: "26.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: 0.1.0
+    CURRENT_PROJECT_VERSION: 1
+targets:
+  Morrow:
+    type: application
+    platform: iOS
+    sources:
+      - path: iosApp
+    scheme: {}
+    preBuildScripts:
+      - name: Build the shared Kotlin framework
+        basedOnDependencyAnalysis: false
+        script: |
+          cd "$SRCROOT/.."
+          ./gradlew :shared:embedAndSignAppleFrameworkForXcode
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.morrow
+        INFOPLIST_FILE: iosApp/Info.plist
+        TARGETED_DEVICE_FAMILY: "1"
+        # The Gradle build step writes outside the project, which Xcode's script sandbox would block.
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
+        FRAMEWORK_SEARCH_PATHS: ["$(inherited)", "$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"]
+        OTHER_LDFLAGS: ["$(inherited)", "-framework", "Shared"]

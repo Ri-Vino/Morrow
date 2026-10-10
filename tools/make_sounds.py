@@ -4,19 +4,21 @@ Each is a 16-second loop that wraps seamlessly. Run from the repo root:
 
     python tools/make_sounds.py
 
-Needs numpy, scipy and soundfile. Writes Ogg Vorbis files to androidApp/src/main/res/raw/.
+Needs numpy, scipy and soundfile. Writes Ogg Vorbis files to androidApp/src/main/res/raw/, and CAF files to
+iosApp/iosApp/Sounds/ because iOS can't play Ogg and AlarmKit only takes CAF, WAV or AIFF under 30 seconds.
 """
 
 from pathlib import Path
 
 import numpy as np
 import soundfile as sf
-from scipy.signal import lfilter
+from scipy.signal import lfilter, resample_poly
 
 RATE = 44_100
 LOOP = 16.0
 TAIL = 6.0
 OUT = Path(__file__).resolve().parent.parent / "androidApp" / "src" / "main" / "res" / "raw"
+IOS_OUT = Path(__file__).resolve().parent.parent / "iosApp" / "iosApp" / "Sounds"
 
 
 def timeline():
@@ -165,6 +167,10 @@ def finish(name, signal):
     OUT.mkdir(parents=True, exist_ok=True)
     sf.write(OUT / f"{name}.ogg", looped.astype(np.float32), RATE, format="OGG", subtype="VORBIS")
     print(f"{name}.ogg: {LOOP:.0f} s, {(OUT / f'{name}.ogg').stat().st_size // 1024} KB")
+    # Uncompressed, so half the sample rate keeps the files small; these sounds have almost nothing above 11 kHz.
+    IOS_OUT.mkdir(parents=True, exist_ok=True)
+    sf.write(IOS_OUT / f"{name}.caf", resample_poly(looped, 1, 2).astype(np.float32), RATE // 2, format="CAF", subtype="PCM_16")
+    print(f"{name}.caf: {LOOP:.0f} s, {(IOS_OUT / f'{name}.caf').stat().st_size // 1024} KB")
 
 
 if __name__ == "__main__":
