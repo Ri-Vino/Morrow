@@ -72,7 +72,7 @@ import kotlin.math.cos
 @Composable
 fun MorningScreen(model: MorningModel, onStartDay: (intention: String) -> Unit) {
     MorrowTheme(ThemeKind.MORNING) {
-        MorningContent(model, rememberSceneSeconds(still = Float.POSITIVE_INFINITY), onStartDay)
+        MorningContent(model, rememberSceneSeconds(still = Float.POSITIVE_INFINITY, fullRateFor = INTRO_LENGTH), onStartDay)
     }
 }
 
@@ -148,6 +148,8 @@ private fun MorningContent(model: MorningModel, seconds: State<Float>, onStartDa
 
 private const val LABEL = "One small thing to look forward to today"
 private const val MAX_LENGTH = 60
+/** Seconds until Pip has popped up and the text has faded in. */
+private const val INTRO_LENGTH = 1.5f
 private const val WIDTH = 390f
 private const val HEIGHT = 370f
 

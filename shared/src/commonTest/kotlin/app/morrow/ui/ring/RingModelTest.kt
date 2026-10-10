@@ -71,4 +71,9 @@ class RingModelTest {
     fun finishedSunriseIsTheLastFrame() {
         assertEquals(sunriseFrame(60f), sunriseFrame(SUNRISE_DONE))
     }
+
+    @Test
+    fun sunriseHasFinishedBySunriseLength() {
+        assertEquals(sunriseFrame(SUNRISE_DONE), sunriseFrame(SUNRISE_LENGTH))
+    }
 }

@@ -33,6 +33,9 @@ fun ringModel(alarm: Alarm): RingModel {
 /** Hold the sunrise here to show it finished, for when animations are off. */
 const val SUNRISE_DONE = Float.POSITIVE_INFINITY
 
+/** Seconds until the sunrise has finished playing; only the looping parts move after this. */
+const val SUNRISE_LENGTH = 7f
+
 /**
  * The parts of the sunrise that play once, [seconds] after the ringing screen appears, as in the design canvas.
  * Alphas and progress run from 0 to 1.
@@ -56,7 +59,7 @@ data class SunriseFrame(
 )
 
 fun sunriseFrame(seconds: Float): SunriseFrame {
-    val sky = EaseOut.at(seconds, start = 0f, length = 7f)
+    val sky = EaseOut.at(seconds, start = 0f, length = SUNRISE_LENGTH)
     // Pip's mouth opens into a yawn, then closes as its eyes open and it smiles.
     val yawn = if (seconds < 3.6f) Ease.at(seconds, 2.3f, 0.4f) else 1f - Ease.at(seconds, 3.6f, 0.3f)
     return SunriseFrame(

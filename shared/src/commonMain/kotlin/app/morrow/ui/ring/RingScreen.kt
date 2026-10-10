@@ -67,7 +67,7 @@ class RingPreview(val soundOn: Boolean, val onToggleSound: () -> Unit, val onExi
 @Composable
 fun RingScreen(model: RingModel, onStartMission: () -> Unit, modifier: Modifier = Modifier, preview: RingPreview? = null) {
     MorrowTheme(ThemeKind.NIGHT) {
-        RingContent(model, rememberSceneSeconds(still = SUNRISE_DONE), onStartMission, modifier, preview)
+        RingContent(model, rememberSceneSeconds(still = SUNRISE_DONE, fullRateFor = SUNRISE_LENGTH), onStartMission, modifier, preview)
     }
 }
 
