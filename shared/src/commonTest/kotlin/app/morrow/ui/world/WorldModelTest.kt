@@ -101,6 +101,12 @@ class WorldModelTest {
     }
 
     @Test
+    fun aNewAlarmFromTheSheetKeepsTheCitysClock() {
+        assertEquals("New alarm in New York City time", citySheet(SavedCity(newYork, false), now, london).newAlarm)
+        assertEquals("New alarm", citySheet(SavedCity(londonCity, true), now, london).newAlarm)
+    }
+
+    @Test
     fun aPlaceWithoutARegionIsJustTheCountry() {
         assertEquals("Singapore", placeName(singapore))
         assertEquals("England, United Kingdom", placeName(londonCity))

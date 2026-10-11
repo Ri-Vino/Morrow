@@ -268,6 +268,12 @@ private fun AlarmRowView(row: AlarmRow, actions: HomeActions) {
                 MorrowIcon(if (row.sunUp) Icons.Sun else Icons.Moon, colors.hi)
             }
             BasicText(row.details, style = MorrowTheme.type.body.copy(color = colors.muted))
+            row.zoneText?.let { text ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    MorrowIcon(Icons.Globe, colors.hi, size = 14.dp, strokeWidth = 2.2f)
+                    BasicText(text, style = MorrowTheme.type.label.copy(color = colors.hi, letterSpacing = MorrowTheme.type.caption.letterSpacing))
+                }
+            }
         }
         Row(
             modifier = Modifier
@@ -280,7 +286,11 @@ private fun AlarmRowView(row: AlarmRow, actions: HomeActions) {
             MorrowIcon(Icons.forMission(row.firstGame), colors.hi, size = 14.dp, strokeWidth = 2.2f)
             BasicText(row.games, style = MorrowTheme.type.label.copy(color = colors.hi, letterSpacing = MorrowTheme.type.caption.letterSpacing))
         }
-        MorrowToggle(row.enabled, { actions.onToggle(row.id, it) }, contentDescription = "${row.details} at ${row.time}")
+        MorrowToggle(
+            row.enabled,
+            { actions.onToggle(row.id, it) },
+            contentDescription = "${row.details} at ${row.time}" + (row.zoneText?.let { ", $it" } ?: ""),
+        )
     }
 }
 

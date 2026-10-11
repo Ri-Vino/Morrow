@@ -8,6 +8,10 @@ import android.content.Context
 import android.content.Intent
 import app.morrow.R
 import app.morrow.domain.Alarm
+import app.morrow.domain.occurrenceNear
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
 
 internal object RingNotifications {
     const val ID = 1
@@ -24,7 +28,7 @@ internal object RingNotifications {
         )
         return Notification.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_alarm)
-            .setContentTitle("%02d:%02d".format(alarm.hour, alarm.minute))
+            .setContentTitle(ringingTime(alarm))
             .setContentText(alarm.label)
             .setCategory(Notification.CATEGORY_ALARM)
             .setVisibility(Notification.VISIBILITY_PUBLIC)
@@ -32,6 +36,13 @@ internal object RingNotifications {
             .setContentIntent(ringScreen)
             .setFullScreenIntent(ringScreen, true)
             .build()
+    }
+
+    /** The phone's time the alarm rang at, which for an alarm on another city's clock isn't the time it was set for. */
+    private fun ringingTime(alarm: Alarm): String {
+        val zone = TimeZone.currentSystemDefault()
+        val at = alarm.occurrenceNear(Clock.System.now(), zone).toLocalDateTime(zone)
+        return "%02d:%02d".format(at.hour, at.minute)
     }
 
     private fun ensureChannel(context: Context) {

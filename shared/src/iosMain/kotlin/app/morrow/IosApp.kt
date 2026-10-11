@@ -4,6 +4,7 @@ import app.morrow.alarm.AlarmKitBridge
 import app.morrow.alarm.IosAlarmScheduler
 import app.morrow.alarm.IosAlarmSound
 import app.morrow.alarms.AlarmCoordinator
+import app.morrow.alarms.alarmIdOf
 import app.morrow.data.AlarmRepository
 import app.morrow.data.buildMorrowDatabase
 import app.morrow.data.morrowDatabaseBuilder
@@ -124,7 +125,7 @@ object IosApp {
                     coordinator.rescheduleAll()
                     inSync = true
                 }
-                else -> coordinator.catchUp(alarmKit.scheduledIds().toSet())
+                else -> coordinator.catchUp(alarmKit.scheduledIds().map(::alarmIdOf).toSet())
             }
         }
     }

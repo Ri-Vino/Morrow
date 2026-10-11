@@ -4,12 +4,15 @@ import app.morrow.domain.Alarm
 import app.morrow.domain.MissionType
 import app.morrow.domain.SleepMath
 import app.morrow.domain.nextAlarm
+import app.morrow.domain.nextRing
 import app.morrow.platform.AlarmPermission
 import app.morrow.theme.sunElevation
 import app.morrow.ui.displayName
+import app.morrow.ui.edit.zoneName
 import app.morrow.ui.formatDuration
 import app.morrow.ui.gamesText
 import app.morrow.ui.hhmm
+import app.morrow.ui.world.cityClock
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
@@ -45,6 +48,8 @@ data class AlarmRow(
     val enabled: Boolean,
     /** Whether the sun is up at the alarm's time, for its little sun or moon icon. */
     val sunUp: Boolean,
+    /** For an alarm on another city's clock, that city and when it rings here, like "New York time · 14:00 here". */
+    val zoneText: String? = null,
 )
 
 fun homeModel(alarms: List<Alarm>, now: Instant, zone: TimeZone, missing: List<AlarmPermission>, intention: String? = null): HomeModel {
@@ -73,6 +78,7 @@ fun homeModel(alarms: List<Alarm>, now: Instant, zone: TimeZone, missing: List<A
                 games = alarm.games.first().type.displayName + if (alarm.games.size > 1) " +${alarm.games.size - 1}" else "",
                 enabled = alarm.enabled,
                 sunUp = sunElevation((alarm.hour * 60 + alarm.minute).toFloat()) >= 0,
+                zoneText = alarm.zoneName()?.let { city -> "$city time · ${cityClock(alarm.nextRing(now, zone), zone)} here" },
             )
         },
     )
@@ -87,7 +93,8 @@ private fun sleepCard(alarms: List<Alarm>, now: Instant, zone: TimeZone, blocked
     val alarm = next.alarm
     val until = next.at - now
     val at = next.at.toLocalDateTime(zone)
-    val time = hhmm(alarm.hour, alarm.minute)
+    // The time here, which for an alarm on another city's clock isn't the time it was set for.
+    val time = hhmm(at.hour, at.minute)
     val day = when (local.date.daysUntil(at.date)) {
         0 -> "today"
         1 -> "tomorrow"

@@ -33,6 +33,8 @@ data class CitySheet(
     val clock: String,
     val relative: String,
     val isHome: Boolean,
+    /** "New alarm in New York time", or just "New alarm" for a city on the phone's own clock. */
+    val newAlarm: String,
 )
 
 fun worldModel(cities: List<SavedCity>, now: Instant, phoneZone: TimeZone): WorldModel {
@@ -68,6 +70,7 @@ fun citySheet(saved: SavedCity, now: Instant, phoneZone: TimeZone): CitySheet {
         clock = cityClock(now, zone),
         relative = relativeDay(now, zone, phoneZone),
         isHome = saved.isHome,
+        newAlarm = if (zone == phoneZone) "New alarm" else "New alarm in ${saved.city.name} time",
     )
 }
 

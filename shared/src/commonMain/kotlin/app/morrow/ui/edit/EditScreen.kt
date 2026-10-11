@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,12 +22,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
@@ -38,7 +45,10 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -59,6 +69,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.morrow.domain.Alarm
@@ -84,12 +96,27 @@ class EditActions(
     val onSave: () -> Unit,
 )
 
+/** What the "Ring by the time in…" sheet offers: [choices] for the draft, and [find] for cities matching a search. */
+class ZoneSheetData(val choices: List<ZoneChoice>, val find: suspend (String) -> List<ZoneChoice>)
+
 @Composable
-fun EditScreen(draft: Alarm, model: EditModel, actions: EditActions, modifier: Modifier = Modifier) {
+fun EditScreen(
+    draft: Alarm,
+    model: EditModel,
+    actions: EditActions,
+    zones: ZoneSheetData = ZoneSheetData(emptyList()) { emptyList() },
+    modifier: Modifier = Modifier,
+) {
     var addingGame by rememberSaveable { mutableStateOf(false) }
+    var pickingZone by rememberSaveable { mutableStateOf(false) }
     Box(modifier.fillMaxSize()) {
-        // Behind the sheet, the form is hidden from TalkBack as well as dimmed.
-        EditForm(draft, model, actions, onAddGame = { addingGame = true }, Modifier.semantics { if (addingGame) hideFromAccessibility() })
+        // Behind a sheet, the form is hidden from TalkBack as well as dimmed.
+        EditForm(
+            draft, model, actions,
+            onAddGame = { addingGame = true },
+            onPickZone = { pickingZone = true },
+            Modifier.semantics { if (addingGame || pickingZone) hideFromAccessibility() },
+        )
         if (addingGame) {
             AddGameSheet(
                 model.gameChoices,
@@ -100,11 +127,28 @@ fun EditScreen(draft: Alarm, model: EditModel, actions: EditActions, modifier: M
                 onClose = { addingGame = false },
             )
         }
+        if (pickingZone) {
+            ZoneSheet(
+                zones,
+                onPick = { choice ->
+                    pickingZone = false
+                    actions.onChange(draft.inZone(choice.timeZone, choice.city))
+                },
+                onClose = { pickingZone = false },
+            )
+        }
     }
 }
 
 @Composable
-private fun EditForm(draft: Alarm, model: EditModel, actions: EditActions, onAddGame: () -> Unit, modifier: Modifier) {
+private fun EditForm(
+    draft: Alarm,
+    model: EditModel,
+    actions: EditActions,
+    onAddGame: () -> Unit,
+    onPickZone: () -> Unit,
+    modifier: Modifier,
+) {
     val colors = MorrowTheme.colors
     Column(modifier.fillMaxSize().background(colors.bg).statusBarsPadding()) {
         Column(
@@ -123,6 +167,7 @@ private fun EditForm(draft: Alarm, model: EditModel, actions: EditActions, onAdd
                 style = MorrowTheme.type.body.copy(color = colors.muted, textAlign = TextAlign.Center),
                 modifier = Modifier.fillMaxWidth(),
             )
+            ZoneRowView(model.zone, onPickZone)
             Section("Repeat") { DayChips(draft.days) { actions.onChange(draft.copy(days = it)) } }
             Section("Wake-up games", aside = "Played in this order") {
                 GameList(draft, model.games, actions.onChange)
@@ -386,62 +431,217 @@ private fun EstimateRow(model: EditModel, onAddGame: () -> Unit) {
     }
 }
 
-/** Every game with a line about it. Games the alarm already has are dimmed, since each can be played once. */
+/** The Time zone row: whose clock the alarm keeps. Opens the "Ring by the time in…" sheet. */
 @Composable
-private fun AddGameSheet(choices: List<GameChoice>, onPick: (MissionType) -> Unit, onClose: () -> Unit) {
+private fun ZoneRowView(zone: ZoneRow, onClick: () -> Unit) {
     val colors = MorrowTheme.colors
     val type = MorrowTheme.type
+    val shape = RoundedCornerShape(20.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .clip(shape)
+            .background(colors.surface)
+            .border(1.dp, colors.line, shape)
+            .pressable(onClick, onClickLabel = "Choose the time zone")
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            Modifier.size(40.dp).background(if (zone.zoned) colors.accent else colors.surface2, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            MorrowIcon(Icons.Globe, if (zone.zoned) colors.onAccent else colors.hi)
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            BasicText(zone.title, style = type.button.copy(color = colors.text))
+            BasicText(zone.subtitle, style = type.body.copy(color = colors.muted))
+        }
+        MorrowIcon(Icons.Forward, colors.muted, strokeWidth = 2.2f)
+    }
+}
+
+/** The phone's time and the saved cities on other clocks, then a search for any city. */
+@Composable
+private fun ZoneSheet(zones: ZoneSheetData, onPick: (ZoneChoice) -> Unit, onClose: () -> Unit) {
+    val colors = MorrowTheme.colors
+    val type = MorrowTheme.type
+    var finding by rememberSaveable { mutableStateOf(false) }
+    Sheet("Ring by the time in", onClose = { if (finding) finding = false else onClose() }, onScrimClick = onClose) {
+        if (finding) {
+            CitySearch(zones.find, onPick, onBack = { finding = false })
+        } else {
+            BasicText("Ring by the time in…", style = type.title.copy(color = colors.text), modifier = Modifier.semantics { heading() })
+            BasicText(
+                "For a meeting abroad. The alarm keeps to that city’s clock, summer time included, and shows you the time here.",
+                style = type.body.copy(color = colors.muted),
+            )
+            ChoiceList(zones.choices, onPick, Modifier.selectableGroup())
+            SecondaryButton("Find another city", { finding = true })
+        }
+    }
+}
+
+/** A city search over the bundled list. Picking a city sets the alarm's zone; it isn't added to the World tab. */
+@Composable
+private fun CitySearch(find: suspend (String) -> List<ZoneChoice>, onPick: (ZoneChoice) -> Unit, onBack: () -> Unit) {
+    val colors = MorrowTheme.colors
+    val type = MorrowTheme.type
+    var query by rememberSaveable { mutableStateOf("") }
+    var found by remember { mutableStateOf<List<ZoneChoice>?>(null) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+    LaunchedEffect(query) { found = if (query.isBlank()) null else find(query) }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        RoundIconButton(Icons.Back, "Back to time zones", onBack)
+        BasicText("Find another city", style = type.title.copy(color = colors.text), modifier = Modifier.weight(1f).semantics { heading() })
+    }
+    val shape = RoundedCornerShape(16.dp)
+    BasicTextField(
+        value = query,
+        onValueChange = { query = it.take(60) },
+        singleLine = true,
+        textStyle = type.bodyLarge.copy(color = colors.text),
+        cursorBrush = SolidColor(colors.hi),
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Search),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .focusRequester(focus)
+            .background(colors.surface, shape)
+            .border(2.dp, colors.line, shape)
+            .semantics { contentDescription = "City name" },
+        decorationBox = { field ->
+            Box(Modifier.padding(horizontal = 16.dp), contentAlignment = Alignment.CenterStart) {
+                if (query.isEmpty()) BasicText("Search for a city", style = type.bodyLarge.copy(color = colors.muted), maxLines = 1)
+                field()
+            }
+        },
+    )
+    val results = found
+    when {
+        results == null -> Unit
+        results.isEmpty() -> BasicText(
+            "No city by that name",
+            style = type.body.copy(color = colors.muted),
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        )
+        else -> ChoiceList(results, onPick, radio = false)
+    }
+}
+
+/** Zone choices in a card: radio buttons in the sheet, or plain rows for search results. */
+@Composable
+private fun ChoiceList(choices: List<ZoneChoice>, onPick: (ZoneChoice) -> Unit, modifier: Modifier = Modifier, radio: Boolean = true) {
+    val colors = MorrowTheme.colors
+    val type = MorrowTheme.type
+    val shape = RoundedCornerShape(24.dp)
+    Column(modifier.fillMaxWidth().clip(shape).background(colors.surface).border(1.dp, colors.line, shape)) {
+        choices.forEachIndexed { i, choice ->
+            val pick = { onPick(choice) }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 60.dp)
+                    .then(if (i > 0) Modifier.topDivider(colors.line) else Modifier)
+                    .then(
+                        if (radio) {
+                            Modifier.selectable(choice.selected, role = Role.RadioButton, onClick = pick)
+                        } else {
+                            Modifier.pressable(pick, onClickLabel = "Ring by ${choice.name} time")
+                        },
+                    )
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (radio) {
+                    val ring = if (choice.selected) colors.hi else colors.muted
+                    Box(Modifier.size(24.dp).border(2.dp, ring, CircleShape), contentAlignment = Alignment.Center) {
+                        if (choice.selected) Box(Modifier.size(12.dp).background(colors.hi, CircleShape))
+                    }
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    BasicText(choice.name, style = type.button.copy(color = colors.text))
+                    BasicText(choice.subtitle, style = type.body.copy(color = colors.muted))
+                }
+                BasicText(choice.time, style = type.bodyStrong.copy(color = colors.muted, fontFeatureSettings = "tnum"))
+            }
+        }
+    }
+}
+
+/**
+ * A sheet over a dimmed screen, named [title] for TalkBack. Back calls [onClose]; tapping the dimmed screen calls
+ * [onScrimClick].
+ */
+@Composable
+private fun Sheet(title: String, onClose: () -> Unit, onScrimClick: () -> Unit = onClose, content: @Composable ColumnScope.() -> Unit) {
+    val colors = MorrowTheme.colors
     val sheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-    val listShape = RoundedCornerShape(24.dp)
     PlatformBackHandler(onBack = onClose)
     Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().background(Illustration.scrim).pressable(onClose).semantics { contentDescription = "Close" })
+        Box(Modifier.fillMaxSize().background(Illustration.scrim).pressable(onScrimClick).semantics { contentDescription = "Close" })
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .shadow(18.dp, sheetShape, ambientColor = colors.shadow, spotColor = colors.shadow)
                 .background(colors.bg, sheetShape)
-                .semantics { paneTitle = "Add a wake-up game" }
+                .semantics { paneTitle = title }
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
+                .imePadding()
                 .padding(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Box(Modifier.align(Alignment.CenterHorizontally).size(40.dp, 4.dp).background(colors.line, CircleShape))
-            BasicText("Add a wake-up game", style = type.title.copy(color = colors.text), modifier = Modifier.semantics { heading() })
-            Column(Modifier.fillMaxWidth().clip(listShape).background(colors.surface).border(1.dp, colors.line, listShape)) {
-                choices.forEachIndexed { i, choice ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 64.dp)
-                            .then(if (i > 0) Modifier.topDivider(colors.line) else Modifier)
-                            .then(
-                                if (choice.added) {
-                                    Modifier.semantics(mergeDescendants = true) {}
-                                } else {
-                                    Modifier.pressable({ onPick(choice.type) }, onClickLabel = "Add ${choice.name}")
-                                },
-                            )
-                            .alpha(if (choice.added) 0.5f else 1f)
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Box(Modifier.size(40.dp).background(colors.surface2, CircleShape), contentAlignment = Alignment.Center) {
-                            MorrowIcon(Icons.forMission(choice.type), colors.hi)
-                        }
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            BasicText(choice.name, style = type.button.copy(color = colors.text))
-                            BasicText(choice.description, style = type.body.copy(color = colors.muted))
-                        }
-                        if (choice.added) {
-                            BasicText("Added", style = type.bodyStrong.copy(color = colors.muted))
-                        } else {
-                            Box(Modifier.size(36.dp).background(colors.accent, CircleShape), contentAlignment = Alignment.Center) {
-                                MorrowIcon(Icons.Plus, colors.onAccent, size = 18.dp, strokeWidth = 2.6f)
-                            }
+            content()
+        }
+    }
+}
+
+/** Every game with a line about it. Games the alarm already has are dimmed, since each can be played once. */
+@Composable
+private fun AddGameSheet(choices: List<GameChoice>, onPick: (MissionType) -> Unit, onClose: () -> Unit) {
+    val colors = MorrowTheme.colors
+    val type = MorrowTheme.type
+    val listShape = RoundedCornerShape(24.dp)
+    Sheet("Add a wake-up game", onClose) {
+        BasicText("Add a wake-up game", style = type.title.copy(color = colors.text), modifier = Modifier.semantics { heading() })
+        Column(Modifier.fillMaxWidth().clip(listShape).background(colors.surface).border(1.dp, colors.line, listShape)) {
+            choices.forEachIndexed { i, choice ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 64.dp)
+                        .then(if (i > 0) Modifier.topDivider(colors.line) else Modifier)
+                        .then(
+                            if (choice.added) {
+                                Modifier.semantics(mergeDescendants = true) {}
+                            } else {
+                                Modifier.pressable({ onPick(choice.type) }, onClickLabel = "Add ${choice.name}")
+                            },
+                        )
+                        .alpha(if (choice.added) 0.5f else 1f)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Box(Modifier.size(40.dp).background(colors.surface2, CircleShape), contentAlignment = Alignment.Center) {
+                        MorrowIcon(Icons.forMission(choice.type), colors.hi)
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        BasicText(choice.name, style = type.button.copy(color = colors.text))
+                        BasicText(choice.description, style = type.body.copy(color = colors.muted))
+                    }
+                    if (choice.added) {
+                        BasicText("Added", style = type.bodyStrong.copy(color = colors.muted))
+                    } else {
+                        Box(Modifier.size(36.dp).background(colors.accent, CircleShape), contentAlignment = Alignment.Center) {
+                            MorrowIcon(Icons.Plus, colors.onAccent, size = 18.dp, strokeWidth = 2.6f)
                         }
                     }
                 }

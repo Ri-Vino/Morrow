@@ -33,4 +33,16 @@ class AlarmEntityTest {
         val row = AlarmEntity(1, 7, 0, "Alarm", days = 0, games = "SHAKE:2,SUMS:3,SHAKE:5", enabled = true)
         assertEquals(listOf(GameStep(MissionType.SHAKE, 2), GameStep(MissionType.SUMS, 3)), row.toAlarm().games)
     }
+
+    @Test
+    fun aZonedAlarmKeepsItsZoneAndCity() {
+        val alarm = Alarm(
+            id = 2, hour = 9, minute = 0, label = "Stand-up", days = setOf(MONDAY), games = DefaultGames, enabled = true,
+            timeZone = "America/New_York", zoneLabel = "New York",
+        )
+        val row = alarm.toEntity()
+        assertEquals("America/New_York", row.timeZone)
+        assertEquals("New York", row.zoneLabel)
+        assertEquals(alarm, row.toAlarm())
+    }
 }

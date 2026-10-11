@@ -1,5 +1,6 @@
 package app.morrow.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import app.morrow.domain.Alarm
@@ -20,6 +21,9 @@ data class AlarmEntity(
     /** In play order, as [encodeGames] writes them, for example "SUMS:3,BREATHE:2". */
     val games: String,
     val enabled: Boolean,
+    /** An IANA zone id, or null to follow the phone's clock. */
+    @ColumnInfo(name = "time_zone") val timeZone: String? = null,
+    @ColumnInfo(name = "zone_label") val zoneLabel: String? = null,
 )
 
 internal fun Alarm.toEntity() = AlarmEntity(
@@ -30,6 +34,8 @@ internal fun Alarm.toEntity() = AlarmEntity(
     days = days.fold(0) { mask, day -> mask or (1 shl (day.isoDayNumber - 1)) },
     games = encodeGames(games),
     enabled = enabled,
+    timeZone = timeZone,
+    zoneLabel = zoneLabel,
 )
 
 internal fun AlarmEntity.toAlarm() = Alarm(
@@ -40,4 +46,6 @@ internal fun AlarmEntity.toAlarm() = Alarm(
     days = DayOfWeek.entries.filterTo(mutableSetOf()) { days and (1 shl (it.isoDayNumber - 1)) != 0 },
     games = decodeGames(games).distinctBy { it.type }.ifEmpty { DefaultGames },
     enabled = enabled,
+    timeZone = timeZone,
+    zoneLabel = zoneLabel,
 )

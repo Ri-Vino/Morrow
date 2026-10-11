@@ -11,7 +11,7 @@ import androidx.sqlite.execSQL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
-@Database(entities = [AlarmEntity::class, SavedCityEntity::class], version = 3)
+@Database(entities = [AlarmEntity::class, SavedCityEntity::class], version = 4)
 @ConstructedBy(MorrowDatabaseConstructor::class)
 abstract class MorrowDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao
@@ -31,7 +31,7 @@ fun buildMorrowDatabase(builder: RoomDatabase.Builder<MorrowDatabase>): MorrowDa
     builder
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(GamesMigration, CitiesMigration)
+        .addMigrations(GamesMigration, CitiesMigration, ZonesMigration)
         .build()
 
 /** An alarm's one mission becomes its first and only game, with that game's usual rounds. */
@@ -70,5 +70,13 @@ internal object CitiesMigration : Migration(2, 3) {
                 "`country` TEXT NOT NULL, `latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `time_zone` TEXT NOT NULL, " +
                 "`population` INTEGER NOT NULL, `is_home` INTEGER NOT NULL, `position` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         )
+    }
+}
+
+/** Alarms can keep another city's clock. Every alarm so far follows the phone's. */
+internal object ZonesMigration : Migration(3, 4) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE `alarms` ADD COLUMN `time_zone` TEXT")
+        connection.execSQL("ALTER TABLE `alarms` ADD COLUMN `zone_label` TEXT")
     }
 }

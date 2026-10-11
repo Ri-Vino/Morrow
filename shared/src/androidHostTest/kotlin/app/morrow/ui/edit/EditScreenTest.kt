@@ -7,6 +7,8 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertHasNoClickAction
@@ -17,19 +19,35 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import app.morrow.domain.Alarm
 import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
+import app.morrow.places.City
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
 import app.morrow.ui.NoMotion
 import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+
+private val london = TimeZone.of("Europe/London")
+
+/** A Monday at 22:00 in London. */
+private val now = LocalDateTime.parse("2026-10-05T22:00").toInstant(london)
+
+private fun city(id: Long, name: String, zone: String, country: String) = City(id, name, null, country, 0.0, 0.0, zone, 1000)
+
+private val newYork = city(5128581, "New York", "America/New_York", "United States")
+private val saved = listOf(city(2643743, "London", "Europe/London", "United Kingdom"), newYork)
+private val catalog = listOf(newYork, city(1850147, "Tokyo", "Asia/Tokyo", "Japan"))
 
 @RunWith(RobolectricTestRunner::class)
 class EditScreenTest {
@@ -38,7 +56,7 @@ class EditScreenTest {
     val compose = createComposeRule(effectContext = NoMotion)
 
     private var draft by mutableStateOf(alarm())
-    private var saved = false
+    private var savedAlarm = false
     private var deleted = false
 
     private fun show(alarm: Alarm) {
@@ -47,13 +65,17 @@ class EditScreenTest {
             MorrowTheme(ThemeKind.MORNING) {
                 EditScreen(
                     draft = draft,
-                    model = editModel(draft, nowMinute = 22 * 60),
+                    model = editModel(draft, now, london),
+                    zones = ZoneSheetData(
+                        choices = zoneChoices(draft, saved, now, london, phoneCity = "London"),
+                        find = { query -> searchChoices(catalog.filter { it.name.startsWith(query, ignoreCase = true) }, now, london) },
+                    ),
                     actions = EditActions(
                         onChange = { draft = it },
                         onBack = {},
                         onDelete = { deleted = true },
                         onPreview = {},
-                        onSave = { saved = true },
+                        onSave = { savedAlarm = true },
                     ),
                 )
             }
@@ -190,7 +212,65 @@ class EditScreenTest {
 
         compose.onNodeWithText("Save alarm").performClick()
 
-        assertTrue(saved)
+        assertTrue(savedAlarm)
+    }
+
+    @Test
+    fun pickingNewYorkRingsByItsClock() {
+        show(alarm(hour = 9, minute = 0))
+        compose.onNodeWithText("Rings by the clock wherever you are").assertExists()
+
+        compose.onNode(hasText("Phone’s time") and hasClickAction()).performScrollTo().performClick()
+        compose.onNodeWithText("Ring by the time in…").assertExists()
+        compose.onNode(zoneChoice("Phone’s time")).assertIsSelected()
+        compose.onNode(zoneChoice("New York time")).assertIsNotSelected().performClick()
+
+        assertEquals("America/New_York" to "New York", draft.timeZone to draft.zoneLabel)
+        compose.onNodeWithText("Ring by the time in…").assertDoesNotExist()
+        compose.onNodeWithText("New York time").assertExists()
+        compose.onNodeWithText("Follows New York’s clock, summer time included").assertExists()
+        compose.onNodeWithText("NEW YORK · MORNING", substring = true).assertExists()
+        compose.onNodeWithText("Rings at 14:00 your time · Sleep now and that’s 16h 00m of rest").assertExists()
+        compose.onNodeWithText("09:00", substring = true).assertExists()
+    }
+
+    @Test
+    fun goingBackToThePhonesTimeForgetsTheCity() {
+        show(alarm(hour = 9, minute = 0).copy(timeZone = "America/New_York", zoneLabel = "New York"))
+
+        compose.onNode(hasText("New York time") and hasClickAction()).performScrollTo().performClick()
+        compose.onNode(zoneChoice("New York time")).assertIsSelected()
+        compose.onNode(zoneChoice("Phone’s time")).performClick()
+
+        assertEquals(null to null, draft.timeZone to draft.zoneLabel)
+        compose.onNodeWithText("Rings by the clock wherever you are").assertExists()
+        compose.onNodeWithText("Sleep now and that’s 11h 00m of rest").assertExists()
+    }
+
+    @Test
+    fun anotherCityCanBeFoundBySearch() {
+        show(alarm(hour = 9, minute = 0))
+
+        compose.onNode(hasText("Phone’s time") and hasClickAction()).performScrollTo().performClick()
+        compose.onNodeWithText("Find another city").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("City name").performTextInput("tok")
+        compose.onNode(hasText("Tokyo") and hasClickAction()).performClick()
+
+        assertEquals("Asia/Tokyo" to "Tokyo", draft.timeZone to draft.zoneLabel)
+        compose.onNodeWithText("Tokyo time").assertExists()
+    }
+
+    @Test
+    fun aSearchWithNoCityTakesYouNowhere() {
+        show(alarm())
+
+        compose.onNode(hasText("Phone’s time") and hasClickAction()).performScrollTo().performClick()
+        compose.onNodeWithText("Find another city").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("City name").performTextInput("zzz")
+
+        compose.onNodeWithText("No city by that name").assertExists()
+        compose.onNodeWithContentDescription("Back to time zones").performClick()
+        compose.onNodeWithText("Ring by the time in…").assertExists()
     }
 
     /** TalkBack reads a control by its text or description, so one with neither is unusable without sight. */
@@ -202,6 +282,22 @@ class EditScreenTest {
         compose.onNodeWithText("Add a game").performScrollTo().performClick()
         assertAllLabelled()
     }
+
+    @Test
+    fun everyTimeZoneControlHasALabel() {
+        show(alarm())
+
+        compose.onNode(hasText("Phone’s time") and hasClickAction()).performScrollTo().performClick()
+        assertAllLabelled()
+
+        compose.onNodeWithText("Find another city").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("City name").performTextInput("new")
+        compose.onNode(hasText("New York") and hasClickAction()).assertExists()
+        assertAllLabelled()
+    }
+
+    /** A radio button in the time zone sheet. */
+    private fun zoneChoice(name: String) = hasText(name) and SemanticsMatcher.keyIsDefined(SemanticsProperties.Selected)
 
     private fun assertAllLabelled() {
         val unlabelled = compose.onAllNodes(hasClickAction()).fetchSemanticsNodes().filter { node ->

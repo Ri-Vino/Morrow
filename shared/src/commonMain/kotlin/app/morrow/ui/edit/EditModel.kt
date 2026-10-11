@@ -3,15 +3,26 @@ package app.morrow.ui.edit
 import app.morrow.domain.Alarm
 import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
+import app.morrow.domain.clockZone
+import app.morrow.domain.nextOccurrence
+import app.morrow.domain.ownZone
 import app.morrow.domain.rules
+import app.morrow.places.City
+import app.morrow.places.SavedCity
 import app.morrow.ui.displayName
 import app.morrow.ui.formatDuration
 import app.morrow.ui.gameDescription
 import app.morrow.ui.hhmm
 import app.morrow.ui.roundsText
+import app.morrow.ui.world.cityClock
+import app.morrow.ui.world.cityMinute
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.offsetIn
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.roundToInt
+import kotlin.time.Instant
 
 private const val MINUTES_PER_DAY = 24 * 60
 
@@ -21,9 +32,11 @@ const val DIAL_STEP_MINUTES = 5
 data class EditModel(
     val title: String,
     val canDelete: Boolean,
+    /** On the alarm's own clock: the city's, when it has one. */
     val time: String,
     val daypart: String,
     val untilText: String,
+    val zone: ZoneRow,
     /** The wake-up games in play order. */
     val games: List<GameRow>,
     val estimate: Estimate,
@@ -49,22 +62,47 @@ data class GameRow(
     val canMoveDown: Boolean,
 )
 
+/** The Time zone row: whose clock the alarm keeps. */
+data class ZoneRow(val title: String, val subtitle: String, val zoned: Boolean)
+
+/** A choice in the "Ring by the time in…" sheet. Picking it sets the alarm's [timeZone] and [city], both null for the phone's. */
+data class ZoneChoice(
+    val timeZone: String?,
+    val city: String?,
+    val name: String,
+    val subtitle: String,
+    /** The time there now. */
+    val time: String,
+    val selected: Boolean,
+)
+
 data class GameChoice(val type: MissionType, val name: String, val description: String, val added: Boolean)
 
 /** How long the games take, and whether that's [tooLong] for the alarm's ten minutes of singing. */
 data class Estimate(val text: String, val tooLong: Boolean)
 
-fun editModel(draft: Alarm, nowMinute: Int): EditModel {
+/** [now] and [phoneZone] are the phone's; an alarm on another city's clock is shown by that clock. */
+fun editModel(draft: Alarm, now: Instant, phoneZone: TimeZone): EditModel {
     val alarmMinute = draft.hour * 60 + draft.minute
-    val until = (alarmMinute - nowMinute).mod(MINUTES_PER_DAY).takeIf { it != 0 } ?: MINUTES_PER_DAY
+    val nowMinute = cityMinute(now, phoneZone)
+    val city = draft.zoneName()
+    // The next time the alarm's clock shows its time, whatever the repeat days.
+    val ringsAt = draft.copy(days = emptySet()).nextOccurrence(now, draft.clockZone(phoneZone))
+    val until = ringsAt - now
     val night = nowMinute >= 20 * 60 || nowMinute < 4 * 60
+    val rest = if (night) "Sleep now and that’s ${formatDuration(until)} of rest" else "That’s ${formatDuration(until)} from now"
     val games = draft.games
     return EditModel(
         title = if (draft.id == 0L) "New alarm" else "Edit alarm",
         canDelete = draft.id != 0L,
         time = hhmm(draft.hour, draft.minute),
-        daypart = daypart(alarmMinute),
-        untilText = if (night) "Sleep now and that’s ${formatDuration(until)} of rest" else "That’s ${formatDuration(until)} from now",
+        daypart = if (city == null) daypart(alarmMinute) else "$city · ${daypart(alarmMinute)}",
+        untilText = if (city == null) rest else "Rings at ${cityClock(ringsAt, phoneZone)} your time · $rest",
+        zone = if (city == null) {
+            ZoneRow("Phone’s time", "Rings by the clock wherever you are", zoned = false)
+        } else {
+            ZoneRow("$city time", "Follows $city’s clock, summer time included", zoned = true)
+        },
         games = games.mapIndexed { i, step ->
             val max = step.type.rules.maxRounds
             GameRow(
@@ -88,6 +126,91 @@ fun editModel(draft: Alarm, nowMinute: Int): EditModel {
         canAddGame = games.size < MissionType.entries.size,
     )
 }
+
+/** The city whose clock the alarm keeps, or null when it follows the phone, as it does when its zone isn't known here. */
+fun Alarm.zoneName(): String? {
+    if (ownZone() == null) return null
+    return zoneLabel?.takeIf(String::isNotBlank) ?: timeZone?.substringAfterLast('/')?.replace('_', ' ')
+}
+
+/** The alarm set to keep [timeZone]'s clock, picked as [city]; both null to follow the phone. */
+fun Alarm.inZone(timeZone: String?, city: String?): Alarm =
+    copy(timeZone = timeZone, zoneLabel = city.takeIf { timeZone != null })
+
+/**
+ * The "Ring by the time in…" choices: the phone's time, which [phoneCity] names, then each [saved] city on another
+ * clock. A zone picked by search, which isn't among them, is listed second so the choice shows.
+ */
+fun zoneChoices(draft: Alarm, saved: List<City>, now: Instant, phoneZone: TimeZone, phoneCity: String): List<ZoneChoice> {
+    val zoned = draft.zoneName() != null
+    val phone = ZoneChoice(
+        timeZone = null,
+        city = null,
+        name = "Phone’s time",
+        subtitle = "$phoneCity now · moves with you when you travel",
+        time = cityClock(now, phoneZone),
+        selected = !zoned,
+    )
+    val cities = saved
+        .filter { it.timeZone != phoneZone.id }
+        .distinctBy { it.timeZone to it.name }
+        .mapNotNull { city ->
+            val zone = zoneOrNull(city.timeZone) ?: return@mapNotNull null
+            ZoneChoice(
+                timeZone = city.timeZone,
+                city = city.name,
+                name = "${city.name} time",
+                subtitle = offsetFromYou(now, zone, phoneZone),
+                time = cityClock(now, zone),
+                selected = zoned && draft.timeZone == city.timeZone && draft.zoneLabel == city.name,
+            )
+        }
+    val picked = draft.ownZone()?.takeIf { zoned && cities.none(ZoneChoice::selected) }?.let { zone ->
+        val name = draft.zoneName()
+        ZoneChoice(draft.timeZone, name, "$name time", offsetFromYou(now, zone, phoneZone), cityClock(now, zone), selected = true)
+    }
+    return listOf(phone) + listOfNotNull(picked) + cities
+}
+
+/** Cities found by "Find another city", each with where it is and how its clock sits against the phone's. */
+fun searchChoices(found: List<City>, now: Instant, phoneZone: TimeZone): List<ZoneChoice> =
+    found.mapNotNull { city ->
+        val zone = zoneOrNull(city.timeZone) ?: return@mapNotNull null
+        val place = listOfNotNull(city.region, city.country).distinct().joinToString(", ")
+        ZoneChoice(
+            timeZone = city.timeZone,
+            city = city.name,
+            name = city.name,
+            subtitle = "$place · ${offsetFromYou(now, zone, phoneZone)}",
+            time = cityClock(now, zone),
+            selected = false,
+        )
+    }
+
+/**
+ * The name for the phone's own zone: a saved city in it, home first, else the catalog's city for it ([zoneCity]),
+ * else the zone id.
+ */
+fun phoneCityName(saved: List<SavedCity>, phoneZone: TimeZone, zoneCity: City?): String =
+    saved.filter { it.city.timeZone == phoneZone.id }.maxByOrNull { it.isHome }?.city?.name
+        ?: zoneCity?.name
+        ?: phoneZone.id
+
+/** How [zone]'s clock sits against the phone's at [now], like "−5 h from you" or "+5½ h from you". */
+fun offsetFromYou(now: Instant, zone: TimeZone, phoneZone: TimeZone): String {
+    val minutes = (now.offsetIn(zone).totalSeconds - now.offsetIn(phoneZone).totalSeconds) / 60
+    if (minutes == 0) return "Same time as you now"
+    val sign = if (minutes > 0) "+" else "−"
+    val hours = abs(minutes) / 60
+    val offset = when (val rest = abs(minutes) % 60) {
+        0 -> "$sign$hours h"
+        30 -> "$sign$hours½ h"
+        else -> "$sign$hours h $rest m"
+    }
+    return "$offset from you"
+}
+
+private fun zoneOrNull(id: String): TimeZone? = runCatching { TimeZone.of(id) }.getOrNull()
 
 /** A rough guess at how long [games] take to play, in seconds. */
 fun gamesSeconds(games: List<GameStep>): Int = games.sumOf { it.type.rules.secondsPerRound * it.rounds }

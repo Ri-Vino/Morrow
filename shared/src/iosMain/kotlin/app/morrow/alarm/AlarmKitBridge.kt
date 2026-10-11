@@ -21,8 +21,15 @@ interface AlarmKitBridge {
      */
     fun schedule(id: Long, label: String, hour: Int, minute: Int, isoDays: List<Int>, sound: String)
 
+    /**
+     * Rings once at [epochSeconds] (seconds since 1970 UTC), whatever the phone's zone, showing [label] and playing
+     * [sound]. [id] is one of [alarmId]'s dates, from [app.morrow.alarms.fixedDateId]; its "Start mission" button
+     * wakes [alarmId]. Replaces any alarm with the same [id].
+     */
+    fun scheduleOnce(id: Long, alarmId: Long, label: String, epochSeconds: Long, sound: String)
+
     fun cancel(id: Long)
 
-    /** The alarms AlarmKit holds, waiting or ringing, including ones it's still being handed. */
+    /** The alarms AlarmKit holds, waiting or ringing, including ones it's still being handed. Dates count by their own ids. */
     fun scheduledIds(): List<Long>
 }

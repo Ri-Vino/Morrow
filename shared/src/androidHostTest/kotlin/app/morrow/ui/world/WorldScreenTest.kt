@@ -13,9 +13,11 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.dp
+import app.morrow.places.City
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
 import app.morrow.ui.NoMotion
@@ -36,6 +38,7 @@ class WorldScreenTest {
 
     private val world = WorldFixtures()
     private var addCityTapped = 0
+    private val newAlarms = mutableListOf<City?>()
 
     private fun show() {
         runBlocking {
@@ -45,7 +48,7 @@ class WorldScreenTest {
         }
         compose.setContent {
             MorrowTheme(ThemeKind.MORNING) {
-                WorldRoute(world.cities, onAddCity = { addCityTapped++ }, ticks = world.ticks, phoneZone = world.phoneZone)
+                WorldRoute(world.cities, onAddCity = { addCityTapped++ }, onNewAlarm = { newAlarms += it }, ticks = world.ticks, phoneZone = world.phoneZone)
             }
         }
     }
@@ -57,6 +60,18 @@ class WorldScreenTest {
     private val londonCard = "London, home city, 07:40, Today · your time"
     private val tokyoCard = "Tokyo, 16:40, Today · +9 h"
     private val newYorkCard = "New York City, 02:40, Today · −5 h"
+
+    @Test
+    fun theSheetStartsANewAlarmOnTheCitysClock() {
+        show()
+
+        compose.onNodeWithContentDescription(newYorkCard).performScrollTo().performClick()
+        compose.onNodeWithText("New alarm in New York City time").performClick()
+        compose.onNodeWithContentDescription(londonCard).performClick()
+        compose.onNodeWithText("New alarm").performClick()
+
+        assertEquals(listOf(world.newYork, null), newAlarms)
+    }
 
     @Test
     fun showsTheSavedCitiesInOrderWithTheirTimes() {

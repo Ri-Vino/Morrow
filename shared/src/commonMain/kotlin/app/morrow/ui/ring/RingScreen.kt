@@ -58,7 +58,9 @@ import app.morrow.ui.components.pressable
 import app.morrow.ui.components.rememberSceneSeconds
 import app.morrow.ui.components.svgPath
 import app.morrow.ui.components.withAlpha
+import kotlinx.datetime.TimeZone
 import kotlin.math.floor
+import kotlin.time.Instant
 
 /** Extra controls when the screen is a preview from Home or Edit rather than a real alarm. */
 class RingPreview(val soundOn: Boolean, val onToggleSound: () -> Unit, val onExit: () -> Unit)
@@ -313,7 +315,8 @@ private val BigSmile = svgPath("M-14 20 q14 14 28 0")
 private val HillRise = svgPath("M0 640 C90 610 170 618 250 632 C310 642 350 626 390 630 L390 848 L0 848 Z")
 private val HillFront = svgPath("M0 690 C110 672 250 690 390 676 L390 848 L0 848 Z")
 
-private val PreviewModel = ringModel(Alarm(1, 6, 30, "Work days", emptySet(), DefaultGames, enabled = true))
+private val PreviewModel =
+    ringModel(Alarm(1, 6, 30, "Work days", emptySet(), DefaultGames, enabled = true), Instant.parse("2026-10-05T06:30:00Z"), TimeZone.UTC)
 
 @Preview(widthDp = 390, heightDp = 844)
 @Composable

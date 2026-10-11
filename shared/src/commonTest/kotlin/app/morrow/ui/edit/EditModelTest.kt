@@ -10,6 +10,11 @@ import app.morrow.domain.MissionType.SHAKE
 import app.morrow.domain.MissionType.SUMS
 import app.morrow.domain.MissionType.TYPE
 import app.morrow.domain.MissionType.UNSCRAMBLE
+import app.morrow.places.City
+import app.morrow.places.SavedCity
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
@@ -18,8 +23,20 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.minutes
+
+private val london = TimeZone.of("Europe/London")
 
 class EditModelTest {
+
+    /** The model at [nowMinute] on a Monday in London, with no clock change near. */
+    private fun editModel(draft: Alarm, nowMinute: Int) =
+        app.morrow.ui.edit.editModel(draft, at("2026-10-05T00:00").plus(nowMinute.minutes), london)
+
+    private fun at(iso: String) = LocalDateTime.parse(iso).toInstant(london)
+
+    private fun city(name: String, zone: String, id: Long = name.hashCode().toLong(), region: String? = null, country: String = "Somewhere") =
+        City(id, name, region, country, 0.0, 0.0, zone, 1000)
 
     private fun alarm(hour: Int, minute: Int, id: Long = 1, games: List<GameStep> = DefaultGames) =
         Alarm(id, hour, minute, "Alarm", emptySet(), games, enabled = true)
@@ -180,5 +197,129 @@ class EditModelTest {
         assertEquals(draft, draft.withGameMoved(SUMS, -1))
         assertEquals(draft, draft.withGameMoved(SCAN, 1))
         assertEquals(draft, draft.withGameMoved(SHAKE, 1))
+    }
+
+    @Test
+    fun anAlarmOnThePhonesClockSaysSo() {
+        val model = editModel(alarm(6, 30), nowMinute = 600)
+        assertEquals(ZoneRow("Phone’s time", "Rings by the clock wherever you are", zoned = false), model.zone)
+        assertEquals("Dawn", model.daypart)
+    }
+
+    @Test
+    fun anAlarmOnNewYorksClockShowsItsTimeThereAndHere() {
+        val meeting = alarm(9, 0).inZone("America/New_York", "New York")
+        val model = app.morrow.ui.edit.editModel(meeting, at("2026-10-05T07:40"), london)
+
+        assertEquals("09:00", model.time)
+        assertEquals("New York · Morning", model.daypart)
+        assertEquals("Rings at 14:00 your time · That’s 6h 20m from now", model.untilText)
+        assertEquals(ZoneRow("New York time", "Follows New York’s clock, summer time included", zoned = true), model.zone)
+    }
+
+    @Test
+    fun atNightTheZonedLineTalksAboutSleep() {
+        val early = alarm(1, 30).inZone("America/New_York", "New York")
+        val model = app.morrow.ui.edit.editModel(early, at("2026-10-05T23:10"), london)
+        assertEquals("Rings at 06:30 your time · Sleep now and that’s 7h 20m of rest", model.untilText)
+    }
+
+    @Test
+    fun theTimeHereFollowsBothCitiesClockChanges() {
+        // London's clocks have gone back but New York's haven't: 09:00 there is 13:00 here for the week.
+        val meeting = alarm(9, 0).inZone("America/New_York", "New York")
+        assertEquals(
+            "Rings at 13:00 your time · That’s 5h 00m from now",
+            app.morrow.ui.edit.editModel(meeting, at("2026-10-27T08:00"), london).untilText,
+        )
+    }
+
+    @Test
+    fun aZoneWithoutACityIsNamedFromItsId() {
+        assertEquals("Los Angeles", alarm(7, 0).inZone("America/Los_Angeles", null).zoneName())
+        assertEquals(null, alarm(7, 0).zoneName())
+    }
+
+    @Test
+    fun anUnknownZoneIsShownAsThePhonesTime() {
+        val lost = alarm(7, 0).copy(timeZone = "Atlantis/Lost_City", zoneLabel = "Atlantis")
+        assertEquals(null, lost.zoneName())
+        assertEquals("Phone’s time", editModel(lost, nowMinute = 600).zone.title)
+    }
+
+    @Test
+    fun choosingThePhonesTimeForgetsTheCity() {
+        val meeting = alarm(9, 0).inZone("America/New_York", "New York")
+        assertEquals(alarm(9, 0), meeting.inZone(null, null))
+        assertEquals(alarm(9, 0), alarm(9, 0).inZone(null, "New York"))
+    }
+
+    @Test
+    fun theSheetListsThePhoneThenSavedCitiesOnOtherClocks() {
+        val saved = listOf(
+            city("London", "Europe/London"),
+            city("New York", "America/New_York"),
+            city("Mumbai", "Asia/Kolkata"),
+        )
+        val choices = zoneChoices(alarm(7, 0), saved, at("2026-10-05T07:40"), london, phoneCity = "London")
+
+        assertEquals(
+            listOf(
+                ZoneChoice(null, null, "Phone’s time", "London now · moves with you when you travel", "07:40", selected = true),
+                ZoneChoice("America/New_York", "New York", "New York time", "−5 h from you", "02:40", selected = false),
+                ZoneChoice("Asia/Kolkata", "Mumbai", "Mumbai time", "+4½ h from you", "12:10", selected = false),
+            ),
+            choices,
+        )
+    }
+
+    @Test
+    fun theSheetMarksTheAlarmsCity() {
+        val saved = listOf(city("New York", "America/New_York"), city("Tokyo", "Asia/Tokyo"))
+        val meeting = alarm(9, 0).inZone("America/New_York", "New York")
+        val choices = zoneChoices(meeting, saved, at("2026-10-05T07:40"), london, phoneCity = "London")
+        assertEquals(listOf(false, true, false), choices.map { it.selected })
+    }
+
+    @Test
+    fun aCityFoundBySearchIsListedSecondAndChosen() {
+        val saved = listOf(city("Tokyo", "Asia/Tokyo"))
+        val call = alarm(9, 0).inZone("America/Toronto", "Toronto")
+        val choices = zoneChoices(call, saved, at("2026-10-05T07:40"), london, phoneCity = "London")
+        assertEquals(listOf("Phone’s time", "Toronto time", "Tokyo time"), choices.map { it.name })
+        assertEquals(listOf(false, true, false), choices.map { it.selected })
+    }
+
+    @Test
+    fun searchResultsSayWhereTheCityIsAndHowFarItsClockIs() {
+        val found = listOf(
+            city("New York City", "America/New_York", region = "New York", country = "United States"),
+            city("Kathmandu", "Asia/Kathmandu", country = "Nepal"),
+            city("Singapore", "Asia/Singapore", region = "Singapore", country = "Singapore"),
+        )
+        val choices = searchChoices(found, at("2026-10-05T07:40"), london)
+        assertEquals(
+            listOf(
+                "New York, United States · −5 h from you",
+                "Nepal · +4 h 45 m from you",
+                "Singapore · +7 h from you",
+            ),
+            choices.map { it.subtitle },
+        )
+        assertEquals(listOf("New York City", "Kathmandu", "Singapore"), choices.map { it.name })
+    }
+
+    @Test
+    fun aCityOnTheSameClockForNowSaysSo() {
+        assertEquals("Same time as you now", offsetFromYou(at("2026-10-05T07:40"), TimeZone.of("Europe/Lisbon"), london))
+    }
+
+    @Test
+    fun thePhonesTimeIsNamedAfterASavedCityThenTheZonesCityThenTheZone() {
+        val london1 = SavedCity(city("London", "Europe/London"), isHome = false)
+        val tokyo = SavedCity(city("Tokyo", "Asia/Tokyo"), isHome = true)
+        assertEquals("London", phoneCityName(listOf(tokyo, london1), london, zoneCity = null))
+        assertEquals("Westminster", phoneCityName(listOf(tokyo), london, zoneCity = city("Westminster", "Europe/London")))
+        assertEquals("Europe/London", phoneCityName(emptyList(), london, zoneCity = null))
     }
 }

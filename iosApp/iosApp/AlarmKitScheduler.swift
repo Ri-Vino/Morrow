@@ -27,6 +27,16 @@ final class AlarmKitScheduler: NSObject, AlarmKitBridge {
         let days = isoDays.compactMap { Self.weekday($0.int32Value) }
         let time = Alarm.Schedule.Relative.Time(hour: Int(hour), minute: Int(minute))
         let schedule = Alarm.Schedule.relative(.init(time: time, repeats: days.isEmpty ? .never : .weekly(days)))
+        submit(id: id, alarmID: id, label: label, schedule: schedule, sound: sound)
+    }
+
+    /// One date of an alarm on another city's clock. Its "Start mission" button wakes `alarmId`, the alarm it belongs to.
+    func scheduleOnce(id: Int64, alarmId: Int64, label: String, epochSeconds: Int64, sound: String) {
+        let schedule = Alarm.Schedule.fixed(Date(timeIntervalSince1970: TimeInterval(epochSeconds)))
+        submit(id: id, alarmID: alarmId, label: label, schedule: schedule, sound: sound)
+    }
+
+    private func submit(id: Int64, alarmID morrowAlarm: Int64, label: String, schedule: Alarm.Schedule, sound: String) {
         let alert = AlarmPresentation.Alert(
             title: LocalizedStringResource(stringLiteral: label),
             stopButton: AlarmButton(text: "Stop", textColor: .white, systemImageName: "stop.fill"),
@@ -37,7 +47,7 @@ final class AlarmKitScheduler: NSObject, AlarmKitBridge {
         let configuration = AlarmManager.AlarmConfiguration.alarm(
             schedule: schedule,
             attributes: attributes,
-            secondaryIntent: StartMissionIntent(alarmID: String(id)),
+            secondaryIntent: StartMissionIntent(alarmID: String(morrowAlarm)),
             sound: .named(sound)
         )
         let alarmID = Self.uuid(for: id)
@@ -78,7 +88,7 @@ final class AlarmKitScheduler: NSObject, AlarmKitBridge {
         pending[id] = count > 0 ? count : nil
     }
 
-    /// Morrow's ids are small whole numbers; AlarmKit's are UUIDs. This prefix marks Morrow's.
+    /// Morrow's ids, its alarms' and their dates', fit in 48 bits; AlarmKit's are UUIDs. This prefix marks Morrow's.
     private static let prefix = "4D4F5252-4F57-4000-8000-"
 
     private static func uuid(for id: Int64) -> UUID {

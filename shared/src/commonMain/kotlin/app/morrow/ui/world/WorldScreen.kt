@@ -45,6 +45,7 @@ import app.morrow.ui.components.BottomSheet
 import app.morrow.ui.components.Icons
 import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.components.PillButton
+import app.morrow.ui.components.PrimaryButton
 import app.morrow.ui.components.largeText
 import app.morrow.ui.components.pressable
 
@@ -56,6 +57,8 @@ class WorldActions(
     val onRemove: (Long) -> Unit,
     /** Moves a city [by] places in the list, negative for up. */
     val onMove: (id: Long, by: Int) -> Unit,
+    /** Opens Edit for a new alarm on that city's clock. */
+    val onNewAlarm: (Long) -> Unit = {},
 )
 
 /** The World tab: a card for each saved city, and the sheet for [sheet] when a card has been tapped. */
@@ -220,6 +223,7 @@ private fun CitySheetView(sheet: CitySheet, actions: WorldActions) {
             }
         }
         BasicText(sheet.relative, style = type.body.copy(color = colors.muted), modifier = Modifier.padding(horizontal = 8.dp))
+        PrimaryButton(sheet.newAlarm, { actions.onNewAlarm(sheet.id) })
         if (sheet.isHome) {
             BasicText(
                 "This is your home city. Weather uses it when location is off.",

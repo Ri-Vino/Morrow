@@ -10,6 +10,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.Saver
@@ -29,6 +30,8 @@ import app.morrow.domain.MissionType
 import app.morrow.domain.decodeGames
 import app.morrow.domain.encodeGames
 import app.morrow.domain.nextAlarm
+import app.morrow.domain.nextRing
+import app.morrow.places.City
 import app.morrow.places.CityCatalog
 import app.morrow.places.CityRepository
 import app.morrow.platform.AlarmSound
@@ -40,7 +43,11 @@ import app.morrow.theme.isLightSky
 import app.morrow.ui.edit.EditActions
 import app.morrow.ui.edit.EditScreen
 import app.morrow.ui.edit.KettleCodeScreen
+import app.morrow.ui.edit.ZoneSheetData
 import app.morrow.ui.edit.editModel
+import app.morrow.ui.edit.phoneCityName
+import app.morrow.ui.edit.searchChoices
+import app.morrow.ui.edit.zoneChoices
 import app.morrow.ui.edit.withGame
 import app.morrow.ui.firstrun.SetupScreen
 import app.morrow.ui.firstrun.WelcomeScreen
@@ -126,7 +133,7 @@ fun MorrowApp(
                         }
                         target == null -> {
                             if (tab != Tab.ALARMS) LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
-                            TabHost(tab, onSelect = { tab = it }, world = { WorldRoute(services.cities, onAddCity = { addingCity = true }) }) {
+                            TabHost(tab, onSelect = { tab = it }, world = { WorldRoute(services.cities, onAddCity = { addingCity = true }, onNewAlarm = { editing = it?.let(::newAlarmTarget) ?: NEW_ALARM }) }) {
                                 screens.SaveableStateProvider(HOME) {
                                     Home(
                                         services, theme, onSystemBarsChange,
@@ -139,7 +146,7 @@ fun MorrowApp(
                         }
                         else -> screens.SaveableStateProvider(EDIT) {
                             EditRoute(
-                                services, theme, target.toLongOrNull(), onSystemBarsChange,
+                                services, theme, target, onSystemBarsChange,
                                 onPreview = { previewing = it },
                                 onDone = {
                                     editing = null
@@ -209,24 +216,27 @@ private fun Home(
     )
 }
 
+/** Edit for [target]: an alarm's id, [NEW_ALARM], or a new alarm on a city's clock from [newAlarmTarget]. */
 @Composable
 private fun EditRoute(
     services: MorrowServices,
     theme: ThemeKind,
-    alarmId: Long?,
+    target: String,
     onSystemBarsChange: (Boolean) -> Unit,
     onPreview: (Alarm) -> Unit,
     onDone: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     var draft by rememberSaveable(stateSaver = AlarmSaver) { mutableStateOf(null) }
-    LaunchedEffect(alarmId) {
-        if (draft == null) draft = alarmId?.let { services.repository.get(it) } ?: newAlarm()
+    LaunchedEffect(target) {
+        if (draft == null) draft = target.toLongOrNull()?.let { services.repository.get(it) } ?: newAlarmFor(target)
     }
     LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
     PlatformBackHandler(onBack = onDone)
     val now by remember { minuteTicks() }.collectAsStateWithLifecycle(initialValue = Clock.System.now())
-    val nowMinute = now.toLocalDateTime(TimeZone.currentSystemDefault()).let { it.hour * 60 + it.minute }
+    val phoneZone = TimeZone.currentSystemDefault()
+    val savedCities by services.cities.cities.collectAsStateWithLifecycle(initialValue = emptyList())
+    val zoneCity by produceState<City?>(null, phoneZone) { value = services.catalog.cityForZone(phoneZone.id) }
     val setup by services.settings.missionSetup.collectAsStateWithLifecycle(initialValue = null)
     var pickingCode by rememberSaveable { mutableStateOf(false) }
 
@@ -246,7 +256,11 @@ private fun EditRoute(
     }
     EditScreen(
         draft = current,
-        model = editModel(current, nowMinute),
+        model = editModel(current, now, phoneZone),
+        zones = ZoneSheetData(
+            choices = zoneChoices(current, savedCities.map { it.city }, now, phoneZone, phoneCityName(savedCities, phoneZone, zoneCity)),
+            find = { query -> searchChoices(services.catalog.search(query, limit = 8), Clock.System.now(), phoneZone) },
+        ),
         actions = EditActions(
             onChange = { changed ->
                 // Scan needs a code to look for, so save one the first time it's added.
@@ -324,9 +338,10 @@ private fun RingPreviewRoute(services: MorrowServices, alarm: Alarm, onSystemBar
     }
     // Leaving the app, or a real alarm taking over the screen, ends the sound for good.
     LifecycleStartEffect(Unit) { onStopOrDispose { soundOn = false } }
+    val ringsAt = remember(alarm) { alarm.nextRing(Clock.System.now(), TimeZone.currentSystemDefault()) }
     when (stage) {
         PreviewStage.RINGING -> RingScreen(
-            model = ringModel(alarm),
+            model = ringModel(alarm, ringsAt, TimeZone.currentSystemDefault()),
             onStartMission = { stage = PreviewStage.MISSION },
             preview = RingPreview(soundOn, onToggleSound = { soundOn = !soundOn }, onExit = onExit),
         )
@@ -400,7 +415,21 @@ private const val NEW_ALARM = "new"
 private const val HOME = "home"
 private const val EDIT = "edit"
 
-private fun newAlarm() = Alarm(
+/**
+ * What to put in `editing` to open Edit for a new alarm that keeps [city]'s clock, as the World tab's
+ * "New alarm in New York time" does.
+ */
+internal fun newAlarmTarget(city: City): String = listOf(NEW_ALARM, city.timeZone, city.name).joinToString(ZONED_TARGET_SEPARATOR)
+
+private const val ZONED_TARGET_SEPARATOR = "|"
+
+/** A new alarm for an Edit target: on a city's clock when [newAlarmTarget] made it, else on the phone's. */
+private fun newAlarmFor(target: String): Alarm {
+    val parts = target.split(ZONED_TARGET_SEPARATOR, limit = 3)
+    return if (parts.size == 3 && parts[0] == NEW_ALARM) newAlarm(timeZone = parts[1], city = parts[2]) else newAlarm()
+}
+
+private fun newAlarm(timeZone: String? = null, city: String? = null) = Alarm(
     id = 0,
     hour = 7,
     minute = 0,
@@ -408,13 +437,18 @@ private fun newAlarm() = Alarm(
     days = DayOfWeek.entries.take(5).toSet(),
     games = DefaultGames,
     enabled = true,
+    timeZone = timeZone,
+    zoneLabel = city.takeIf { timeZone != null },
 )
 
 /** Keeps an unsaved draft through rotation and process death. */
 private val AlarmSaver = Saver<Alarm?, List<Any>>(
     save = { alarm ->
         alarm?.let {
-            listOf(it.id, it.hour, it.minute, it.label, it.days.joinToString(",") { day -> day.name }, encodeGames(it.games), it.enabled)
+            listOf(
+                it.id, it.hour, it.minute, it.label, it.days.joinToString(",") { day -> day.name }, encodeGames(it.games), it.enabled,
+                it.timeZone.orEmpty(), it.zoneLabel.orEmpty(),
+            )
         }
     },
     restore = { saved ->
@@ -426,6 +460,8 @@ private val AlarmSaver = Saver<Alarm?, List<Any>>(
             days = (saved[4] as String).split(",").filter(String::isNotEmpty).map(DayOfWeek::valueOf).toSet(),
             games = decodeGames(saved[5] as String).ifEmpty { DefaultGames },
             enabled = saved[6] as Boolean,
+            timeZone = (saved.getOrNull(7) as String?)?.ifEmpty { null },
+            zoneLabel = (saved.getOrNull(8) as String?)?.ifEmpty { null },
         )
     },
 )

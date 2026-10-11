@@ -15,11 +15,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import app.morrow.MainActivity
 import app.morrow.debug.WithTestFontScale
+import app.morrow.domain.occurrenceNear
 import app.morrow.missions.AndroidCodeScanner
 import app.morrow.missions.AndroidMotionSensor
 import app.morrow.morrow
@@ -29,6 +31,7 @@ import app.morrow.ui.morning.MorningRoute
 import app.morrow.ui.ring.RingScreen
 import app.morrow.ui.ring.ringModel
 import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
 import kotlin.time.Clock
 import kotlin.time.Instant
 
@@ -72,7 +75,13 @@ class RingActivity : ComponentActivity() {
                             RingService.stop(this)
                         },
                     )
-                    else -> RingScreen(ringModel(ringing), onStartMission = { stage = Stage.MISSION })
+                    else -> {
+                        val model = remember(ringing) {
+                            val zone = TimeZone.currentSystemDefault()
+                            ringModel(ringing, ringing.occurrenceNear(Clock.System.now(), zone), zone)
+                        }
+                        RingScreen(model, onStartMission = { stage = Stage.MISSION })
+                    }
                 }
             }
         }

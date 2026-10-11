@@ -33,7 +33,9 @@ class HomeModelTest {
         enabled: Boolean = true,
         id: Long = 1,
         more: List<MissionType> = emptyList(),
-    ) = Alarm(id, hour, minute, label, days, (listOf(mission) + more).map { GameStep(it) }, enabled)
+        zone: String? = null,
+        city: String? = null,
+    ) = Alarm(id, hour, minute, label, days, (listOf(mission) + more).map { GameStep(it) }, enabled, zone, city)
 
     private fun home(at: String, vararg alarms: Alarm, missing: List<AlarmPermission> = emptyList()) =
         homeModel(alarms.toList(), LocalDateTime.parse(at).toInstant(london), london, missing)
@@ -171,5 +173,25 @@ class HomeModelTest {
         assertEquals("Weekends", describeDays(setOf(SATURDAY, SUNDAY)))
         assertEquals("Once", describeDays(emptySet()))
         assertEquals("Mon Sat", describeDays(setOf(SATURDAY, MONDAY)))
+    }
+
+    @Test
+    fun aZonedRowSaysWhoseClockItKeepsAndWhenItRingsHere() {
+        val model = home(
+            "2026-10-06T07:40",
+            alarm(9, 0, "Stand-up", weekdays, zone = "America/New_York", city = "New York", id = 1),
+            alarm(7, 0, id = 2),
+        )
+        assertEquals("09:00", model.rows[0].time)
+        assertEquals("New York time · 14:00 here", model.rows[0].zoneText)
+        assertNull(model.rows[1].zoneText)
+    }
+
+    @Test
+    fun theSleepCardUsesWhenAZonedAlarmReallyRings() {
+        // 08:00 in Tokyo is midnight in London.
+        val card = home("2026-10-06T22:00", alarm(8, 0, "Flight", zone = "Asia/Tokyo", city = "Tokyo")).sleepCard
+        assertEquals("2h 00m", card?.big)
+        assertTrue(card!!.detail.endsWith("Pip wakes you tomorrow at 00:00."), card.detail)
     }
 }

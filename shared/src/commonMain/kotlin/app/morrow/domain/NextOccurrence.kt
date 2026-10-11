@@ -30,7 +30,28 @@ fun Alarm.nextOccurrence(after: Instant, timeZone: TimeZone): Instant {
     error("No occurrence within a week for $this")
 }
 
-fun List<Alarm>.nextAlarm(after: Instant, timeZone: TimeZone): NextAlarm? =
+/** When this alarm next rings, by its own clock when it has one, on a phone in [phoneZone]. */
+fun Alarm.nextRing(after: Instant, phoneZone: TimeZone): Instant = nextOccurrence(after, clockZone(phoneZone))
+
+/** The zone whose clock this alarm keeps: its own, or [phoneZone] when it follows the phone or its zone isn't known here. */
+fun Alarm.clockZone(phoneZone: TimeZone): TimeZone = ownZone() ?: phoneZone
+
+/** The alarm's own zone, or null when it follows the phone. A zone id this device doesn't know counts as none. */
+fun Alarm.ownZone(): TimeZone? = timeZone?.let { id -> runCatching { TimeZone.of(id) }.getOrNull() }
+
+/**
+ * The time this alarm's clock reads [hour]:[minute] closest to [at], whatever its repeat days: the moment it rang,
+ * while it's ringing.
+ */
+fun Alarm.occurrenceNear(at: Instant, phoneZone: TimeZone): Instant {
+    val zone = clockZone(phoneZone)
+    val date = at.toLocalDateTime(zone).date
+    return (-1..1)
+        .map { LocalDateTime(date + DatePeriod(days = it), LocalTime(hour, minute)).toInstant(zone) }
+        .minBy { (it - at).absoluteValue }
+}
+
+fun List<Alarm>.nextAlarm(after: Instant, phoneZone: TimeZone): NextAlarm? =
     filter { it.enabled }
-        .map { NextAlarm(it, it.nextOccurrence(after, timeZone)) }
+        .map { NextAlarm(it, it.nextRing(after, phoneZone)) }
         .minByOrNull { it.at }

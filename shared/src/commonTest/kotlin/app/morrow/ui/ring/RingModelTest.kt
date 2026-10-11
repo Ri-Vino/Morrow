@@ -3,15 +3,36 @@ package app.morrow.ui.ring
 import app.morrow.domain.Alarm
 import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
+import app.morrow.domain.nextRing
 import app.morrow.theme.Illustration
+import app.morrow.ui.components.Icons
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+
+private val london = TimeZone.of("Europe/London")
 
 class RingModelTest {
 
     private fun alarm(label: String, vararg games: MissionType = arrayOf(MissionType.SUMS)) =
         Alarm(1, 6, 5, label, emptySet(), games.map { GameStep(it) }, enabled = true)
+
+    /** The model while [alarm] rings on its next occurrence after a Monday midnight in London. */
+    private fun ringModel(alarm: Alarm) =
+        app.morrow.ui.ring.ringModel(alarm, alarm.nextRing(LocalDateTime.parse("2026-10-05T00:00").toInstant(london), london), london)
+
+    @Test
+    fun anAlarmOnAnotherCitysClockShowsTheTimeHereAndThere() {
+        val standUp = Alarm(1, 9, 0, "Stand-up", emptySet(), listOf(GameStep(MissionType.SUMS)), enabled = true, timeZone = "America/New_York", zoneLabel = "New York")
+        val model = ringModel(standUp)
+        assertEquals("14:00", model.time)
+        assertEquals("Stand-up · 09:00 in New York", model.label)
+        assertEquals(Icons.Globe, model.missionIcon)
+        assertEquals("I’m up — start sums", model.startLabel)
+    }
 
     @Test
     fun showsTimeLabelAndGames() {

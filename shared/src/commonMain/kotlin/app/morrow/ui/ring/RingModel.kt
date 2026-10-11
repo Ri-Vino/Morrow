@@ -11,8 +11,12 @@ import app.morrow.theme.Illustration
 import app.morrow.theme.mix
 import app.morrow.ui.components.Icons
 import app.morrow.ui.displayName
+import app.morrow.ui.edit.zoneName
 import app.morrow.ui.gamesText
 import app.morrow.ui.hhmm
+import app.morrow.ui.world.cityClock
+import kotlinx.datetime.TimeZone
+import kotlin.time.Instant
 
 data class RingModel(
     val time: String,
@@ -21,12 +25,18 @@ data class RingModel(
     val startLabel: String,
 )
 
-fun ringModel(alarm: Alarm): RingModel {
+/**
+ * The ringing screen for [alarm] ringing at [ringsAt]. The big time is the phone's, in [phoneZone]; an alarm on another
+ * city's clock names its own time there instead of its games.
+ */
+fun ringModel(alarm: Alarm, ringsAt: Instant, phoneZone: TimeZone): RingModel {
     val first = alarm.games.first().type
+    val city = alarm.zoneName()
+    val about = if (city == null) gamesText(alarm.games) else "${hhmm(alarm.hour, alarm.minute)} in $city"
     return RingModel(
-        time = hhmm(alarm.hour, alarm.minute),
-        label = listOf(alarm.label.trim(), gamesText(alarm.games)).filter(String::isNotEmpty).joinToString(" · "),
-        missionIcon = Icons.forMission(first),
+        time = cityClock(ringsAt, phoneZone),
+        label = listOf(alarm.label.trim(), about).filter(String::isNotEmpty).joinToString(" · "),
+        missionIcon = if (city == null) Icons.forMission(first) else Icons.Globe,
         startLabel = "I’m up — start ${first.displayName.lowercase()}",
     )
 }

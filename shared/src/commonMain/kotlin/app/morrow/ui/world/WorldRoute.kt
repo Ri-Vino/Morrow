@@ -29,6 +29,8 @@ fun WorldRoute(
     cities: CityRepository,
     onAddCity: () -> Unit,
     modifier: Modifier = Modifier,
+    /** A new alarm on a city's clock, or on the phone's when the city keeps the same time. */
+    onNewAlarm: (City?) -> Unit = {},
     ticks: Flow<Instant>? = null,
     phoneZone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
@@ -55,6 +57,10 @@ fun WorldRoute(
                 scope.launch { cities.remove(id) }
             },
             onMove = { id, by -> scope.launch { cities.move(id, by) } },
+            onNewAlarm = { id ->
+                openId = null
+                list.firstOrNull { it.id == id }?.city?.let { city -> onNewAlarm(city.takeIf { zoneOf(it, phoneZone) != phoneZone }) }
+            },
         ),
         modifier = modifier,
     )
