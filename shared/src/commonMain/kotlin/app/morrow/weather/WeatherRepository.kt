@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
+import kotlin.concurrent.Volatile
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Clock
@@ -86,6 +87,7 @@ class WeatherRepository(
     private val scope: CoroutineScope,
 ) {
     private val refreshing = Mutex()
+    @Volatile private var waiting: RefreshReason? = null
 
     /**
      * Where "Where I am" weather is for, from what's stored: the last fix, the home city, or the city for the phone's
@@ -129,11 +131,14 @@ class WeatherRepository(
 
     /**
      * Fetches, in one request, every place whose cache is older than 30 minutes: here, then each saved city.
-     * Does nothing at all with weather off or while backing off, and nothing if a refresh is already running,
-     * since that one is doing the same work. Failures are silent and keep the cache.
+     * Does nothing at all with weather off or while backing off. One asked for while another runs follows it, as
+     * the place may have changed since the running one began. Failures are silent and keep the cache.
      */
     suspend fun refresh(reason: RefreshReason) {
-        if (!refreshing.tryLock()) return
+        if (!refreshing.tryLock()) {
+            waiting = reason
+            return
+        }
         try {
             if (!mayFetch()) return
             val timeout = timeoutFor(reason)
@@ -147,6 +152,10 @@ class WeatherRepository(
             cache.deleteAllExcept(places.map { it.key })
         } finally {
             refreshing.unlock()
+        }
+        waiting?.let { next ->
+            waiting = null
+            refresh(next)
         }
     }
 

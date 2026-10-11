@@ -61,6 +61,7 @@ class WeatherRulesTest {
         assertTrue(isBackingOff(until, now + 59.minutes))
         assertFalse(isBackingOff(until, now + 1.hours))
         assertFalse(isBackingOff(null, now))
+        assertFalse(isBackingOff(until, now - 2.hours), "a backoff set before the clock moved back")
     }
 
     @Test

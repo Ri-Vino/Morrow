@@ -47,7 +47,8 @@ fun weatherAge(fetchedAt: Instant?, now: Instant): WeatherAge {
 fun backoffUntil(now: Instant): Instant = now + RateLimitBackoff
 
 /** Whether a 429's backoff still holds. */
-fun isBackingOff(until: Instant?, now: Instant): Boolean = until != null && now < until
+// An end more than a backoff away was set before the clock moved back, so it doesn't count.
+fun isBackingOff(until: Instant?, now: Instant): Boolean = until != null && now < until && until - now <= RateLimitBackoff
 
 /** Settings › Weather: "Where I am" follows the phone's location; "Home city" always uses the home city. */
 enum class WeatherPlaceMode { AUTO, HOME }

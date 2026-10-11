@@ -49,6 +49,8 @@ fun TabHost(
     selected: Tab,
     onSelect: (Tab) -> Unit,
     modifier: Modifier = Modifier,
+    /** True while a sheet over the tab needs the bottom of the screen for its own buttons. */
+    barHidden: Boolean = false,
     world: @Composable () -> Unit,
     alarms: @Composable () -> Unit,
 ) {
@@ -59,7 +61,7 @@ fun TabHost(
             Tab.WORLD -> world()
             Tab.TIMERS -> TimersScreen()
         }
-        TabBar(selected, onSelect, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(24.dp))
+        if (!barHidden) TabBar(selected, onSelect, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(24.dp))
     }
 }
 

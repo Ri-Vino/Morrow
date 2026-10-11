@@ -227,12 +227,22 @@ class AlarmCoordinatorTest {
     }
 
     @Test
-    fun catchingUpHandsRepeatingZonedAlarmsOverAgain() = runTest {
+    fun catchingUpLeavesAZonedAlarmThatStillHasDates() = runTest {
         val zoned = coordinator.save(alarm(9, 0, days = setOf(MONDAY), zone = "America/New_York"))
         val plain = coordinator.save(alarm(7, 30, days = setOf(MONDAY)))
         scheduler.scheduled.clear()
 
         coordinator.catchUp(stillScheduled = setOf(zoned, plain))
+
+        assertEquals(emptyMap(), scheduler.scheduled)
+    }
+
+    @Test
+    fun catchingUpTopsUpAZonedAlarmWhoseDatesRanOut() = runTest {
+        val zoned = coordinator.save(alarm(9, 0, days = setOf(MONDAY), zone = "America/New_York"))
+        scheduler.scheduled.clear()
+
+        coordinator.catchUp(stillScheduled = emptySet())
 
         assertEquals(mapOf(zoned to local("2026-10-05T14:00")), scheduler.scheduled)
     }

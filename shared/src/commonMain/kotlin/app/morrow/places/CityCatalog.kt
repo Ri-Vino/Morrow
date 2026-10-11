@@ -1,5 +1,6 @@
 package app.morrow.places
 
+import app.morrow.domain.ZoneRenames
 import app.morrow.resources.Res
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -67,7 +68,7 @@ class CityCatalog(private val load: suspend () -> String) {
     /** The most populous city in a time zone, such as London for "Europe/London". Old names like "Asia/Calcutta" work too. */
     suspend fun cityForZone(zoneId: String): City? {
         val table = table()
-        val zones = setOfNotNull(zoneId, ZoneAliases[zoneId])
+        val zones = setOfNotNull(zoneId, ZoneRenames[zoneId])
         for (i in 0 until table.size) {
             if (table.zones[i] in zones) return table[i]
         }
@@ -163,22 +164,3 @@ private fun squaredDistance(latitude1: Double, longitude1: Double, latitude2: Do
     val y = latitude2 - latitude1
     return x * x + y * y
 }
-
-/** Old zone names some phones still report, and the names GeoNames uses for them. */
-private val ZoneAliases = mapOf(
-    "Africa/Asmera" to "Africa/Asmara",
-    "America/Buenos_Aires" to "America/Argentina/Buenos_Aires",
-    "America/Godthab" to "America/Nuuk",
-    "America/Indianapolis" to "America/Indiana/Indianapolis",
-    "America/Montreal" to "America/Toronto",
-    "Asia/Calcutta" to "Asia/Kolkata",
-    "Asia/Dacca" to "Asia/Dhaka",
-    "Asia/Katmandu" to "Asia/Kathmandu",
-    "Asia/Rangoon" to "Asia/Yangon",
-    "Asia/Saigon" to "Asia/Ho_Chi_Minh",
-    "Asia/Ulan_Bator" to "Asia/Ulaanbaatar",
-    "Atlantic/Faeroe" to "Atlantic/Faroe",
-    "Europe/Kiev" to "Europe/Kyiv",
-    "Pacific/Ponape" to "Pacific/Pohnpei",
-    "Pacific/Truk" to "Pacific/Chuuk",
-)

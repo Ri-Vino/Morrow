@@ -11,6 +11,7 @@ import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
@@ -87,6 +88,18 @@ class TabBarTest {
                 config.getOrNull(SemanticsProperties.Text).isNullOrEmpty()
         }
         assertEquals(emptyList(), unlabelled.map { it.config.toString() })
+    }
+
+    @Test
+    fun theBarStepsAsideForASheet() {
+        compose.setContent {
+            MorrowTheme(ThemeKind.MORNING) {
+                TabHost(Tab.WORLD, onSelect = {}, barHidden = true, world = { BasicText("World screen") }) { BasicText("Alarms screen") }
+            }
+        }
+
+        compose.onNodeWithText("World screen").assertExists()
+        compose.onAllNodes(isSelectable()).assertCountEquals(0)
     }
 
     private fun tabNode(label: String) = compose.onNode(isSelectable() and hasText(label))

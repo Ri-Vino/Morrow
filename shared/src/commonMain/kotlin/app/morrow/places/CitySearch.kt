@@ -99,5 +99,5 @@ fun GeocodedPlace.toCity(): City = City(
  */
 fun mergeCities(bundled: List<City>, online: List<City>): List<City> {
     val ids = bundled.mapTo(HashSet()) { it.id }
-    return (bundled + online.filter { ids.add(it.id) }).sortedByDescending { it.population }
+    return bundled + online.filter { ids.add(it.id) }.sortedByDescending { it.population }
 }

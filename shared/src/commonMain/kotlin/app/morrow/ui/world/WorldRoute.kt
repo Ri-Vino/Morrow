@@ -1,6 +1,7 @@
 package app.morrow.ui.world
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +33,8 @@ fun WorldRoute(
     modifier: Modifier = Modifier,
     /** A new alarm on a city's clock, or on the phone's when the city keeps the same time. */
     onNewAlarm: (City?) -> Unit = {},
+    /** Whether a city's sheet is open, so the tab bar can step aside for its buttons. */
+    onSheetChange: (open: Boolean) -> Unit = {},
     ticks: Flow<Instant>? = null,
     phoneZone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
@@ -42,6 +45,11 @@ fun WorldRoute(
 
     val list = saved ?: return
     val open = openId?.let { id -> list.firstOrNull { it.id == id } }
+    val sheetOpen = open != null
+    DisposableEffect(sheetOpen) {
+        onSheetChange(sheetOpen)
+        onDispose { onSheetChange(false) }
+    }
     WorldScreen(
         model = worldModel(list, now, phoneZone),
         sheet = open?.let { citySheet(it, now, phoneZone) },

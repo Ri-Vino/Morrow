@@ -37,7 +37,7 @@ fun Alarm.nextRing(after: Instant, phoneZone: TimeZone): Instant = nextOccurrenc
 fun Alarm.clockZone(phoneZone: TimeZone): TimeZone = ownZone() ?: phoneZone
 
 /** The alarm's own zone, or null when it follows the phone. A zone id this device doesn't know counts as none. */
-fun Alarm.ownZone(): TimeZone? = timeZone?.let { id -> runCatching { TimeZone.of(id) }.getOrNull() }
+fun Alarm.ownZone(): TimeZone? = timeZone?.let(::timeZoneOrNull)
 
 /**
  * The time this alarm's clock reads [hour]:[minute] closest to [at], whatever its repeat days: the moment it rang,

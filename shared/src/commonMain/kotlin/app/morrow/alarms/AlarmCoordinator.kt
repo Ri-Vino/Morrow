@@ -3,7 +3,6 @@ package app.morrow.alarms
 import app.morrow.data.AlarmRepository
 import app.morrow.domain.Alarm
 import app.morrow.domain.nextRing
-import app.morrow.domain.ownZone
 import app.morrow.platform.AlarmScheduler
 import kotlinx.datetime.TimeZone
 import kotlin.time.Clock
@@ -47,7 +46,9 @@ class AlarmCoordinator(
      */
     suspend fun catchUp(stillScheduled: Set<Long>) {
         repository.getAll()
-            .filter { it.enabled && (it.id !in stillScheduled || it.repeats && it.ownZone() != null) }
+            // A zoned alarm still holding any of its dates is left alone: handing it over again would cancel the date
+            // that may be ringing as the app opens. It's topped up once its dates run out, and after each mission.
+            .filter { it.enabled && it.id !in stillScheduled }
             .forEach { if (it.repeats) sync(it) else repository.setEnabled(it.id, false) }
     }
 

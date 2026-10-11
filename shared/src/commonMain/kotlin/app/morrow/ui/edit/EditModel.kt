@@ -7,6 +7,7 @@ import app.morrow.domain.clockZone
 import app.morrow.domain.nextOccurrence
 import app.morrow.domain.ownZone
 import app.morrow.domain.rules
+import app.morrow.domain.timeZoneOrNull
 import app.morrow.places.City
 import app.morrow.places.SavedCity
 import app.morrow.ui.displayName
@@ -210,7 +211,7 @@ fun offsetFromYou(now: Instant, zone: TimeZone, phoneZone: TimeZone): String {
     return "$offset from you"
 }
 
-private fun zoneOrNull(id: String): TimeZone? = runCatching { TimeZone.of(id) }.getOrNull()
+private fun zoneOrNull(id: String): TimeZone? = timeZoneOrNull(id)
 
 /** A rough guess at how long [games] take to play, in seconds. */
 fun gamesSeconds(games: List<GameStep>): Int = games.sumOf { it.type.rules.secondsPerRound * it.rounds }

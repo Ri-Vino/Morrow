@@ -116,12 +116,13 @@ class CitySearchTest {
     }
 
     @Test
-    fun mergingRanksByPopulationAndDropsDuplicatesById() {
+    fun onlinePlacesJoinBelowTheBundledOnesWithoutDuplicates() {
         val leeds = City(2644688, "Leeds", "England", "United Kingdom", 53.7965, -1.5479, "Europe/London", 455123)
         val onlineLondon = london.copy(latitude = 51.50853, population = 1)
 
         val merged = mergeCities(listOf(london, leeds), listOf(littleLondon, onlineLondon, londonOntario, londonOntario))
 
         assertEquals(listOf(london, leeds, londonOntario, littleLondon), merged)
+        assertEquals(listOf(leeds, london), mergeCities(listOf(leeds), listOf(london)), "a bigger place found online still joins below")
     }
 }

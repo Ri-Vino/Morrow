@@ -1,8 +1,8 @@
 package app.morrow.weather
 
+import app.morrow.domain.timeZoneOrNull
 import app.morrow.platform.HttpClient
 import kotlinx.datetime.FixedOffsetTimeZone
-import kotlinx.datetime.IllegalTimeZoneException
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
@@ -53,11 +53,7 @@ class OpenMeteoSource(private val http: HttpClient, private val clock: Clock) : 
 }
 
 private fun ForecastDto.toForecast(place: Coordinates, fetchedAt: Instant): Forecast {
-    val zone = try {
-        TimeZone.of(timezone)
-    } catch (_: IllegalTimeZoneException) {
-        FixedOffsetTimeZone(UtcOffset(seconds = utcOffsetSeconds))
-    }
+    val zone = timeZoneOrNull(timezone) ?: FixedOffsetTimeZone(UtcOffset(seconds = utcOffsetSeconds))
     val currentTime = LocalDateTime.parse(current.time)
     val thisHour = LocalDateTime(currentTime.date, LocalTime(currentTime.hour, 0))
 

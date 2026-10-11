@@ -35,6 +35,7 @@ import app.morrow.places.City
 import app.morrow.places.CityCatalog
 import app.morrow.places.CityRepository
 import app.morrow.places.CitySearch
+import app.morrow.platform.AlarmPermission
 import app.morrow.platform.AlarmSound
 import app.morrow.platform.PermissionGate
 import app.morrow.theme.MorrowTheme
@@ -119,6 +120,7 @@ fun MorrowApp(
                 null -> Unit // Settings are still loading; avoid flashing the wrong screen.
                 false -> FirstRun(services, theme, onSystemBarsChange)
                 true -> {
+                    LocationGrantedRefresh(services)
                     // Keeps Home's scroll and Edit's draft while a preview covers them.
                     val screens = rememberSaveableStateHolder()
                     var editing by rememberSaveable { mutableStateOf<String?>(null) }
@@ -163,11 +165,17 @@ fun MorrowApp(
                         }
                         target == null -> {
                             if (tab != Tab.ALARMS) LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
+                            var worldSheetOpen by remember { mutableStateOf(false) }
                             val world = @Composable {
                                 LaunchedEffect(Unit) { services.weather.refreshSoon(RefreshReason.WORLD) }
-                                WorldRoute(services.cities, onAddCity = { addingCity = true }, onNewAlarm = { editing = it?.let(::newAlarmTarget) ?: NEW_ALARM })
+                                WorldRoute(
+                                    services.cities,
+                                    onAddCity = { addingCity = true },
+                                    onNewAlarm = { editing = it?.let(::newAlarmTarget) ?: NEW_ALARM },
+                                    onSheetChange = { worldSheetOpen = it },
+                                )
                             }
-                            TabHost(tab, onSelect = { tab = it }, world = world) {
+                            TabHost(tab, onSelect = { tab = it }, barHidden = tab == Tab.WORLD && worldSheetOpen, world = world) {
                                 screens.SaveableStateProvider(HOME) {
                                     Home(
                                         services, theme, onSystemBarsChange,
@@ -192,6 +200,18 @@ fun MorrowApp(
                 }
             }
         }
+    }
+}
+
+/** Once location is allowed, "Where I am" weather follows straight away rather than at the next start. */
+@Composable
+private fun LocationGrantedRefresh(services: MorrowServices) {
+    val missing by services.permissions.missing.collectAsStateWithLifecycle()
+    val locationMissing = AlarmPermission.LOCATION in missing
+    var wasMissing by remember { mutableStateOf(locationMissing) }
+    LaunchedEffect(locationMissing) {
+        if (wasMissing && !locationMissing) services.weather.refreshSoon(RefreshReason.SETTINGS)
+        wasMissing = locationMissing
     }
 }
 
