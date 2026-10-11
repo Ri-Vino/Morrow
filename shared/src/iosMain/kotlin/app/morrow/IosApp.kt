@@ -12,6 +12,8 @@ import app.morrow.domain.WakeSound
 import app.morrow.missions.IosCodeScanner
 import app.morrow.missions.IosMotionSensor
 import app.morrow.permissions.IosPermissionGate
+import app.morrow.places.CityRepository
+import app.morrow.places.bundledCityCatalog
 import app.morrow.theme.ThemeClock
 import app.morrow.ui.MorrowServices
 import app.morrow.ui.mission.MissionServices
@@ -28,6 +30,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.datetime.TimeZone
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSOperationQueue
 import platform.UIKit.UIApplicationDidBecomeActiveNotification
@@ -58,13 +61,16 @@ object IosApp {
         if (::alarmKit.isInitialized) return
         this.alarmKit = alarmKit
         val settings = morrowSettings()
-        val repository = AlarmRepository(buildMorrowDatabase(morrowDatabaseBuilder()).alarmDao())
+        val database = buildMorrowDatabase(morrowDatabaseBuilder())
+        val repository = AlarmRepository(database.alarmDao())
         val coordinator = AlarmCoordinator(repository, IosAlarmScheduler(alarmKit) { sound })
         val themeClock = ThemeClock(scope)
         val permissions = IosPermissionGate(alarmKit)
         val scanner = IosCodeScanner()
         val missions = MissionServices(settings, IosMotionSensor(), scanner)
-        services = MorrowServices(repository, coordinator, themeClock, settings, permissions, IosAlarmSound(), missions)
+        val catalog = bundledCityCatalog()
+        val cities = CityRepository(database.savedCityDao(), catalog) { TimeZone.currentSystemDefault().id }
+        services = MorrowServices(repository, coordinator, themeClock, settings, permissions, IosAlarmSound(), missions, cities, catalog)
         // At launch, trust that each alarm reached AlarmKit when it was saved.
         inSync = alarmKit.authorized
 
@@ -76,6 +82,7 @@ object IosApp {
             .onEach { syncAlarms(again = true) }
             .launchIn(scope)
         permissions.missing.onEach { syncAlarms() }.launchIn(scope)
+        scope.launch { cities.ensureSeeded() }
 
         val center = NSNotificationCenter.defaultCenter
         center.addObserverForName(UIApplicationDidBecomeActiveNotification, null, NSOperationQueue.mainQueue) { _ ->

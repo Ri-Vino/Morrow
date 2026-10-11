@@ -33,7 +33,6 @@ import app.morrow.theme.MorrowTheme
 import app.morrow.ui.PlatformBackHandler
 import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.timers.TimersScreen
-import app.morrow.ui.world.WorldScreen
 
 enum class Tab(val label: String, val icon: String) {
     ALARMS("Alarms", "M12 6a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM12 10v3l2 1.5M5 3L2 6M19 3l3 3"),
@@ -46,12 +45,18 @@ val TabSaver = Saver<Tab, String>(save = { it.name }, restore = { Tab.valueOf(it
 
 /** The three main screens with the bar floating over them; back from World or Timers returns to [Tab.ALARMS]. */
 @Composable
-fun TabHost(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier, alarms: @Composable () -> Unit) {
+fun TabHost(
+    selected: Tab,
+    onSelect: (Tab) -> Unit,
+    modifier: Modifier = Modifier,
+    world: @Composable () -> Unit,
+    alarms: @Composable () -> Unit,
+) {
     PlatformBackHandler(enabled = selected != Tab.ALARMS, onBack = { onSelect(Tab.ALARMS) })
     Box(modifier.fillMaxSize()) {
         when (selected) {
             Tab.ALARMS -> alarms()
-            Tab.WORLD -> WorldScreen()
+            Tab.WORLD -> world()
             Tab.TIMERS -> TimersScreen()
         }
         TabBar(selected, onSelect, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(24.dp))

@@ -29,6 +29,8 @@ import app.morrow.domain.MissionType
 import app.morrow.domain.decodeGames
 import app.morrow.domain.encodeGames
 import app.morrow.domain.nextAlarm
+import app.morrow.places.CityCatalog
+import app.morrow.places.CityRepository
 import app.morrow.platform.AlarmSound
 import app.morrow.platform.PermissionGate
 import app.morrow.theme.MorrowTheme
@@ -59,6 +61,8 @@ import app.morrow.ui.ring.ringModel
 import app.morrow.ui.tabs.Tab
 import app.morrow.ui.tabs.TabHost
 import app.morrow.ui.tabs.TabSaver
+import app.morrow.ui.world.AddCityRoute
+import app.morrow.ui.world.WorldRoute
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -77,6 +81,8 @@ class MorrowServices(
     val permissions: PermissionGate,
     val alarmSound: AlarmSound,
     val missions: MissionServices,
+    val cities: CityRepository,
+    val catalog: CityCatalog,
 )
 
 /**
@@ -106,6 +112,7 @@ fun MorrowApp(
                     var editing by rememberSaveable { mutableStateOf<String?>(null) }
                     var previewing by rememberSaveable(stateSaver = AlarmSaver) { mutableStateOf(null) }
                     var inSettings by rememberSaveable { mutableStateOf(false) }
+                    var addingCity by rememberSaveable { mutableStateOf(false) }
                     var tab by rememberSaveable(stateSaver = TabSaver) { mutableStateOf(Tab.ALARMS) }
                     val target = editing
                     val preview = previewing
@@ -113,9 +120,13 @@ fun MorrowApp(
                         waking != null -> WakeRoute(services, waking, onSystemBarsChange, onDone = onWoken)
                         preview != null -> RingPreviewRoute(services, preview, onSystemBarsChange, onExit = { previewing = null })
                         inSettings -> SettingsRoute(services, theme, developerTools, onSystemBarsChange, onBack = { inSettings = false })
+                        addingCity -> {
+                            LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
+                            AddCityRoute(services.catalog, services.cities, onBack = { addingCity = false })
+                        }
                         target == null -> {
                             if (tab != Tab.ALARMS) LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
-                            TabHost(tab, onSelect = { tab = it }) {
+                            TabHost(tab, onSelect = { tab = it }, world = { WorldRoute(services.cities, onAddCity = { addingCity = true }) }) {
                                 screens.SaveableStateProvider(HOME) {
                                     Home(
                                         services, theme, onSystemBarsChange,

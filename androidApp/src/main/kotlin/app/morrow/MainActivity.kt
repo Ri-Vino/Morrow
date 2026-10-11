@@ -49,7 +49,7 @@ class MainActivity : ComponentActivity() {
         val app = morrow
         val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
         val missions = MissionServices(app.settings, AndroidMotionSensor(this), AndroidCodeScanner(this))
-        val services = MorrowServices(app.repository, app.coordinator, app.themeClock, app.settings, permissions, AlarmTone(app), missions)
+        val services = MorrowServices(app.repository, app.coordinator, app.themeClock, app.settings, permissions, AlarmTone(app), missions, app.cities, app.catalog)
         setContent {
             WithTestFontScale {
                 var tools by rememberSaveable { mutableStateOf(false) }

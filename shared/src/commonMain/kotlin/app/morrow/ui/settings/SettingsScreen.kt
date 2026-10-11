@@ -121,11 +121,18 @@ fun SettingsScreen(model: SettingsModel, choices: SettingsChoices, actions: Sett
                 }
             }
             actions.onDeveloperTools?.let { SecondaryButton("Developer tools", it) }
-            BasicText(
-                "Morrow · No ads, no accounts",
-                style = MorrowTheme.type.caption.copy(color = colors.muted, textAlign = TextAlign.Center),
-                modifier = Modifier.fillMaxWidth(),
-            )
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                BasicText(
+                    "Morrow · No ads, no accounts",
+                    style = MorrowTheme.type.caption.copy(color = colors.muted, textAlign = TextAlign.Center),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                BasicText(
+                    "City data © GeoNames (CC BY 4.0)",
+                    style = MorrowTheme.type.caption.copy(color = colors.muted, textAlign = TextAlign.Center),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }

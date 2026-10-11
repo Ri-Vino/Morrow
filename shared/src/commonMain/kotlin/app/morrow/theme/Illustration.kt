@@ -53,4 +53,11 @@ object Illustration {
     val viewfinder = Color(0xFF150E0C)
     /** Dims the screen behind a bottom sheet. */
     val scrim = Color(0x730F0A08)
+
+    /** Text on a city card whose sky is light, and on one whose sky is dark. */
+    val cityInkDark = Color(0xFF16202B)
+    val cityInkLight = Color(0xFFFFF6EA)
+    /** The pale wash under dark card text, and the dark one under light card text. */
+    val cityScrimLight = Color(0xFFFFFFFF)
+    val cityScrimDark = Color(0xFF140C0A)
 }

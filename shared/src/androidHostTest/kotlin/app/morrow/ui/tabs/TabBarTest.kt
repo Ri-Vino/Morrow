@@ -35,7 +35,7 @@ class TabBarTest {
     private fun show() {
         compose.setContent {
             MorrowTheme(ThemeKind.MORNING) {
-                TabHost(tab, onSelect = { tab = it }) { BasicText("Alarms screen") }
+                TabHost(tab, onSelect = { tab = it }, world = { BasicText("World screen") }) { BasicText("Alarms screen") }
             }
         }
     }
@@ -48,7 +48,7 @@ class TabBarTest {
         tabNode("World").assertIsNotSelected()
 
         compose.onNodeWithText("World").performClick()
-        compose.onNodeWithText("Your cities will live here.").assertExists()
+        compose.onNodeWithText("World screen").assertExists()
         compose.onNodeWithText("Alarms screen").assertDoesNotExist()
         tabNode("World").assertIsSelected()
 

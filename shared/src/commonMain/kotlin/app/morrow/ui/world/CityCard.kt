@@ -1,0 +1,122 @@
+package app.morrow.ui.world
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import app.morrow.theme.MorrowTheme
+import app.morrow.theme.SkyCurve
+import app.morrow.ui.components.CityScene
+import app.morrow.ui.components.MorrowIcon
+import app.morrow.ui.components.largeText
+import app.morrow.ui.components.pressable
+
+/**
+ * A saved city: its own sky at its own time of day, with the name, how far it is from here, and its clock over the top.
+ * Screen readers get the whole card as one button.
+ */
+@Composable
+fun CityCard(
+    name: String,
+    isHome: Boolean,
+    relative: String,
+    clock: String,
+    minuteOfDay: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MorrowTheme.colors
+    val type = MorrowTheme.type
+    val shape = RoundedCornerShape(28.dp)
+    val ink = remember(minuteOfDay) { inkFor(SkyCurve.at(minuteOfDay.toFloat())) }
+    val wash = remember(ink) {
+        Brush.horizontalGradient(
+            0f to ink.scrim.copy(alpha = ink.scrimLeft),
+            SCRIM_CLEAR_AT to ink.scrim.copy(alpha = 0f),
+            1f to ink.scrim.copy(alpha = ink.scrimRight),
+        )
+    }
+    val stacked = largeText()
+    val label = "$name, ${if (isHome) "home city, " else ""}$clock, $relative"
+
+    Box(
+        modifier
+            .fillMaxWidth()
+            .heightIn(min = 128.dp)
+            .shadow(18.dp, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
+            .clip(shape)
+            .pressable({ onClick() }, onClickLabel = "Open $name")
+            .semantics(mergeDescendants = true) { contentDescription = label },
+    ) {
+        CityScene(minuteOfDay, Modifier.matchParentSize())
+        Box(Modifier.matchParentSize().background(wash))
+        if (stacked) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Details(name, isHome, relative, ink, stacked = true)
+                BasicText(clock, style = type.display.copy(color = ink.text, fontFeatureSettings = "tnum"))
+            }
+        } else {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f)) { Details(name, isHome, relative, ink, stacked = false) }
+                BasicText(clock, style = type.display.copy(color = ink.text, fontFeatureSettings = "tnum"))
+            }
+        }
+    }
+}
+
+@Composable
+private fun Details(name: String, isHome: Boolean, relative: String, ink: CardInk, stacked: Boolean) {
+    val type = MorrowTheme.type
+    val nameText: @Composable (Modifier) -> Unit = { modifier ->
+        BasicText(
+            name,
+            style = type.title.copy(color = ink.text),
+            maxLines = if (stacked) 2 else 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = modifier,
+        )
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        if (stacked) {
+            nameText(Modifier)
+            if (isHome) HomeChip(ink)
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                nameText(Modifier.weight(1f, fill = false))
+                if (isHome) HomeChip(ink)
+            }
+        }
+        BasicText(relative, style = type.body.copy(color = ink.text))
+    }
+}
+
+@Composable
+private fun HomeChip(ink: CardInk) {
+    Row(
+        Modifier.background(ink.chip, RoundedCornerShape(10.dp)).padding(horizontal = 8.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        MorrowIcon(HOUSE, ink.text, size = 12.dp, strokeWidth = 2.6f)
+        BasicText("Home", style = MorrowTheme.type.label.copy(color = ink.text, letterSpacing = MorrowTheme.type.caption.letterSpacing))
+    }
+}
+
+private const val HOUSE = "M4 11l8-7 8 7M6 9.5V20h12V9.5"

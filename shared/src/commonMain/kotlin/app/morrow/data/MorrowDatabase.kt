@@ -11,10 +11,12 @@ import androidx.sqlite.execSQL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
-@Database(entities = [AlarmEntity::class], version = 2)
+@Database(entities = [AlarmEntity::class, SavedCityEntity::class], version = 3)
 @ConstructedBy(MorrowDatabaseConstructor::class)
 abstract class MorrowDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao
+
+    abstract fun savedCityDao(): SavedCityDao
 }
 
 // Room generates the actual implementations.
@@ -29,7 +31,7 @@ fun buildMorrowDatabase(builder: RoomDatabase.Builder<MorrowDatabase>): MorrowDa
     builder
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(GamesMigration)
+        .addMigrations(GamesMigration, CitiesMigration)
         .build()
 
 /** An alarm's one mission becomes its first and only game, with that game's usual rounds. */
@@ -57,5 +59,16 @@ internal object GamesMigration : Migration(1, 2) {
         )
         connection.execSQL("DROP TABLE `alarms`")
         connection.execSQL("ALTER TABLE `alarms_new` RENAME TO `alarms`")
+    }
+}
+
+/** Adds the World tab's cities. The table starts empty; CityRepository saves the phone's city as home. */
+internal object CitiesMigration : Migration(2, 3) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            "CREATE TABLE IF NOT EXISTS `saved_cities` (`id` INTEGER NOT NULL, `name` TEXT NOT NULL, `region` TEXT, " +
+                "`country` TEXT NOT NULL, `latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `time_zone` TEXT NOT NULL, " +
+                "`population` INTEGER NOT NULL, `is_home` INTEGER NOT NULL, `position` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        )
     }
 }
