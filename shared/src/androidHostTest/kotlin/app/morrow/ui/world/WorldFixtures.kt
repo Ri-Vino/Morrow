@@ -1,9 +1,17 @@
 package app.morrow.ui.world
 
+import app.morrow.alarms.FakeClock
+import app.morrow.data.FakeCitySearchCacheDao
 import app.morrow.data.FakeSavedCityDao
+import app.morrow.data.InMemoryPreferences
+import app.morrow.data.MorrowSettings
 import app.morrow.places.City
 import app.morrow.places.CityCatalog
 import app.morrow.places.CityRepository
+import app.morrow.places.CitySearch
+import app.morrow.platform.HttpResponse
+import app.morrow.weather.FakeHttpClient
+import app.morrow.weather.OpenMeteoGeocoder
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.datetime.LocalDateTime
@@ -27,6 +35,13 @@ internal class WorldFixtures {
         """.trimIndent()
     }
     val cities = CityRepository(FakeSavedCityDao(), catalog) { "Europe/London" }
+
+    /** Weather is on by default, as in the app; online search answers with [geocoderAnswer]. */
+    val settings = MorrowSettings(InMemoryPreferences())
+    var geocoderAnswer: (String) -> HttpResponse = { HttpResponse(200, """{"generationtime_ms": 0.3}""") }
+    val http = FakeHttpClient { geocoderAnswer(it) }
+    val searchCache = FakeCitySearchCacheDao()
+    val search = CitySearch(catalog, OpenMeteoGeocoder(http), searchCache, settings.weatherEnabled, FakeClock(now))
 
     val london = City(2643743, "London", "England", "United Kingdom", 51.5085, -0.1257, "Europe/London", 8961989)
     val newYork = City(5128581, "New York City", "New York", "United States", 40.7143, -74.0060, "America/New_York", 8804190)

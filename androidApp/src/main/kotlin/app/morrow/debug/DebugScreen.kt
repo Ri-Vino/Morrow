@@ -36,6 +36,9 @@ import app.morrow.ui.components.Pip
 import app.morrow.ui.components.PipLook
 import app.morrow.ui.components.PipMood
 import app.morrow.ui.components.SkyScene
+import app.morrow.weather.PlaceWeather
+import app.morrow.weather.RefreshReason
+import app.morrow.weather.WeatherAge
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.TimeZone
@@ -131,6 +134,8 @@ fun DebugScreen(permissions: PermissionGate, onBack: () -> Unit) {
                 DebugButton("Text 200%", selected = extra != 1f) { TestFontScale.extra.value = if (extra == 1f) 2f else 1f }
             }
 
+            WeatherPanel()
+
             LazyColumn(modifier = Modifier.weight(1f)) {
                 items(alarms, key = Alarm::id) { alarm ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -148,6 +153,45 @@ fun DebugScreen(permissions: PermissionGate, onBack: () -> Unit) {
             }
         }
     }
+}
+
+/** What the weather cache holds, so fetching can be checked on a phone before any screen draws weather. */
+@Composable
+private fun WeatherPanel() {
+    val app = LocalContext.current.morrow
+    val state by app.weather.forecasts.collectAsState(initial = null)
+    val saved by app.cities.cities.collectAsState(initial = emptyList())
+    val colors = MorrowTheme.colors
+    val text = MorrowTheme.type.body.copy(color = colors.text)
+    val weather = state
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        BasicText(
+            when {
+                weather == null -> "Weather: loading"
+                !weather.enabled -> "Weather: off"
+                else -> weather.here?.let { "Weather here: ${it.name ?: it.coordinates.key} (${it.from.name.lowercase()})" } ?: "Weather here: unknown"
+            },
+            style = text,
+            modifier = Modifier.weight(1f),
+        )
+        DebugButton("Refresh now") { app.weather.refreshSoon(RefreshReason.MANUAL) }
+    }
+    if (weather == null || !weather.enabled) return
+    val places = listOfNotNull(weather.hereWeather?.let { "Here" to it }) +
+        saved.mapNotNull { city -> weather.cities[city.id]?.let { city.city.name to it } }
+    for ((name, place) in places) {
+        BasicText("$name · ${place.place.key} · ${place.describe()}", style = MorrowTheme.type.caption.copy(color = colors.muted))
+    }
+}
+
+private fun PlaceWeather.describe(): String {
+    val forecast = forecast ?: return "nothing cached"
+    val age = when (val age = ageAt(Clock.System.now())) {
+        is WeatherAge.Fresh -> "${age.minutes} min old"
+        is WeatherAge.Old -> "${age.hours} h old"
+        WeatherAge.Expired -> "expired"
+    }
+    return "$age · ${"%.1f".format(forecast.now.temperature)} °C · ${forecast.now.sky.name.lowercase()}"
 }
 
 /** The times the design canvas uses for each theme's artboard. */

@@ -14,10 +14,17 @@ import app.morrow.missions.IosCodeScanner
 import app.morrow.missions.IosMotionSensor
 import app.morrow.permissions.IosPermissionGate
 import app.morrow.places.CityRepository
+import app.morrow.places.CitySearch
 import app.morrow.places.bundledCityCatalog
+import app.morrow.platform.NoHttpClientYet
+import app.morrow.platform.NoLocationYet
 import app.morrow.theme.ThemeClock
 import app.morrow.ui.MorrowServices
 import app.morrow.ui.mission.MissionServices
+import app.morrow.weather.OpenMeteoGeocoder
+import app.morrow.weather.OpenMeteoSource
+import app.morrow.weather.RefreshReason
+import app.morrow.weather.WeatherRepository
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,7 +39,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.TimeZone
+import platform.Foundation.NSLocale
+import platform.Foundation.NSLocaleCountryCode
 import platform.Foundation.NSNotificationCenter
+import platform.Foundation.currentLocale
 import platform.Foundation.NSOperationQueue
 import platform.UIKit.UIApplicationDidBecomeActiveNotification
 import platform.UIKit.UIApplicationDidEnterBackgroundNotification
@@ -71,7 +81,17 @@ object IosApp {
         val missions = MissionServices(settings, IosMotionSensor(), scanner)
         val catalog = bundledCityCatalog()
         val cities = CityRepository(database.savedCityDao(), catalog) { TimeZone.currentSystemDefault().id }
-        services = MorrowServices(repository, coordinator, themeClock, settings, permissions, IosAlarmSound(), missions, cities, catalog)
+        val citySearch = CitySearch(catalog, OpenMeteoGeocoder(NoHttpClientYet), database.citySearchCacheDao(), settings.weatherEnabled, Clock.System)
+        val weather = WeatherRepository(
+            settings, cities, catalog, NoLocationYet, OpenMeteoSource(NoHttpClientYet, Clock.System), database.weatherCacheDao(), Clock.System,
+            phoneZone = { TimeZone.currentSystemDefault().id },
+            scope = scope,
+        )
+        val country = NSLocale.currentLocale.objectForKey(NSLocaleCountryCode) as? String
+        services = MorrowServices(
+            repository, coordinator, themeClock, settings, permissions, IosAlarmSound(), missions, cities, catalog, citySearch, weather,
+            phoneCountry = country.orEmpty(),
+        )
         // At launch, trust that each alarm reached AlarmKit when it was saved.
         inSync = alarmKit.authorized
 
@@ -88,6 +108,7 @@ object IosApp {
         val center = NSNotificationCenter.defaultCenter
         center.addObserverForName(UIApplicationDidBecomeActiveNotification, null, NSOperationQueue.mainQueue) { _ ->
             themeClock.refresh()
+            weather.refreshSoon(RefreshReason.START)
             permissions.refresh()
             scanner.refresh()
             syncAlarms()

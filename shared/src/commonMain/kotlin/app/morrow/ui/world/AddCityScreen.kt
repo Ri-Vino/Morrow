@@ -34,11 +34,17 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -53,8 +59,8 @@ import app.morrow.ui.components.largeText
 import app.morrow.ui.components.pressable
 
 /**
- * Finding a city to add to the World tab. [model] is null until the first results are in; it can lag a little behind
- * [query] while the user is typing.
+ * Finding a city to add to the World tab, or to make home from Settings. [model] is null until the first results are in;
+ * it can lag a little behind [query] while the user is typing.
  */
 @Composable
 fun AddCityScreen(
@@ -64,6 +70,7 @@ fun AddCityScreen(
     onAdd: (City) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    purpose: CityPickPurpose = CityPickPurpose.ADD,
 ) {
     val colors = MorrowTheme.colors
     Column(modifier.fillMaxSize().background(colors.bg).statusBarsPadding().imePadding()) {
@@ -76,10 +83,13 @@ fun AddCityScreen(
                 modifier = Modifier.size(44.dp).pressable(onBack).background(colors.surface, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                MorrowIcon(Icons.Back, colors.text, size = 22.dp, strokeWidth = 2.4f, contentDescription = "Back to World")
+                MorrowIcon(
+                    Icons.Back, colors.text, size = 22.dp, strokeWidth = 2.4f,
+                    contentDescription = if (purpose == CityPickPurpose.ADD) "Back to World" else "Back to Settings",
+                )
             }
             BasicText(
-                "Add a city",
+                if (purpose == CityPickPurpose.ADD) "Add a city" else "Home city",
                 style = MorrowTheme.type.title.copy(color = colors.text),
                 modifier = Modifier.weight(1f).semantics { heading() },
             )
@@ -101,10 +111,25 @@ fun AddCityScreen(
                         modifier = Modifier.padding(horizontal = 8.dp).semantics { heading() },
                     )
                 }
-                if (model.rows.isNotEmpty()) Results(model.rows, onAdd)
+                if (model.rows.isNotEmpty()) Results(model.rows, purpose, onAdd)
+                if (model.searchingMore) {
+                    BasicText(
+                        "Looking for more places…",
+                        style = MorrowTheme.type.body.copy(color = colors.muted),
+                        modifier = Modifier.padding(horizontal = 8.dp).semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                }
                 if (model.nothingFound) {
                     BasicText("No places by that name.", style = MorrowTheme.type.body.copy(color = colors.muted), modifier = Modifier.padding(horizontal = 8.dp))
                 }
+                if (model.searchingOnline && purpose == CityPickPurpose.ADD) {
+                    BasicText(
+                        "Places you add are saved on this phone, so they work offline after that.",
+                        style = MorrowTheme.type.caption.copy(color = colors.muted),
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                    )
+                }
+                if (model.offline) OfflineNote()
             }
         }
     }
@@ -154,18 +179,44 @@ private fun SearchField(query: String, onQueryChange: (String) -> Unit, modifier
 }
 
 @Composable
-private fun Results(rows: List<AddCityRow>, onAdd: (City) -> Unit) {
+private fun OfflineNote() {
+    val colors = MorrowTheme.colors
+    val shape = RoundedCornerShape(20.dp)
+    BasicText(
+        "You’re offline. Places on this phone still work; connect to find smaller towns.",
+        style = MorrowTheme.type.body.copy(color = colors.muted),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .background(colors.surface, shape)
+            .drawBehind {
+                val stroke = 1.dp.toPx()
+                drawRoundRect(
+                    color = colors.line,
+                    topLeft = Offset(stroke / 2, stroke / 2),
+                    size = Size(size.width - stroke, size.height - stroke),
+                    cornerRadius = CornerRadius(20.dp.toPx()),
+                    style = Stroke(width = stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx()))),
+                )
+            }
+            .padding(16.dp)
+            .semantics { liveRegion = LiveRegionMode.Polite },
+    )
+}
+
+@Composable
+private fun Results(rows: List<AddCityRow>, purpose: CityPickPurpose, onAdd: (City) -> Unit) {
     val colors = MorrowTheme.colors
     val shape = RoundedCornerShape(24.dp)
     Column(Modifier.fillMaxWidth().clip(shape).background(colors.surface).border(1.dp, colors.line, shape)) {
         rows.forEachIndexed { index, row ->
-            ResultRow(row, onAdd, Modifier.then(if (index > 0) Modifier.topDivider(colors.line) else Modifier))
+            ResultRow(row, purpose, onAdd, Modifier.then(if (index > 0) Modifier.topDivider(colors.line) else Modifier))
         }
     }
 }
 
 @Composable
-private fun ResultRow(row: AddCityRow, onAdd: (City) -> Unit, modifier: Modifier) {
+private fun ResultRow(row: AddCityRow, purpose: CityPickPurpose, onAdd: (City) -> Unit, modifier: Modifier) {
     val colors = MorrowTheme.colors
     val type = MorrowTheme.type
     val stacked = largeText()
@@ -185,14 +236,18 @@ private fun ResultRow(row: AddCityRow, onAdd: (City) -> Unit, modifier: Modifier
         if (!stacked) clock()
         if (row.saved) {
             Box(Modifier.size(44.dp).background(colors.surface2, CircleShape), contentAlignment = Alignment.Center) {
-                MorrowIcon(Icons.Check, colors.hi, size = 20.dp, strokeWidth = 3f, contentDescription = "${row.name} is already in your cities")
+                MorrowIcon(Icons.Check, colors.hi, size = 20.dp, strokeWidth = 3f, contentDescription = row.label)
             }
         } else {
             Box(
                 modifier = Modifier.size(44.dp).pressable({ onAdd(row.city) }).background(colors.accent, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                MorrowIcon(Icons.Plus, colors.onAccent, size = 22.dp, strokeWidth = 2.6f, contentDescription = "Add ${row.name}")
+                if (purpose == CityPickPurpose.ADD) {
+                    MorrowIcon(Icons.Plus, colors.onAccent, size = 22.dp, strokeWidth = 2.6f, contentDescription = row.label)
+                } else {
+                    MorrowIcon(Icons.Pin, colors.onAccent, size = 22.dp, strokeWidth = 2.2f, contentDescription = row.label)
+                }
             }
         }
     }

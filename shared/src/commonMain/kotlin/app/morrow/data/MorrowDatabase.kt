@@ -11,12 +11,19 @@ import androidx.sqlite.execSQL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
-@Database(entities = [AlarmEntity::class, SavedCityEntity::class], version = 4)
+@Database(
+    entities = [AlarmEntity::class, SavedCityEntity::class, WeatherCacheEntity::class, CitySearchCacheEntity::class],
+    version = 5,
+)
 @ConstructedBy(MorrowDatabaseConstructor::class)
 abstract class MorrowDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao
 
     abstract fun savedCityDao(): SavedCityDao
+
+    abstract fun weatherCacheDao(): WeatherCacheDao
+
+    abstract fun citySearchCacheDao(): CitySearchCacheDao
 }
 
 // Room generates the actual implementations.
@@ -31,7 +38,7 @@ fun buildMorrowDatabase(builder: RoomDatabase.Builder<MorrowDatabase>): MorrowDa
     builder
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(GamesMigration, CitiesMigration, ZonesMigration)
+        .addMigrations(GamesMigration, CitiesMigration, ZonesMigration, WeatherMigration)
         .build()
 
 /** An alarm's one mission becomes its first and only game, with that game's usual rounds. */
@@ -78,5 +85,19 @@ internal object ZonesMigration : Migration(3, 4) {
     override fun migrate(connection: SQLiteConnection) {
         connection.execSQL("ALTER TABLE `alarms` ADD COLUMN `time_zone` TEXT")
         connection.execSQL("ALTER TABLE `alarms` ADD COLUMN `zone_label` TEXT")
+    }
+}
+
+/** Adds the weather and city search caches, both empty: the next refresh fills them. */
+internal object WeatherMigration : Migration(4, 5) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            "CREATE TABLE IF NOT EXISTS `weather_cache` (`place_key` TEXT NOT NULL, `json` TEXT NOT NULL, " +
+                "`fetched_at` INTEGER NOT NULL, PRIMARY KEY(`place_key`))",
+        )
+        connection.execSQL(
+            "CREATE TABLE IF NOT EXISTS `city_search_cache` (`query` TEXT NOT NULL, `json` TEXT NOT NULL, " +
+                "`fetched_at` INTEGER NOT NULL, PRIMARY KEY(`query`))",
+        )
     }
 }

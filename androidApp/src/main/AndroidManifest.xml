@@ -15,6 +15,10 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Asked for only when a Scan mission is first chosen. -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Weather and city search only, and nothing at all while weather is off. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Optional, for local weather. Read only while the app is open; no background location. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />

@@ -11,7 +11,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.morrow.places.City
-import app.morrow.places.CityCatalog
+import app.morrow.places.CitySearch
+import app.morrow.places.OnlineSearch
 import app.morrow.places.CityRepository
 import app.morrow.places.SavedCity
 import app.morrow.ui.PlatformBackHandler
@@ -66,13 +67,19 @@ fun WorldRoute(
     )
 }
 
-/** Add a city: search the bundled list, and tapping + saves the city and goes [onBack] to World. */
+/**
+ * Add a city: search the bundled list, and online with weather on. Tapping + saves the city and goes [onBack] to World.
+ * With [purpose] HOME, from Settings, the picked city is saved if it isn't already and becomes home.
+ * [onPicked] hears about the city before going back.
+ */
 @Composable
 fun AddCityRoute(
-    catalog: CityCatalog,
+    search: CitySearch,
     cities: CityRepository,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    purpose: CityPickPurpose = CityPickPurpose.ADD,
+    onPicked: (City) -> Unit = {},
     ticks: Flow<Instant>? = null,
     phoneZone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
@@ -83,30 +90,67 @@ fun AddCityRoute(
     val now by remember(ticks) { ticks ?: minuteTicks() }.collectAsStateWithLifecycle(initialValue = Clock.System.now())
     val savedIds = saved.mapTo(HashSet()) { it.id }
     var found by remember { mutableStateOf<Found?>(null) }
+    var online by remember { mutableStateOf<Online?>(null) }
 
     // The list follows the typing a moment behind, so a fast typist doesn't search for every letter.
     val text = query.trim()
     LaunchedEffect(text, savedIds) {
         if (text.isNotEmpty()) delay(SEARCH_DELAY_MS)
-        val results = if (text.isEmpty()) catalog.mostPopulous(ADD_CITY_LIMIT, except = savedIds) else catalog.search(text, ADD_CITY_LIMIT)
+        val results = when {
+            text.isNotEmpty() -> search.bundled(text, ADD_CITY_LIMIT)
+            purpose == CityPickPurpose.ADD -> search.popular(ADD_CITY_LIMIT, except = savedIds)
+            else -> search.popular(ADD_CITY_LIMIT)
+        }
         found = Found(text, results)
+    }
+    // Online search waits longer, for the typing to stop, and never starts with weather off.
+    LaunchedEffect(text) {
+        online = null
+        if (!search.mayGoOnline(text)) return@LaunchedEffect
+        val cached = search.cached(text)
+        if (cached != null) {
+            online = Online(text, OnlineSearch.Found(cached))
+            return@LaunchedEffect
+        }
+        online = Online(text, OnlineSearch.Searching)
+        delay(ONLINE_DELAY_MS)
+        online = Online(text, search.online(text))
     }
 
     AddCityScreen(
-        model = found?.let { addCityModel(it.query, it.cities, savedIds, now, phoneZone) },
+        model = found?.let { results ->
+            addCityModel(
+                query = results.query,
+                found = results.cities,
+                savedIds = savedIds,
+                now = now,
+                phoneZone = phoneZone,
+                online = online?.takeIf { it.query == results.query }?.result ?: OnlineSearch.Off,
+                purpose = purpose,
+                homeId = saved.firstOrNull { it.isHome }?.id,
+            )
+        },
         query = query,
         onQueryChange = { query = it },
         onAdd = { city ->
             scope.launch {
                 cities.add(city)
+                if (purpose == CityPickPurpose.HOME) cities.makeHome(city.id)
+                onPicked(city)
                 onBack()
             }
         },
         onBack = onBack,
         modifier = modifier,
+        purpose = purpose,
     )
 }
 
 private class Found(val query: String, val cities: List<City>)
 
+private class Online(val query: String, val result: OnlineSearch)
+
 private const val SEARCH_DELAY_MS = 150L
+
+/** From the last key press, so it includes [SEARCH_DELAY_MS]. */
+private const val ONLINE_DELAY_MS = 400L

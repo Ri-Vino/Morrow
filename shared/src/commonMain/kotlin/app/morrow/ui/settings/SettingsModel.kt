@@ -3,6 +3,9 @@ package app.morrow.ui.settings
 import app.morrow.domain.Difficulty
 import app.morrow.platform.AlarmPermission
 import app.morrow.theme.ThemeKind
+import app.morrow.weather.HerePlace
+import app.morrow.weather.Units
+import app.morrow.weather.WeatherPlaceMode
 
 data class SettingsModel(
     val followClock: Boolean,
@@ -38,6 +41,45 @@ fun settingsModel(
         permissions = asked.map { PermissionStatus(it, granted = it !in missing) },
     )
 }
+
+/** Settings › Weather. */
+data class WeatherSection(
+    val enabled: Boolean,
+    val mode: WeatherPlaceMode,
+    /** What the chosen mode means, and for "Where I am", which place it's using now. */
+    val description: String,
+    val homeCityName: String,
+    val units: Units,
+)
+
+/**
+ * The Weather section. [here] is where "Where I am" weather is for now, and [homeCity] the home city's name, both
+ * null until known.
+ */
+fun weatherSection(enabled: Boolean, mode: WeatherPlaceMode, here: HerePlace?, homeCity: String?, units: Units): WeatherSection =
+    WeatherSection(
+        enabled = enabled,
+        mode = mode,
+        description = when (mode) {
+            WeatherPlaceMode.AUTO -> "Your rough location while Morrow is open, or the last place it knew." +
+                (here?.name?.let { " Now: $it." } ?: "")
+            WeatherPlaceMode.HOME -> "Always ${homeCity ?: "your home city"}, wherever you are."
+        },
+        homeCityName = homeCity ?: "None yet",
+        units = units,
+    )
+
+val WeatherPlaceMode.displayName: String
+    get() = when (this) {
+        WeatherPlaceMode.AUTO -> "Where I am"
+        WeatherPlaceMode.HOME -> "Home city"
+    }
+
+val Units.symbol: String
+    get() = when (this) {
+        Units.CELSIUS -> "°C"
+        Units.FAHRENHEIT -> "°F"
+    }
 
 val ThemeKind.shortName: String
     get() = when (this) {

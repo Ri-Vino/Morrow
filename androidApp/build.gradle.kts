@@ -23,6 +23,11 @@ android {
         }
     }
 
+    buildFeatures {
+        // VERSION_NAME, for the User-Agent.
+        buildConfig = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -32,6 +37,8 @@ android {
 dependencies {
     implementation(projects.shared)
     implementation(libs.androidx.activity.compose)
+    // LocationManagerCompat: a coarse fix from the platform, without Google Play Services.
+    implementation(libs.androidx.core)
     implementation(libs.compose.foundation)
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)

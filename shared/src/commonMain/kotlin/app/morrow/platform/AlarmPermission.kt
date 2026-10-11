@@ -2,7 +2,7 @@ package app.morrow.platform
 
 import kotlinx.coroutines.flow.StateFlow
 
-/** What must be allowed for an alarm to ring and show up properly. */
+/** What must be allowed for an alarm to ring and show up properly, and the optional extras. */
 enum class AlarmPermission(val required: Boolean, val title: String) {
     NOTIFICATIONS(required = true, title = "Notifications"),
     EXACT_ALARMS(required = true, title = "Exact alarms"),
@@ -11,12 +11,21 @@ enum class AlarmPermission(val required: Boolean, val title: String) {
     /** Only matters on phones that put background apps to sleep aggressively. */
     BATTERY(required = false, title = "Unrestricted battery"),
 
+    /** Coarse location, for "Where I am" weather. Without it, weather uses the home city. */
+    LOCATION(required = false, title = "Location"),
+
     /** iOS's single alarm permission, from AlarmKit, which covers what the Android ones do. */
     ALARMS(required = true, title = "Alarms"),
 }
 
 /** The permissions Android asks for, in the order they're shown. */
-val AndroidPermissions = listOf(AlarmPermission.NOTIFICATIONS, AlarmPermission.EXACT_ALARMS, AlarmPermission.FULL_SCREEN, AlarmPermission.BATTERY)
+val AndroidPermissions = listOf(
+    AlarmPermission.NOTIFICATIONS,
+    AlarmPermission.EXACT_ALARMS,
+    AlarmPermission.FULL_SCREEN,
+    AlarmPermission.BATTERY,
+    AlarmPermission.LOCATION,
+)
 
 /** The one permission iOS asks for. */
 val IosPermissions = listOf(AlarmPermission.ALARMS)

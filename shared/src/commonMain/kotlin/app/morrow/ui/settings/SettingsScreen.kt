@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -53,6 +54,8 @@ import app.morrow.ui.components.SecondaryButton
 import app.morrow.ui.components.TileRows
 import app.morrow.ui.components.pressable
 import app.morrow.ui.firstrun.icon
+import app.morrow.weather.Units
+import app.morrow.weather.WeatherPlaceMode
 
 class SettingsChoices(val difficulty: Difficulty, val sound: WakeSound, val ramp: VolumeRamp)
 
@@ -66,10 +69,20 @@ class SettingsActions(
     val onAllow: (AlarmPermission) -> Unit,
     /** Only in debug builds. */
     val onDeveloperTools: (() -> Unit)?,
+    val onWeatherEnabled: (Boolean) -> Unit = {},
+    val onWeatherMode: (WeatherPlaceMode) -> Unit = {},
+    val onPickHomeCity: () -> Unit = {},
+    val onUnits: (Units) -> Unit = {},
 )
 
 @Composable
-fun SettingsScreen(model: SettingsModel, choices: SettingsChoices, actions: SettingsActions, modifier: Modifier = Modifier) {
+fun SettingsScreen(
+    model: SettingsModel,
+    choices: SettingsChoices,
+    actions: SettingsActions,
+    modifier: Modifier = Modifier,
+    weather: WeatherSection? = null,
+) {
     val colors = MorrowTheme.colors
     Column(modifier.fillMaxSize().background(colors.bg).statusBarsPadding()) {
         Row(
@@ -94,11 +107,12 @@ fun SettingsScreen(model: SettingsModel, choices: SettingsChoices, actions: Sett
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             Section("Theme") {
-                FollowClockRow(model, actions.onFollowClock)
+                ToggleRow("Follow the clock", model.followDescription, model.followClock, actions.onFollowClock)
                 TileRows(ThemeKind.entries, Modifier.selectableGroup()) { kind ->
                     ThemeTile(kind, selected = kind == model.shownTheme) { actions.onPinTheme(kind) }
                 }
             }
+            if (weather != null) Section("Weather") { WeatherSettings(weather, actions) }
             Section("Mission difficulty") {
                 SegmentedControl(Difficulty.entries, choices.difficulty, Difficulty::displayName, actions.onDifficulty)
                 Note(model.difficultyLevel)
@@ -124,6 +138,11 @@ fun SettingsScreen(model: SettingsModel, choices: SettingsChoices, actions: Sett
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 BasicText(
                     "Morrow · No ads, no accounts",
+                    style = MorrowTheme.type.caption.copy(color = colors.muted, textAlign = TextAlign.Center),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                BasicText(
+                    "Weather data by Open-Meteo.com (CC BY 4.0)",
                     style = MorrowTheme.type.caption.copy(color = colors.muted, textAlign = TextAlign.Center),
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -169,7 +188,7 @@ private fun Card(selectable: Boolean = true, content: @Composable ColumnScope.()
 }
 
 @Composable
-private fun FollowClockRow(model: SettingsModel, onFollowClock: (Boolean) -> Unit) {
+private fun ToggleRow(title: String, description: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     val colors = MorrowTheme.colors
     val shape = RoundedCornerShape(24.dp)
     Row(
@@ -178,17 +197,59 @@ private fun FollowClockRow(model: SettingsModel, onFollowClock: (Boolean) -> Uni
             .heightIn(min = 72.dp)
             .background(colors.surface, shape)
             .border(1.dp, colors.line, shape)
-            .toggleable(model.followClock, role = Role.Switch, onValueChange = onFollowClock)
+            .toggleable(checked, role = Role.Switch, onValueChange = onChange)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            BasicText("Follow the clock", style = MorrowTheme.type.button.copy(color = colors.text))
-            BasicText(model.followDescription, style = MorrowTheme.type.body.copy(color = colors.muted))
+            BasicText(title, style = MorrowTheme.type.button.copy(color = colors.text))
+            BasicText(description, style = MorrowTheme.type.body.copy(color = colors.muted))
         }
         // The whole row is the switch for screen readers, so this one only shows its state.
-        MorrowToggle(model.followClock, onFollowClock, contentDescription = "Follow the clock", modifier = Modifier.clearAndSetSemantics {})
+        MorrowToggle(checked, onChange, contentDescription = title, modifier = Modifier.clearAndSetSemantics {})
+    }
+}
+
+@Composable
+private fun ColumnScope.WeatherSettings(weather: WeatherSection, actions: SettingsActions) {
+    val colors = MorrowTheme.colors
+    ToggleRow("Show the weather", "On Home, World and the Morning screen.", weather.enabled, actions.onWeatherEnabled)
+    if (!weather.enabled) return
+    SegmentedControl(WeatherPlaceMode.entries, weather.mode, WeatherPlaceMode::displayName, actions.onWeatherMode)
+    Note(weather.description)
+    Card(selectable = false) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+                .pressable(actions.onPickHomeCity)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            BasicText("Home city", style = MorrowTheme.type.bodyLarge.copy(color = colors.text), modifier = Modifier.weight(1f))
+            BasicText(weather.homeCityName, style = MorrowTheme.type.bodyStrong.copy(color = colors.hi, textAlign = TextAlign.End))
+            MorrowIcon(Icons.Forward, colors.muted, size = 20.dp, strokeWidth = 2.2f)
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.line))
+        Row(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            BasicText("Units", style = MorrowTheme.type.bodyLarge.copy(color = colors.text), modifier = Modifier.weight(1f))
+            SegmentedControl(
+                options = Units.entries,
+                selected = weather.units,
+                label = Units::symbol,
+                onSelect = actions.onUnits,
+                modifier = Modifier.width(132.dp),
+                background = colors.bg,
+                border = null,
+                description = { if (it == Units.CELSIUS) "Celsius" else "Fahrenheit" },
+            )
+        }
     }
 }
 
@@ -227,28 +288,38 @@ private fun RowScope.ThemeTile(kind: ThemeKind, selected: Boolean, onClick: () -
 }
 
 @Composable
-private fun <T> SegmentedControl(options: List<T>, selected: T, label: (T) -> String, onSelect: (T) -> Unit) {
+private fun <T> SegmentedControl(
+    options: List<T>,
+    selected: T,
+    label: (T) -> String,
+    onSelect: (T) -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth(),
+    background: Color = MorrowTheme.colors.surface,
+    border: Color? = MorrowTheme.colors.line,
+    /** What TalkBack says for an option, when its label alone reads badly. */
+    description: ((T) -> String)? = null,
+) {
     val colors = MorrowTheme.colors
     val shape = RoundedCornerShape(26.dp)
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.surface, shape)
-            .border(1.dp, colors.line, shape)
+        modifier = modifier
+            .background(background, shape)
+            .then(if (border != null) Modifier.border(1.dp, border, shape) else Modifier)
             .padding(4.dp)
             .selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         options.forEach { option ->
             val on = option == selected
-            val background by animateColorAsState(if (on) colors.accent else Color.Transparent)
+            val fill by animateColorAsState(if (on) colors.accent else Color.Transparent)
             val content by animateColorAsState(if (on) colors.onAccent else colors.muted)
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 44.dp)
                     .selectable(on, role = Role.RadioButton) { onSelect(option) }
-                    .background(background, CircleShape)
+                    .then(if (description != null) Modifier.semantics { contentDescription = description(option) } else Modifier)
+                    .background(fill, CircleShape)
                     .padding(horizontal = 4.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center,
             ) {

@@ -29,7 +29,9 @@ import app.morrow.theme.ThemeKind
 import app.morrow.ui.MorrowApp
 import app.morrow.ui.MorrowServices
 import app.morrow.ui.mission.MissionServices
+import app.morrow.weather.RefreshReason
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -49,7 +51,10 @@ class MainActivity : ComponentActivity() {
         val app = morrow
         val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
         val missions = MissionServices(app.settings, AndroidMotionSensor(this), AndroidCodeScanner(this))
-        val services = MorrowServices(app.repository, app.coordinator, app.themeClock, app.settings, permissions, AlarmTone(app), missions, app.cities, app.catalog)
+        val services = MorrowServices(
+            app.repository, app.coordinator, app.themeClock, app.settings, permissions, AlarmTone(app), missions,
+            app.cities, app.catalog, app.citySearch, app.weather, phoneCountry = Locale.getDefault().country,
+        )
         setContent {
             WithTestFontScale {
                 var tools by rememberSaveable { mutableStateOf(false) }
@@ -79,6 +84,8 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         morrow.themeClock.refresh()
+        // Weather is only fetched with the app open: here, on opening World, and on the Morning screen.
+        morrow.weather.refreshSoon(RefreshReason.START)
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_TIME_CHANGED)
             addAction(Intent.ACTION_TIMEZONE_CHANGED)

@@ -11,27 +11,56 @@ import kotlin.test.assertTrue
 class SetupModelTest {
 
     @Test
+    fun androidAsksForFivePermissionsWithLocationLastAndOptional() {
+        assertEquals(5, AndroidPermissions.size)
+        assertEquals(AlarmPermission.LOCATION, AndroidPermissions.last())
+        assertFalse(AlarmPermission.LOCATION.required)
+        assertEquals("Location", AlarmPermission.LOCATION.title)
+        assertEquals("Optional. For your local weather; a city works too.", AlarmPermission.LOCATION.description)
+    }
+
+    @Test
     fun nothingAllowedYet() {
         val model = setupModel(AndroidPermissions, AndroidPermissions)
-        assertEquals("0 of 4 ready", model.readyText)
+        assertEquals("0 of 5 ready", model.readyText)
         assertEquals(0f, model.progress)
         assertFalse(model.ready)
         assertEquals("Alarms can’t ring until the first three are allowed.", model.note)
     }
 
     @Test
-    fun requiredOnesAllowedIsReadyEvenWithoutBattery() {
+    fun requiredOnesAllowedIsReadyWithoutTheOptionalOnes() {
+        val model = setupModel(AndroidPermissions, listOf(AlarmPermission.BATTERY, AlarmPermission.LOCATION))
+        assertEquals("3 of 5 ready", model.readyText)
+        assertEquals(0.6f, model.progress)
+        assertTrue(model.ready)
+        assertEquals(
+            "All set. The last two are optional: battery helps on Samsung and Xiaomi, and location gives you local weather.",
+            model.note,
+        )
+    }
+
+    @Test
+    fun onlyBatteryMissing() {
         val model = setupModel(AndroidPermissions, listOf(AlarmPermission.BATTERY))
-        assertEquals("3 of 4 ready", model.readyText)
-        assertEquals(0.75f, model.progress)
+        assertEquals("4 of 5 ready", model.readyText)
+        assertEquals(0.8f, model.progress)
         assertTrue(model.ready)
         assertEquals("All set. Battery is optional, but helps on Samsung and Xiaomi.", model.note)
     }
 
     @Test
+    fun onlyLocationMissing() {
+        val model = setupModel(AndroidPermissions, listOf(AlarmPermission.LOCATION))
+        assertEquals("4 of 5 ready", model.readyText)
+        assertTrue(model.ready)
+        assertEquals("All set. Location is optional, and gives you local weather.", model.note)
+    }
+
+    @Test
     fun everythingAllowed() {
         val model = setupModel(AndroidPermissions, emptyList())
-        assertEquals("4 of 4 ready", model.readyText)
+        assertEquals("5 of 5 ready", model.readyText)
         assertEquals(1f, model.progress)
         assertTrue(model.ready)
         assertEquals("All set. Pip is ready when you are.", model.note)

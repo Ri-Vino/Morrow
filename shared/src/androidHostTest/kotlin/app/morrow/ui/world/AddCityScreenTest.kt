@@ -13,9 +13,14 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
+import app.morrow.places.City
+import app.morrow.platform.HttpException
+import app.morrow.platform.HttpResponse
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
 import app.morrow.ui.NoMotion
+import app.morrow.weather.HebdenSearchJson
+import app.morrow.weather.LonSearchJson
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
@@ -23,6 +28,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
 class AddCityScreenTest {
@@ -33,11 +39,11 @@ class AddCityScreenTest {
     private val world = WorldFixtures()
     private var backs = 0
 
-    private fun show() {
+    private fun show(purpose: CityPickPurpose = CityPickPurpose.ADD) {
         runBlocking { world.cities.ensureSeeded() }
         compose.setContent {
             MorrowTheme(ThemeKind.MORNING) {
-                AddCityRoute(world.catalog, world.cities, onBack = { backs++ }, ticks = world.ticks, phoneZone = world.phoneZone)
+                AddCityRoute(world.search, world.cities, onBack = { backs++ }, purpose = purpose, ticks = world.ticks, phoneZone = world.phoneZone)
             }
         }
     }
@@ -157,6 +163,94 @@ class AddCityScreenTest {
 
         assertEquals(1, backs)
         assertEquals(listOf("London"), savedNames())
+    }
+
+    @Test
+    fun lookingForMorePlacesShowsUntilOnlineResultsJoinTheList() {
+        world.geocoderAnswer = { HttpResponse(200, HebdenSearchJson) }
+        show()
+        waitFor("Add Tokyo")
+        compose.mainClock.autoAdvance = false
+
+        type("hebden")
+        compose.mainClock.advanceTimeBy(250)
+
+        compose.onNodeWithText("Looking for more places…").assertIsDisplayed()
+        assertEquals(emptyList(), world.http.urls, "online search waits for the typing to stop")
+
+        compose.mainClock.advanceTimeBy(500)
+        waitFor("Add Hebden Bridge")
+        compose.onNodeWithText("Looking for more places…").assertDoesNotExist()
+        compose.onNodeWithText("No places by that name.").assertDoesNotExist()
+        assertEquals(1, world.http.urls.size)
+        assertTrue(world.http.urls.single().contains("name=hebden"))
+        assertTrue("hebden" in world.searchCache.rows)
+    }
+
+    @Test
+    fun onlinePlacesAndBundledOnesAreOneListAndAnOnlineCitySavesWhole() {
+        world.geocoderAnswer = { HttpResponse(200, LonSearchJson) }
+        show()
+
+        type("lon")
+        waitFor("Add Little London")
+
+        // London from both lists shows once, ticked; the other London and Little London follow, smaller.
+        assertEquals(1, compose.onAllNodesWithContentDescription("London is already in your cities").fetchSemanticsNodes().size)
+        compose.onNodeWithText("Ontario, Canada").assertIsDisplayed()
+        val names = compose.onAllNodes(hasClickAction()).fetchSemanticsNodes()
+            .mapNotNull { it.config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull() }
+            .filter { it.startsWith("Add ") }
+        assertEquals(listOf("Add London", "Add Little London"), names)
+
+        compose.onNodeWithContentDescription("Add London").performClick()
+
+        compose.waitUntil(timeoutMillis = 5_000) { backs == 1 }
+        val ontario = runBlocking { world.cities.cities.first() }.last().city
+        assertEquals(City(6058560, "London", "Ontario", "Canada", 42.98339, -81.23304, "America/Toronto", 346765), ontario)
+    }
+
+    @Test
+    fun aFailedOnlineSearchKeepsBundledResultsWithAnOfflineNote() {
+        world.geocoderAnswer = { throw HttpException("offline") }
+        show()
+
+        type("tok")
+
+        waitForText("You’re offline. Places on this phone still work; connect to find smaller towns.")
+        compose.onNodeWithContentDescription("Add Tokyo").assertIsDisplayed()
+        compose.onNodeWithText("Looking for more places…").assertDoesNotExist()
+    }
+
+    @Test
+    fun withWeatherOffOnlyTheBundledListIsSearched() {
+        runBlocking { world.settings.setWeatherEnabled(false) }
+        world.geocoderAnswer = { HttpResponse(200, HebdenSearchJson) }
+        show()
+
+        type("hebden")
+        waitForText("No places by that name.")
+        compose.mainClock.advanceTimeBy(2_000)
+
+        assertEquals(emptyList(), world.http.urls)
+        compose.onNodeWithContentDescription("Add Hebden Bridge").assertDoesNotExist()
+        compose.onNodeWithText("Looking for more places…").assertDoesNotExist()
+        compose.onNodeWithText("You’re offline. Places on this phone still work; connect to find smaller towns.").assertDoesNotExist()
+    }
+
+    @Test
+    fun pickingAHomeCitySavesItAndMakesItHome() {
+        show(CityPickPurpose.HOME)
+
+        waitFor("Make Tokyo your home city")
+        compose.onNodeWithText("Home city").assertIsDisplayed()
+        compose.onNodeWithContentDescription("London is your home city").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Make Tokyo your home city").performClick()
+
+        compose.waitUntil(timeoutMillis = 5_000) { backs == 1 }
+        val saved = runBlocking { world.cities.cities.first() }
+        assertEquals(listOf("London", "Tokyo"), saved.map { it.city.name })
+        assertEquals("Tokyo", saved.single { it.isHome }.city.name)
     }
 
     /** TalkBack reads a control by its text or description, so one with neither is unusable without sight. */

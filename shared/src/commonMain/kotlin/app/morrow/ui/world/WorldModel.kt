@@ -75,7 +75,7 @@ fun citySheet(saved: SavedCity, now: Instant, phoneZone: TimeZone): CitySheet {
 }
 
 /** "Texas, United States", or just the country when there is no region. */
-fun placeName(city: City): String = listOfNotNull(city.region, city.country).joinToString(", ")
+fun placeName(city: City): String = listOfNotNull(city.region, city.country).filter { it.isNotBlank() }.joinToString(", ")
 
 /** The city's zone, or the phone's if the id isn't one this phone knows. */
 internal fun zoneOf(city: City, fallback: TimeZone): TimeZone = runCatching { TimeZone.of(city.timeZone) }.getOrDefault(fallback)

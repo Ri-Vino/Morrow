@@ -29,10 +29,11 @@ class AlarmPermissions(private val context: Context) {
         // Only phones known to put background apps to sleep aggressively need this.
         AlarmPermission.BATTERY -> !hasAggressiveBatterySaver() ||
             context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)
+        AlarmPermission.LOCATION -> context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
         AlarmPermission.ALARMS -> true // iOS only.
     }
 
-    /** The system screen where the user can allow [permission]. Notifications on Android 13+ are requested at runtime instead. */
+    /** The system screen where the user can allow [permission]. Location, and notifications on Android 13+, are requested at runtime first. */
     @SuppressLint("InlinedApi") // Each one can only be missing on the API level that introduced it.
     fun settingsIntent(permission: AlarmPermission): Intent {
         val packageUri = Uri.fromParts("package", context.packageName, null)
@@ -42,7 +43,7 @@ class AlarmPermissions(private val context: Context) {
             AlarmPermission.EXACT_ALARMS -> Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, packageUri)
             AlarmPermission.FULL_SCREEN -> Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, packageUri)
             AlarmPermission.BATTERY -> Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-            AlarmPermission.ALARMS -> Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri)
+            AlarmPermission.LOCATION, AlarmPermission.ALARMS -> Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri)
         }
     }
 

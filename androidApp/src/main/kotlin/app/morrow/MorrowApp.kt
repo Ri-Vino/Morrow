@@ -9,8 +9,14 @@ import app.morrow.data.buildMorrowDatabase
 import app.morrow.data.morrowDatabaseBuilder
 import app.morrow.data.morrowSettings
 import app.morrow.places.CityRepository
+import app.morrow.places.CitySearch
 import app.morrow.places.bundledCityCatalog
+import app.morrow.platform.AndroidHttpClient
+import app.morrow.platform.AndroidLocationProvider
 import app.morrow.theme.ThemeClock
+import app.morrow.weather.OpenMeteoGeocoder
+import app.morrow.weather.OpenMeteoSource
+import app.morrow.weather.WeatherRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,6 +33,20 @@ class MorrowApp : Application() {
     val settings by lazy { morrowSettings(this) }
     val catalog by lazy { bundledCityCatalog() }
     val cities by lazy { CityRepository(database.savedCityDao(), catalog) { TimeZone.currentSystemDefault().id } }
+
+    // Nothing may use these while weather is off.
+    val http by lazy { AndroidHttpClient(BuildConfig.VERSION_NAME) }
+    val location by lazy { AndroidLocationProvider(this) }
+    val weatherSource by lazy { OpenMeteoSource(http, Clock.System) }
+    val geocoder by lazy { OpenMeteoGeocoder(http) }
+    val citySearch by lazy { CitySearch(catalog, geocoder, database.citySearchCacheDao(), settings.weatherEnabled, Clock.System) }
+    val weather by lazy {
+        WeatherRepository(
+            settings, cities, catalog, location, weatherSource, database.weatherCacheDao(), Clock.System,
+            phoneZone = { TimeZone.currentSystemDefault().id },
+            scope = appScope,
+        )
+    }
 
     override fun onCreate() {
         super.onCreate()

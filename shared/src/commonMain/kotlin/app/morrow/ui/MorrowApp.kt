@@ -34,6 +34,7 @@ import app.morrow.domain.nextRing
 import app.morrow.places.City
 import app.morrow.places.CityCatalog
 import app.morrow.places.CityRepository
+import app.morrow.places.CitySearch
 import app.morrow.platform.AlarmSound
 import app.morrow.platform.PermissionGate
 import app.morrow.theme.MorrowTheme
@@ -59,17 +60,17 @@ import app.morrow.ui.mission.MissionServices
 import app.morrow.ui.mission.SequenceRoute
 import app.morrow.ui.morning.MorningRoute
 import app.morrow.ui.ring.RingPreview
-import app.morrow.ui.settings.SettingsActions
-import app.morrow.ui.settings.SettingsChoices
-import app.morrow.ui.settings.SettingsScreen
-import app.morrow.ui.settings.settingsModel
+import app.morrow.ui.settings.SettingsRoute
 import app.morrow.ui.ring.RingScreen
 import app.morrow.ui.ring.ringModel
 import app.morrow.ui.tabs.Tab
 import app.morrow.ui.tabs.TabHost
 import app.morrow.ui.tabs.TabSaver
 import app.morrow.ui.world.AddCityRoute
+import app.morrow.ui.world.CityPickPurpose
 import app.morrow.ui.world.WorldRoute
+import app.morrow.weather.RefreshReason
+import app.morrow.weather.WeatherRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -90,6 +91,10 @@ class MorrowServices(
     val missions: MissionServices,
     val cities: CityRepository,
     val catalog: CityCatalog,
+    val citySearch: CitySearch,
+    val weather: WeatherRepository,
+    /** The phone's region, like "GB", for the default temperature units. */
+    val phoneCountry: String,
 )
 
 /**
@@ -120,20 +125,49 @@ fun MorrowApp(
                     var previewing by rememberSaveable(stateSaver = AlarmSaver) { mutableStateOf(null) }
                     var inSettings by rememberSaveable { mutableStateOf(false) }
                     var addingCity by rememberSaveable { mutableStateOf(false) }
+                    var pickingHome by rememberSaveable { mutableStateOf(false) }
                     var tab by rememberSaveable(stateSaver = TabSaver) { mutableStateOf(Tab.ALARMS) }
                     val target = editing
                     val preview = previewing
                     when {
                         waking != null -> WakeRoute(services, waking, onSystemBarsChange, onDone = onWoken)
                         preview != null -> RingPreviewRoute(services, preview, onSystemBarsChange, onExit = { previewing = null })
-                        inSettings -> SettingsRoute(services, theme, developerTools, onSystemBarsChange, onBack = { inSettings = false })
+                        inSettings && pickingHome -> {
+                            LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
+                            AddCityRoute(
+                                services.citySearch, services.cities,
+                                onBack = { pickingHome = false },
+                                purpose = CityPickPurpose.HOME,
+                                onPicked = services.weather::refreshCitySoon,
+                            )
+                        }
+                        inSettings -> {
+                            LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
+                            SettingsRoute(
+                                settings = services.settings,
+                                pinnedTheme = services.themeClock.pinnedTheme,
+                                theme = theme,
+                                permissions = services.permissions,
+                                cities = services.cities,
+                                here = services.weather.here,
+                                phoneCountry = services.phoneCountry,
+                                developerTools = developerTools,
+                                onPickHomeCity = { pickingHome = true },
+                                onWeatherChanged = { services.weather.refreshSoon(RefreshReason.SETTINGS) },
+                                onBack = { inSettings = false },
+                            )
+                        }
                         addingCity -> {
                             LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
-                            AddCityRoute(services.catalog, services.cities, onBack = { addingCity = false })
+                            AddCityRoute(services.citySearch, services.cities, onBack = { addingCity = false }, onPicked = services.weather::refreshCitySoon)
                         }
                         target == null -> {
                             if (tab != Tab.ALARMS) LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
-                            TabHost(tab, onSelect = { tab = it }, world = { WorldRoute(services.cities, onAddCity = { addingCity = true }, onNewAlarm = { editing = it?.let(::newAlarmTarget) ?: NEW_ALARM }) }) {
+                            val world = @Composable {
+                                LaunchedEffect(Unit) { services.weather.refreshSoon(RefreshReason.WORLD) }
+                                WorldRoute(services.cities, onAddCity = { addingCity = true }, onNewAlarm = { editing = it?.let(::newAlarmTarget) ?: NEW_ALARM })
+                            }
+                            TabHost(tab, onSelect = { tab = it }, world = world) {
                                 screens.SaveableStateProvider(HOME) {
                                     Home(
                                         services, theme, onSystemBarsChange,
@@ -282,42 +316,6 @@ private fun EditRoute(
                     onDone()
                 }
             },
-        ),
-    )
-}
-
-@Composable
-private fun SettingsRoute(
-    services: MorrowServices,
-    theme: ThemeKind,
-    developerTools: (() -> Unit)?,
-    onSystemBarsChange: (Boolean) -> Unit,
-    onBack: () -> Unit,
-) {
-    val scope = rememberCoroutineScope()
-    val settings = services.settings
-    val pinned by services.themeClock.pinnedTheme.collectAsStateWithLifecycle()
-    val missing by services.permissions.missing.collectAsStateWithLifecycle()
-    val missions by settings.missionSetup.collectAsStateWithLifecycle(initialValue = null)
-    val alarm by settings.alarmSetup.collectAsStateWithLifecycle(initialValue = null)
-    LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
-    PlatformBackHandler(onBack = onBack)
-
-    val difficulty = missions?.difficulty ?: return
-    val sound = alarm ?: return
-    SettingsScreen(
-        model = settingsModel(pinned, theme, difficulty, services.permissions.asked, missing),
-        choices = SettingsChoices(difficulty, sound.sound, sound.ramp),
-        actions = SettingsActions(
-            onBack = onBack,
-            // Turning "follow the clock" off keeps the theme showing now.
-            onFollowClock = { follow -> scope.launch { settings.setPinnedTheme(if (follow) null else theme) } },
-            onPinTheme = { scope.launch { settings.setPinnedTheme(it) } },
-            onDifficulty = { scope.launch { settings.setDifficulty(it) } },
-            onSound = { scope.launch { settings.setSound(it) } },
-            onRamp = { scope.launch { settings.setRamp(it) } },
-            onAllow = services.permissions::request,
-            onDeveloperTools = developerTools,
         ),
     )
 }

@@ -176,6 +176,7 @@ internal val AlarmPermission.icon: String
         AlarmPermission.EXACT_ALARMS -> Icons.Clock
         AlarmPermission.FULL_SCREEN -> Icons.FullScreen
         AlarmPermission.BATTERY -> Icons.Battery
+        AlarmPermission.LOCATION -> Icons.Pin
         AlarmPermission.ALARMS -> Icons.Bell
     }
 

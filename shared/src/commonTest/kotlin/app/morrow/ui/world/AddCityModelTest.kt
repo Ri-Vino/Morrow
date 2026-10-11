@@ -1,6 +1,7 @@
 package app.morrow.ui.world
 
 import app.morrow.places.City
+import app.morrow.places.OnlineSearch
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
@@ -89,6 +90,80 @@ class AddCityModelTest {
 
         assertEquals(8, model("city", many).rows.size)
         assertEquals((1L..8L).toList(), model("", many).rows.map { it.city.id })
+    }
+
+    private val londonOntario = City(6058560, "London", "Ontario", "Canada", 42.98, -81.23, "America/Toronto", 346765)
+    private val littleLondon = City(2644209, "Little London", "England", "United Kingdom", 51.33, -1.16, "Europe/London", 0)
+
+    @Test
+    fun onlinePlacesJoinTheSameListRankedByPopulation() {
+        val model = addCityModel(
+            "lon", listOf(londonCity), emptySet(), now, london,
+            online = OnlineSearch.Found(listOf(littleLondon, londonCity.copy(population = 1), londonOntario)),
+        )
+
+        assertEquals(listOf(londonCity, londonOntario, littleLondon), model.rows.map { it.city })
+        assertEquals(listOf("England, United Kingdom", "Ontario, Canada", "England, United Kingdom"), model.rows.map { it.place })
+        assertEquals("02:40", model.rows[1].clock)
+        assertEquals("Add London", model.rows[1].label)
+        assertFalse(model.searchingMore)
+        assertTrue(model.searchingOnline)
+        assertFalse(model.offline)
+    }
+
+    @Test
+    fun whileOnlineResultsAreOnTheirWayItSaysSoRatherThanNothingFound() {
+        val model = addCityModel("hebden", emptyList(), emptySet(), now, london, online = OnlineSearch.Searching)
+
+        assertTrue(model.searchingMore)
+        assertFalse(model.nothingFound)
+        assertTrue(model.searchingOnline)
+    }
+
+    @Test
+    fun aFailedOnlineSearchKeepsTheBundledResultsAndSaysTheyreOffline() {
+        val model = addCityModel("lon", listOf(londonCity), emptySet(), now, london, online = OnlineSearch.Failed)
+
+        assertEquals(listOf(londonCity), model.rows.map { it.city })
+        assertTrue(model.offline)
+        assertFalse(model.searchingMore)
+        assertFalse(model.searchingOnline)
+
+        val nothing = addCityModel("hebden", emptyList(), emptySet(), now, london, online = OnlineSearch.Failed)
+        assertTrue(nothing.nothingFound)
+        assertTrue(nothing.offline)
+    }
+
+    @Test
+    fun withOnlineSearchOffThereAreNoOnlineNotes() {
+        val model = model("lon", listOf(londonCity))
+
+        assertFalse(model.searchingMore)
+        assertFalse(model.searchingOnline)
+        assertFalse(model.offline)
+    }
+
+    @Test
+    fun withNothingTypedOnlineSearchIsIgnored() {
+        val model = addCityModel("", listOf(tokyo), emptySet(), now, london, online = OnlineSearch.Failed)
+
+        assertFalse(model.offline)
+        assertFalse(model.searchingMore)
+    }
+
+    @Test
+    fun pickingAHomeCityTicksTheHomeAndOffersEveryOther() {
+        val model = addCityModel(
+            "", listOf(tokyo, londonCity, singapore), savedIds = setOf(londonCity.id, tokyo.id), now, london,
+            purpose = CityPickPurpose.HOME, homeId = londonCity.id,
+        )
+
+        assertEquals(listOf("Tokyo", "London", "Singapore"), model.rows.map { it.name })
+        assertEquals(listOf(false, true, false), model.rows.map { it.saved })
+        assertEquals(
+            listOf("Make Tokyo your home city", "London is your home city", "Make Singapore your home city"),
+            model.rows.map { it.label },
+        )
     }
 
     @Test
