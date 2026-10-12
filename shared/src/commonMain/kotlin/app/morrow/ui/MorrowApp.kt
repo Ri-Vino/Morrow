@@ -42,6 +42,7 @@ import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeClock
 import app.morrow.theme.ThemeKind
 import app.morrow.theme.isLightSky
+import app.morrow.timers.TimerCoordinator
 import app.morrow.ui.edit.EditActions
 import app.morrow.ui.edit.EditScreen
 import app.morrow.ui.edit.KettleCodeScreen
@@ -68,6 +69,7 @@ import app.morrow.ui.ring.ringModel
 import app.morrow.ui.tabs.Tab
 import app.morrow.ui.tabs.TabHost
 import app.morrow.ui.tabs.TabSaver
+import app.morrow.ui.timers.TimersRoute
 import app.morrow.ui.world.AddCityRoute
 import app.morrow.ui.world.CityPickPurpose
 import app.morrow.ui.world.WorldRoute
@@ -99,6 +101,7 @@ class MorrowServices(
     val weather: WeatherRepository,
     /** The phone's region, like "GB", for the default temperature units. */
     val phoneCountry: String,
+    val timers: TimerCoordinator,
 )
 
 /**
@@ -180,7 +183,10 @@ fun MorrowApp(
                                     units = remember { services.settings.effectiveUnits(services.phoneCountry) },
                                 )
                             }
-                            TabHost(tab, onSelect = { tab = it }, barHidden = tab == Tab.WORLD && worldSheetOpen, world = world) {
+                            TabHost(
+                                tab, onSelect = { tab = it }, barHidden = tab == Tab.WORLD && worldSheetOpen, world = world,
+                                timers = { TimersRoute(services.timers, services.permissions) },
+                            ) {
                                 screens.SaveableStateProvider(HOME) {
                                     Home(
                                         services, theme, onSystemBarsChange,

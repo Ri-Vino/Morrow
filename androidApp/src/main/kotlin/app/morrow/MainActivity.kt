@@ -45,8 +45,11 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         permissions = AndroidPermissionGate(this)
-        // Force-stopping the app clears its alarms without telling it, so restore them on every launch.
-        lifecycleScope.launch { morrow.coordinator.rescheduleAll() }
+        // Force-stopping the app clears its alarms and timers without telling it, so restore them on every launch.
+        lifecycleScope.launch {
+            morrow.coordinator.rescheduleAll()
+            morrow.timers.rescheduleAll()
+        }
 
         val app = morrow
         val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
@@ -54,6 +57,7 @@ class MainActivity : ComponentActivity() {
         val services = MorrowServices(
             app.repository, app.coordinator, app.themeClock, app.settings, permissions, AlarmTone(app), missions,
             app.cities, app.catalog, app.citySearch, app.weather, phoneCountry = Locale.getDefault().country,
+            timers = app.timers,
         )
         setContent {
             WithTestFontScale {

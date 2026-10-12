@@ -10,6 +10,14 @@ object Ringing {
     private val state = MutableStateFlow<Alarm?>(null)
     val current: StateFlow<Alarm?> = state.asStateFlow()
 
+    /**
+     * True while RingActivity shows the Morning screen, after the alarm itself has stopped. Timers that end meanwhile
+     * wait for it to go, as they do while the alarm rings.
+     */
+    @Volatile
+    var morningShowing = false
+        internal set
+
     internal fun set(alarm: Alarm?) {
         state.value = alarm
     }

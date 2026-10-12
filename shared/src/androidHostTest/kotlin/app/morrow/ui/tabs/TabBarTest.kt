@@ -36,7 +36,9 @@ class TabBarTest {
     private fun show() {
         compose.setContent {
             MorrowTheme(ThemeKind.MORNING) {
-                TabHost(tab, onSelect = { tab = it }, world = { BasicText("World screen") }) { BasicText("Alarms screen") }
+                TabHost(tab, onSelect = { tab = it }, world = { BasicText("World screen") }, timers = { BasicText("Timers screen") }) {
+                    BasicText("Alarms screen")
+                }
             }
         }
     }
@@ -54,7 +56,7 @@ class TabBarTest {
         tabNode("World").assertIsSelected()
 
         compose.onNodeWithText("Timers").performClick()
-        compose.onNodeWithText("Your timers will live here.").assertExists()
+        compose.onNodeWithText("Timers screen").assertExists()
         tabNode("Timers").assertIsSelected()
         tabNode("World").assertIsNotSelected()
 
@@ -94,7 +96,7 @@ class TabBarTest {
     fun theBarStepsAsideForASheet() {
         compose.setContent {
             MorrowTheme(ThemeKind.MORNING) {
-                TabHost(Tab.WORLD, onSelect = {}, barHidden = true, world = { BasicText("World screen") }) { BasicText("Alarms screen") }
+                TabHost(Tab.WORLD, onSelect = {}, barHidden = true, world = { BasicText("World screen") }, timers = {}) { BasicText("Alarms screen") }
             }
         }
 

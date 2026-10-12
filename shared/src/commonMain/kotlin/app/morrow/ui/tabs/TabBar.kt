@@ -32,7 +32,6 @@ import androidx.compose.ui.unit.dp
 import app.morrow.theme.MorrowTheme
 import app.morrow.ui.PlatformBackHandler
 import app.morrow.ui.components.MorrowIcon
-import app.morrow.ui.timers.TimersScreen
 
 enum class Tab(val label: String, val icon: String) {
     ALARMS("Alarms", "M12 6a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM12 10v3l2 1.5M5 3L2 6M19 3l3 3"),
@@ -52,6 +51,7 @@ fun TabHost(
     /** True while a sheet over the tab needs the bottom of the screen for its own buttons. */
     barHidden: Boolean = false,
     world: @Composable () -> Unit,
+    timers: @Composable () -> Unit,
     alarms: @Composable () -> Unit,
 ) {
     PlatformBackHandler(enabled = selected != Tab.ALARMS, onBack = { onSelect(Tab.ALARMS) })
@@ -59,7 +59,7 @@ fun TabHost(
         when (selected) {
             Tab.ALARMS -> alarms()
             Tab.WORLD -> world()
-            Tab.TIMERS -> TimersScreen()
+            Tab.TIMERS -> timers()
         }
         if (!barHidden) TabBar(selected, onSelect, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(24.dp))
     }

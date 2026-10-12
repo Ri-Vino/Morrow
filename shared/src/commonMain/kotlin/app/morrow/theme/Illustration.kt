@@ -47,6 +47,9 @@ object Illustration {
     val sunriseGreeting = Color(0xFFF3DCC6)
     val birds = Color(0xFF2B1712)
 
+    /** The Timer done screen's evening sky, behind its text. */
+    val duskSky = Color(0xFF2E1D33)
+
     /** Wrong answers and wrong codes in a mission. */
     val mistake = Color(0xFFE8806A)
     /** Behind the camera picture. */

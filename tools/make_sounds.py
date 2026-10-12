@@ -1,6 +1,6 @@
-"""Makes Morrow's three alarm sounds from scratch, so the app ships no recorded audio.
+"""Makes Morrow's three alarm sounds and the timers' Bell from scratch, so the app ships no recorded audio.
 
-Each is a 16-second loop that wraps seamlessly. Run from the repo root:
+Each alarm sound is a 16-second loop and Bell a 4-second one, and each wraps seamlessly. Run from the repo root:
 
     python tools/make_sounds.py
 
@@ -21,8 +21,8 @@ OUT = Path(__file__).resolve().parent.parent / "androidApp" / "src" / "main" / "
 IOS_OUT = Path(__file__).resolve().parent.parent / "iosApp" / "iosApp" / "Sounds"
 
 
-def timeline():
-    return np.zeros(int(RATE * (LOOP + TAIL)))
+def timeline(loop=LOOP, tail=TAIL):
+    return np.zeros(int(RATE * (loop + tail)))
 
 
 def add(buffer, start, sound):
@@ -31,11 +31,13 @@ def add(buffer, start, sound):
     buffer[i:end] += sound[: end - i]
 
 
-def wrap(buffer):
-    """Folds everything that rings past the loop's end back onto its start."""
-    n = int(RATE * LOOP)
+def wrap(buffer, loop=LOOP):
+    """Folds everything that rings past the loop's end back onto its start, a loop's length at a time."""
+    n = int(RATE * loop)
     looped = buffer[:n].copy()
-    looped[: len(buffer) - n] += buffer[n:]
+    for start in range(n, len(buffer), n):
+        tail = buffer[start : start + n]
+        looped[: len(tail)] += tail
     return looped
 
 
@@ -160,20 +162,44 @@ def soft_piano(rng):
     return reverb(out, mix=0.35, size=1.3)
 
 
-def finish(name, signal):
-    looped = wrap(signal)
+BELL_LOOP = 4.0
+
+
+def bell_strike(freq, velocity):
+    """A small handbell: a low hum, the struck note and a few bright partials, the higher ones fading first."""
+    length = 4.0
+    n = int(length * RATE)
+    t = np.arange(n) / RATE
+    tone = np.zeros(n)
+    for ratio, level, decay in [(0.5, 0.2, 1.8), (1.0, 1.0, 1.5), (2.0, 0.35, 0.8), (2.4, 0.15, 0.6), (3.0, 0.12, 0.4), (4.2, 0.05, 0.25)]:
+        for detune in (-0.0008, 0.0008):
+            tone += 0.5 * level * np.sin(2 * np.pi * freq * ratio * (1 + detune) * t) * np.exp(-t / decay)
+    return velocity * np.minimum(1, t / 0.004) * tone
+
+
+def bell():
+    """Two soft strikes, a falling third, then a rest while they ring out; it says "time's up" without startling."""
+    out = timeline(BELL_LOOP, tail=BELL_LOOP)
+    add(out, 0.05, 0.5 * bell_strike(1318.5, 1.0))  # E6
+    add(out, 0.55, 0.5 * bell_strike(1046.5, 0.85))  # C6
+    return reverb(out, mix=0.3, size=1.1)
+
+
+def finish(name, signal, loop=LOOP):
+    looped = wrap(signal, loop)
     looped -= looped.mean()
     looped *= 0.89 / np.max(np.abs(looped))  # about -1 dBFS, so the app's volume ramp has the full range
     OUT.mkdir(parents=True, exist_ok=True)
     sf.write(OUT / f"{name}.ogg", looped.astype(np.float32), RATE, format="OGG", subtype="VORBIS")
-    print(f"{name}.ogg: {LOOP:.0f} s, {(OUT / f'{name}.ogg').stat().st_size // 1024} KB")
+    print(f"{name}.ogg: {loop:.0f} s, {(OUT / f'{name}.ogg').stat().st_size // 1024} KB")
     # Uncompressed, so half the sample rate keeps the files small; these sounds have almost nothing above 11 kHz.
     IOS_OUT.mkdir(parents=True, exist_ok=True)
     sf.write(IOS_OUT / f"{name}.caf", resample_poly(looped, 1, 2).astype(np.float32), RATE // 2, format="CAF", subtype="PCM_16")
-    print(f"{name}.caf: {LOOP:.0f} s, {(IOS_OUT / f'{name}.caf').stat().st_size // 1024} KB")
+    print(f"{name}.caf: {loop:.0f} s, {(IOS_OUT / f'{name}.caf').stat().st_size // 1024} KB")
 
 
 if __name__ == "__main__":
     finish("birdsong", birdsong(np.random.default_rng(7)))
     finish("wind_chimes", wind_chimes(np.random.default_rng(11)))
     finish("soft_piano", soft_piano(np.random.default_rng(3)))
+    finish("bell", bell(), BELL_LOOP)

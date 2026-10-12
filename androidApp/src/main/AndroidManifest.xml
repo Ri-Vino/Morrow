@@ -52,6 +52,18 @@
             android:windowSoftInputMode="adjustResize"
             tools:targetApi="27" />
 
+        <activity
+            android:name=".alarm.TimerRingActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|keyboard|keyboardHidden"
+            android:directBootAware="true"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:showWhenLocked="true"
+            android:taskAffinity=""
+            android:turnScreenOn="true"
+            tools:targetApi="27" />
+
         <service
             android:name=".alarm.RingService"
             android:directBootAware="true"
@@ -60,6 +72,11 @@
 
         <receiver
             android:name=".alarm.AlarmReceiver"
+            android:directBootAware="true"
+            android:exported="false" />
+
+        <receiver
+            android:name=".alarm.TimerReceiver"
             android:directBootAware="true"
             android:exported="false" />
 

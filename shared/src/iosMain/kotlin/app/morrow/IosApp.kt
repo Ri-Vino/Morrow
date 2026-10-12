@@ -18,7 +18,11 @@ import app.morrow.places.CitySearch
 import app.morrow.places.bundledCityCatalog
 import app.morrow.platform.NoHttpClientYet
 import app.morrow.platform.NoLocationYet
+import app.morrow.platform.NoTimerNotifierYet
+import app.morrow.platform.NoTimerSchedulerYet
 import app.morrow.theme.ThemeClock
+import app.morrow.timers.TimerCoordinator
+import app.morrow.timers.TimerRepository
 import app.morrow.ui.MorrowServices
 import app.morrow.ui.mission.MissionServices
 import app.morrow.weather.OpenMeteoGeocoder
@@ -88,9 +92,11 @@ object IosApp {
             scope = scope,
         )
         val country = NSLocale.currentLocale.objectForKey(NSLocaleCountryCode) as? String
+        val timers = TimerCoordinator(TimerRepository(database.timerDao()), NoTimerSchedulerYet, NoTimerNotifierYet)
         services = MorrowServices(
             repository, coordinator, themeClock, settings, permissions, IosAlarmSound(), missions, cities, catalog, citySearch, weather,
             phoneCountry = country.orEmpty(),
+            timers = timers,
         )
         // At launch, trust that each alarm reached AlarmKit when it was saved.
         inSync = alarmKit.authorized

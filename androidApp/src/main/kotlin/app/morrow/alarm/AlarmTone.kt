@@ -17,7 +17,7 @@ import app.morrow.platform.AlarmSound
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
-/** The alarm sound on the alarm stream, so it plays with media muted, ramping up from quiet. */
+/** The alarm sound, ramping up from quiet, or the timers' Bell, on the alarm stream so they play with media muted. */
 class AlarmTone(private val context: Context) : AlarmSound {
 
     private val handler = Handler(Looper.getMainLooper())
@@ -36,17 +36,23 @@ class AlarmTone(private val context: Context) : AlarmSound {
         }
     }
 
-    override fun play(sound: WakeSound, ramp: Duration) {
+    override fun play(sound: WakeSound, ramp: Duration) = start(sound.resource, ramp)
+
+    /** The timers' Bell, at full volume straight away: a timer that has ended has no time to ramp up. */
+    fun playBell() = start(R.raw.bell, Duration.ZERO)
+
+    private fun start(resource: Int, ramp: Duration) {
         if (player != null || tone != null) return
         rampMillis = ramp.inWholeMilliseconds.coerceAtLeast(1)
-        for (uri in soundCandidates(sound)) {
+        val startVolume = if (ramp.isPositive()) MIN_VOLUME else 1f
+        for (uri in soundCandidates(resource)) {
             val started = runCatching {
                 MediaPlayer().apply {
                     setAudioAttributes(AlarmAudio)
                     setDataSource(context, uri)
                     isLooping = true
                     prepare()
-                    setVolume(MIN_VOLUME, MIN_VOLUME)
+                    setVolume(startVolume, startVolume)
                     start()
                 }
             }
@@ -75,9 +81,9 @@ class AlarmTone(private val context: Context) : AlarmSound {
         }
     }
 
-    /** The chosen sound, then the phone's own alarm sound in case the bundled one won't play. */
-    private fun soundCandidates(sound: WakeSound): List<Uri> = listOfNotNull(
-        "android.resource://${context.packageName}/${sound.resource}".toUri(),
+    /** The bundled sound, then the phone's own alarm sound in case it won't play. */
+    private fun soundCandidates(resource: Int): List<Uri> = listOfNotNull(
+        "android.resource://${context.packageName}/$resource".toUri(),
         RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM),
         RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
         RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE),

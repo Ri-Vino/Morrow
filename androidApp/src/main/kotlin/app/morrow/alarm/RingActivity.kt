@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.lifecycleScope
 import app.morrow.MainActivity
 import app.morrow.debug.WithTestFontScale
@@ -60,6 +61,16 @@ class RingActivity : ComponentActivity() {
                 // The alarm stops when the games are done, or at the safety stop; only the first leads to Morning.
                 LaunchedEffect(alarm, stage) { if (alarm == null && stage != Stage.MORNING) finish() }
                 LaunchedEffect(stage) { matchSystemBars(lightIcons = stage != Stage.MORNING) }
+                // Timers that end during the alarm wait while Morning shows, and ring once it's gone or the screen goes off.
+                LifecycleStartEffect(stage) {
+                    Ringing.morningShowing = stage == Stage.MORNING
+                    onStopOrDispose {
+                        if (Ringing.morningShowing) {
+                            Ringing.morningShowing = false
+                            morrow.timers.releaseWaiting()
+                        }
+                    }
+                }
 
                 val ringing = alarm
                 when {

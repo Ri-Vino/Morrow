@@ -3,6 +3,8 @@ package app.morrow
 import android.app.Application
 import android.content.Context
 import app.morrow.alarm.AndroidAlarmScheduler
+import app.morrow.alarm.AndroidTimerScheduler
+import app.morrow.alarm.TimerNotifications
 import app.morrow.alarms.AlarmCoordinator
 import app.morrow.data.AlarmRepository
 import app.morrow.data.buildMorrowDatabase
@@ -14,6 +16,8 @@ import app.morrow.places.bundledCityCatalog
 import app.morrow.platform.AndroidHttpClient
 import app.morrow.platform.AndroidLocationProvider
 import app.morrow.theme.ThemeClock
+import app.morrow.timers.TimerCoordinator
+import app.morrow.timers.TimerRepository
 import app.morrow.weather.OpenMeteoGeocoder
 import app.morrow.weather.OpenMeteoSource
 import app.morrow.weather.WeatherRepository
@@ -29,6 +33,7 @@ class MorrowApp : Application() {
     private val database by lazy { buildMorrowDatabase(morrowDatabaseBuilder(this)) }
     val repository by lazy { AlarmRepository(database.alarmDao()) }
     val coordinator by lazy { AlarmCoordinator(repository, AndroidAlarmScheduler(this)) }
+    val timers by lazy { TimerCoordinator(TimerRepository(database.timerDao()), AndroidTimerScheduler(this), TimerNotifications(this)) }
     val themeClock by lazy { ThemeClock(appScope) }
     val settings by lazy { morrowSettings(this) }
     val catalog by lazy { bundledCityCatalog() }

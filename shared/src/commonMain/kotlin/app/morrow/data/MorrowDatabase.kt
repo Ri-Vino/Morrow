@@ -12,8 +12,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
 @Database(
-    entities = [AlarmEntity::class, SavedCityEntity::class, WeatherCacheEntity::class, CitySearchCacheEntity::class],
-    version = 5,
+    entities = [AlarmEntity::class, SavedCityEntity::class, WeatherCacheEntity::class, CitySearchCacheEntity::class, TimerEntity::class],
+    version = 6,
 )
 @ConstructedBy(MorrowDatabaseConstructor::class)
 abstract class MorrowDatabase : RoomDatabase() {
@@ -24,6 +24,8 @@ abstract class MorrowDatabase : RoomDatabase() {
     abstract fun weatherCacheDao(): WeatherCacheDao
 
     abstract fun citySearchCacheDao(): CitySearchCacheDao
+
+    abstract fun timerDao(): TimerDao
 }
 
 // Room generates the actual implementations.
@@ -38,7 +40,7 @@ fun buildMorrowDatabase(builder: RoomDatabase.Builder<MorrowDatabase>): MorrowDa
     builder
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(GamesMigration, CitiesMigration, ZonesMigration, WeatherMigration)
+        .addMigrations(GamesMigration, CitiesMigration, ZonesMigration, WeatherMigration, TimersMigration)
         .build()
 
 /** An alarm's one mission becomes its first and only game, with that game's usual rounds. */
@@ -98,6 +100,16 @@ internal object WeatherMigration : Migration(4, 5) {
         connection.execSQL(
             "CREATE TABLE IF NOT EXISTS `city_search_cache` (`query` TEXT NOT NULL, `json` TEXT NOT NULL, " +
                 "`fetched_at` INTEGER NOT NULL, PRIMARY KEY(`query`))",
+        )
+    }
+}
+
+/** Adds the timers, none yet. A timer is running while `ends_at` is set and paused while `remaining_ms` is. */
+internal object TimersMigration : Migration(5, 6) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            "CREATE TABLE IF NOT EXISTS `timers` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `duration_ms` INTEGER NOT NULL, " +
+                "`ends_at` INTEGER, `remaining_ms` INTEGER, `note` TEXT NOT NULL, `created_at` INTEGER NOT NULL)",
         )
     }
 }
