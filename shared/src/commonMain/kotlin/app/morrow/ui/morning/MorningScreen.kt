@@ -65,19 +65,23 @@ import app.morrow.ui.components.fadeUpIn
 import app.morrow.ui.components.rememberSceneSeconds
 import app.morrow.ui.components.svgPath
 import app.morrow.ui.components.withAlpha
+import app.morrow.weather.Sky
 import kotlin.math.PI
 import kotlin.math.cos
 
-/** After the mission: a bright Pip, how the night went, and one small thing to look forward to. Always light. */
+/**
+ * After the mission: a bright Pip, how the night went, [weather] if there is some to show, and one small thing to
+ * look forward to. Always light. [onReplay] reads the weather out again, and is null unless Pip is set to read it.
+ */
 @Composable
-fun MorningScreen(model: MorningModel, onStartDay: (intention: String) -> Unit) {
+fun MorningScreen(model: MorningModel, weather: MorningWeather?, onReplay: (() -> Unit)?, onStartDay: (intention: String) -> Unit) {
     MorrowTheme(ThemeKind.MORNING) {
-        MorningContent(model, rememberSceneSeconds(still = Float.POSITIVE_INFINITY, fullRateFor = INTRO_LENGTH), onStartDay)
+        MorningContent(model, weather, onReplay, rememberSceneSeconds(still = Float.POSITIVE_INFINITY, fullRateFor = INTRO_LENGTH), onStartDay)
     }
 }
 
 @Composable
-private fun MorningContent(model: MorningModel, seconds: State<Float>, onStartDay: (String) -> Unit) {
+private fun MorningContent(model: MorningModel, weather: MorningWeather?, onReplay: (() -> Unit)?, seconds: State<Float>, onStartDay: (String) -> Unit) {
     val colors = MorrowTheme.colors
     val type = MorrowTheme.type
     var intention by rememberSaveable { mutableStateOf("") }
@@ -98,9 +102,16 @@ private fun MorningContent(model: MorningModel, seconds: State<Float>, onStartDa
                 )
                 BasicText(model.summary, style = type.bodyLarge.copy(color = colors.muted), modifier = Modifier.fadeUpIn { textIn(0.7f) })
             }
+            if (weather != null) {
+                MorningWeatherCard(
+                    weather,
+                    onReplay,
+                    Modifier.padding(start = 24.dp, end = 24.dp, top = 20.dp).fadeUpIn { textIn(0.7f) },
+                )
+            }
             Column(
                 modifier = Modifier
-                    .padding(24.dp)
+                    .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 24.dp)
                     .fadeUpIn { textIn(0.7f) }
                     .fillMaxWidth()
                     .background(colors.surface, RoundedCornerShape(24.dp))
@@ -132,8 +143,9 @@ private fun MorningContent(model: MorningModel, seconds: State<Float>, onStartDa
                 )
             }
         }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.line))
         Column(
-            modifier = Modifier.navigationBarsPadding().padding(24.dp),
+            modifier = Modifier.navigationBarsPadding().padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -230,7 +242,16 @@ private val Ground = svgPath("M0 348 C110 334 250 352 390 338 L390 372 L0 372 Z"
 private fun MorningPreview() = MorrowTheme(ThemeKind.MORNING) {
     MorningContent(
         MorningModel("Good morning.", "You were up at 06:42, after about 7h 10m of sleep."),
-        remember { mutableFloatStateOf(Float.POSITIVE_INFINITY) },
+        MorningWeather(
+            sky = Sky.RAIN,
+            night = false,
+            headline = "12° and rainy in London",
+            detail = "High 14° · Low 8° · Rain until about 11:00",
+            tip = "Take an umbrella. It dries up after lunch.",
+            spoken = "",
+        ),
+        onReplay = {},
+        seconds = remember { mutableFloatStateOf(Float.POSITIVE_INFINITY) },
         onStartDay = {},
     )
 }

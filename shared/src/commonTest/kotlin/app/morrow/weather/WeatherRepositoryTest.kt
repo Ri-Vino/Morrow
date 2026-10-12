@@ -9,11 +9,14 @@ import app.morrow.places.City
 import app.morrow.places.CityCatalog
 import app.morrow.places.CityRepository
 import app.morrow.platform.HttpResponse
+import app.morrow.platform.LocationProvider
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -21,9 +24,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -162,6 +167,157 @@ class WeatherRepositoryTest {
         assertEquals(1, location.calls, "only the first refresh asks for the location")
     }
 
+    /**
+     * A phone that finds [fix] in [fixTime], or after the [timeout] it is given gives up without one, as the real
+     * one does. Answers requests in [requestTime]. Remembers the timeouts it was given.
+     */
+    private inner class Slow(val fixTime: Duration, val requestTime: Duration, val fix: Coordinates = leeds) : LocationProvider, WeatherSource {
+        val timeouts = mutableListOf<Duration>()
+        override val allowed = true
+
+        override suspend fun current(timeout: Duration): Coordinates? {
+            timeouts += timeout
+            if (fixTime > timeout) {
+                delay(timeout)
+                return null
+            }
+            delay(fixTime)
+            return fix.rounded()
+        }
+
+        override suspend fun forecast(places: List<Coordinates>): List<Forecast> {
+            delay(requestTime)
+            return places.map { forecastFor(it, clock.now) }
+        }
+    }
+
+    private fun TestScope.weatherWith(slow: Slow) =
+        WeatherRepository(settings, cities, catalog, slow, slow, cache, clock, { phoneZone }, backgroundScope)
+
+    @Test
+    fun theMorningFixGetsTwoOfItsFiveSeconds() = runTest {
+        seedLondonAndTokyo()
+        val slow = Slow(fixTime = 1.seconds, requestTime = 1.seconds)
+
+        weatherWith(slow).refresh(RefreshReason.MORNING)
+
+        assertEquals(listOf(2.seconds), slow.timeouts)
+    }
+
+    @Test
+    fun aMorningFixAndRequestWithinFiveSecondsBothFinish() = runTest {
+        seedLondonAndTokyo()
+        val slow = Slow(fixTime = 1.seconds, requestTime = 3.seconds)
+
+        weatherWith(slow).refresh(RefreshReason.MORNING)
+
+        assertEquals(setOf(leeds.key, london.key, tokyoPlace.key), cache.rows.value.keys)
+        assertEquals(4_000L, currentTime)
+    }
+
+    @Test
+    fun aMorningFixSlowerThanItsShareFallsBackToTheHomeCityAndStillLoads() = runTest {
+        cities.ensureSeeded()
+        cities.add(tokyo)
+        cities.makeHome(tokyo.id)
+        val slow = Slow(fixTime = 6.seconds, requestTime = 2.seconds)
+        val weather = weatherWith(slow)
+
+        weather.refresh(RefreshReason.MORNING)
+
+        assertEquals(HerePlace(tokyoPlace, "Tokyo", HereSource.HOME_CITY), weather.here.first())
+        assertEquals(setOf(tokyoPlace.key, london.key), cache.rows.value.keys)
+        assertNull(settings.lastLocation.first())
+        assertEquals(4_000L, currentTime, "2 s for the fix to give up, then the 2 s request")
+    }
+
+    @Test
+    fun aMorningFixSlowerThanItsShareFallsBackToTheLastFixAndStillLoads() = runTest {
+        seedLondonAndTokyo()
+        settings.saveLastLocation(Coordinates(53.7997, -1.5492), start - 1.days)
+        val slow = Slow(fixTime = 6.seconds, requestTime = 2.seconds)
+        val weather = weatherWith(slow)
+
+        weather.refresh(RefreshReason.MORNING)
+
+        assertEquals(HerePlace(leeds, "Leeds", HereSource.LOCATION), weather.here.first())
+        assertEquals(setOf(leeds.key, london.key, tokyoPlace.key), cache.rows.value.keys)
+        assertEquals(4_000L, currentTime)
+    }
+
+    @Test
+    fun aMorningRequestSlowerThanWhatIsLeftGivesUpAtFiveSeconds() = runTest {
+        seedLondonAndTokyo()
+        val slow = Slow(fixTime = 1.seconds, requestTime = 4.5.seconds)
+
+        weatherWith(slow).refresh(RefreshReason.MORNING)
+
+        assertTrue(cache.rows.value.isEmpty(), "1 s for the fix and 4.5 s for the request is over the 5 s")
+        assertEquals(leeds, settings.lastLocation.first()?.coordinates, "the fix is kept even though the request was given up on")
+        assertEquals(5_000L, currentTime)
+    }
+
+    @Test
+    fun aSlowMorningFixAndSlowRequestStillEndAtFiveSeconds() = runTest {
+        seedLondonAndTokyo()
+        val slow = Slow(fixTime = 6.seconds, requestTime = 4.seconds)
+
+        weatherWith(slow).refresh(RefreshReason.MORNING)
+
+        assertTrue(cache.rows.value.isEmpty())
+        assertEquals(5_000L, currentTime)
+    }
+
+    @Test
+    fun otherRefreshesGiveTheFixTenSecondsAndTheRequestTenMore() = runTest {
+        seedLondonAndTokyo()
+        val slow = Slow(fixTime = 8.seconds, requestTime = 9.seconds)
+
+        weatherWith(slow).refresh(RefreshReason.START)
+
+        assertEquals(listOf(10.seconds), slow.timeouts)
+        assertEquals(setOf(leeds.key, london.key, tokyoPlace.key), cache.rows.value.keys)
+        assertEquals(17_000L, currentTime)
+    }
+
+    @Test
+    fun otherRefreshesFallBackWhenTheFixTakesAllTenSecondsAndThenStillRequest() = runTest {
+        cities.ensureSeeded()
+        cities.add(tokyo)
+        cities.makeHome(tokyo.id)
+        val slow = Slow(fixTime = 30.seconds, requestTime = 3.seconds)
+        val weather = weatherWith(slow)
+
+        weather.refresh(RefreshReason.WORLD)
+
+        assertEquals(HerePlace(tokyoPlace, "Tokyo", HereSource.HOME_CITY), weather.here.first())
+        assertEquals(setOf(tokyoPlace.key, london.key), cache.rows.value.keys)
+        assertEquals(13_000L, currentTime)
+    }
+
+    @Test
+    fun otherRefreshesGiveUpOnARequestAfterTenSeconds() = runTest {
+        seedLondonAndTokyo()
+        val slow = Slow(fixTime = 1.seconds, requestTime = 11.seconds)
+
+        weatherWith(slow).refresh(RefreshReason.SETTINGS)
+
+        assertTrue(cache.rows.value.isEmpty())
+        assertEquals(11_000L, currentTime)
+    }
+
+    @Test
+    fun aMorningRefreshStillSkipsAFreshCache() = runTest {
+        seedLondonAndTokyo()
+        val weather = weather()
+        weather.refresh(RefreshReason.START)
+
+        clock.now = start + 10.minutes
+        weather.refresh(RefreshReason.MORNING)
+
+        assertEquals(1, source.requests.size)
+    }
+
     @Test
     fun a429BacksOffForAnHour() = runTest {
         seedLondonAndTokyo()
@@ -271,6 +427,8 @@ class WeatherRepositoryTest {
     @Test
     fun withNoFixAndNoHomeCityThePhoneZonesCityIsUsed() = runTest {
         phoneZone = "America/New_York"
+        // The list loads on a real thread, which the refresh's timeout would not wait for in a test's virtual time.
+        catalog.cityForZone(phoneZone)
         val weather = weather()
 
         weather.refresh(RefreshReason.START)

@@ -7,6 +7,7 @@ import app.morrow.platform.AlarmPermission
 import app.morrow.weather.Coordinates
 import app.morrow.weather.HerePlace
 import app.morrow.weather.HereSource
+import app.morrow.weather.HourWeather
 import app.morrow.weather.PlaceWeather
 import app.morrow.weather.Sky
 import app.morrow.weather.Units
@@ -264,8 +265,20 @@ class HomeModelTest {
     }
 
     @Test
-    fun weatherOldButUnderADayStillShows() {
-        assertEquals("12° · Rain in London", line("2026-10-06T07:40", { here(it, fetched = it - 23.hours) })?.text)
+    fun oldWeatherShowsTheForecastForThisHour() {
+        val line = line("2026-10-06T07:40", { now ->
+            val fetched = now - 5.hours
+            val hourly = forecastFor(place, fetched, temperature = 9.0, sky = Sky.CLOUDY).copy(
+                hours = List(12) { i -> HourWeather(fetched + i.hours, 9.0 + i, if (i == 5) Sky.RAIN else Sky.CLOUDY, rainChance = 10) },
+            )
+            here(now).copy(hereWeather = PlaceWeather(place, hourly, WeatherAge.Old(5)))
+        })
+        assertEquals("14° · Rain in London", line?.text)
+    }
+
+    @Test
+    fun theLineHidesOnceAnOldForecastsHoursRunOut() {
+        assertNull(line("2026-10-06T07:40", { here(it, fetched = it - 23.hours) }))
     }
 
     @Test

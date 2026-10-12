@@ -118,7 +118,7 @@ fun homeModel(
  */
 fun homeWeather(state: WeatherState?, now: Instant, zone: TimeZone, units: Units): HomeWeather? {
     val forecast = state?.takeIf { it.enabled }?.hereWeather?.forecastAt(now) ?: return null
-    val conditions = forecast.conditionsAt(now)
+    val conditions = forecast.conditionsAt(now) ?: return null
     val temperature = degrees(conditions.temperature, units)
     val where = state.here?.name?.let { " in $it" } ?: ""
     val local = now.toLocalDateTime(zone)

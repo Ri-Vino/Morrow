@@ -33,6 +33,7 @@ import app.morrow.ui.ring.RingScreen
 import app.morrow.ui.ring.ringModel
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
+import java.util.Locale
 import kotlin.time.Clock
 import kotlin.time.Instant
 
@@ -53,6 +54,7 @@ class RingActivity : ComponentActivity() {
         onBackPressedDispatcher.addCallback(this) {}
 
         val missions = MissionServices(morrow.settings, AndroidMotionSensor(this), AndroidCodeScanner(this))
+        val phoneCountry = Locale.getDefault().country
         setContent {
             WithTestFontScale {
                 val alarm by Ringing.current.collectAsState()
@@ -74,7 +76,14 @@ class RingActivity : ComponentActivity() {
 
                 val ringing = alarm
                 when {
-                    stage == Stage.MORNING -> MorningRoute(morrow.settings, Instant.fromEpochMilliseconds(wokeAt), onStartDay = ::startDay)
+                    stage == Stage.MORNING -> MorningRoute(
+                        settings = morrow.settings,
+                        weather = morrow.weather,
+                        speaker = morrow.speaker,
+                        phoneCountry = phoneCountry,
+                        wokeAt = Instant.fromEpochMilliseconds(wokeAt),
+                        onStartDay = ::startDay,
+                    )
                     ringing == null -> Unit
                     // The alarm rings on until the last game is done. If this screen fails, the safety stop still ends it.
                     stage == Stage.MISSION -> SequenceRoute(

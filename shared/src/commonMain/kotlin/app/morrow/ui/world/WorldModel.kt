@@ -156,12 +156,15 @@ fun placeName(city: City): String = listOfNotNull(city.region, city.country).fil
 /** The city's zone, or the phone's if the id isn't one this phone knows. */
 internal fun zoneOf(city: City, fallback: TimeZone): TimeZone = timeZoneOrNull(city.timeZone) ?: fallback
 
-/** The city's forecast if its card may show it: weather is on, and the forecast is no more than a day old. */
+/**
+ * The city's forecast if its card may show it: weather is on, the forecast is no more than a day old, and its hours
+ * still reach [now], so an old reading is never shown as the weather now.
+ */
 private fun shownForecast(weather: WeatherState?, saved: SavedCity, now: Instant): Forecast? =
-    weather?.takeIf { it.enabled }?.cities?.get(saved.id)?.forecastAt(now)
+    weather?.takeIf { it.enabled }?.cities?.get(saved.id)?.forecastAt(now)?.takeIf { it.conditionsAt(now) != null }
 
-private fun cardWeather(forecast: Forecast, now: Instant, minute: Int, units: Units): CardWeather {
-    val conditions = forecast.conditionsAt(now)
+private fun cardWeather(forecast: Forecast, now: Instant, minute: Int, units: Units): CardWeather? {
+    val conditions = forecast.conditionsAt(now) ?: return null
     val temperature = degrees(conditions.temperature, units)
     return CardWeather(
         sky = conditions.sky,

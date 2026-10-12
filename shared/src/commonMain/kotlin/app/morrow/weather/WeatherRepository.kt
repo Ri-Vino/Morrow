@@ -33,7 +33,7 @@ enum class RefreshReason {
     /** The World tab opening. */
     WORLD,
 
-    /** The Morning screen, which waits only 5 s. */
+    /** The Morning screen, which waits only 5 s, for the location and the request together. */
     MORNING,
 
     /** Weather turned on, or "Where I am" / "Home city" changed. */
@@ -132,7 +132,8 @@ class WeatherRepository(
     /**
      * Fetches, in one request, every place whose cache is older than 30 minutes: here, then each saved city.
      * Does nothing at all with weather off or while backing off. One asked for while another runs follows it, as
-     * the place may have changed since the running one began. Failures are silent and keep the cache.
+     * the place may have changed since the running one began. Failures are silent and keep the cache. The fix and the
+     * request each get 10 s. [RefreshReason.MORNING] gets 5 s for both together, of which the fix may take 2 s.
      */
     suspend fun refresh(reason: RefreshReason) {
         if (!refreshing.tryLock()) {
@@ -141,15 +142,28 @@ class WeatherRepository(
         }
         try {
             if (!mayFetch()) return
-            val timeout = timeoutFor(reason)
+            val morning = reason == RefreshReason.MORNING
             val mode = settings.weatherSource.first()
-            val current = if (mode == WeatherPlaceMode.AUTO) location.current(timeout)?.rounded() else null
-            if (current != null) settings.saveLastLocation(current, clock.now())
-            val saved = cities.cities.first()
-            val here = resolveHere(mode, current, settings.lastLocation.first()?.coordinates, saved.firstOrNull { it.isHome }?.city)
-            val places = (listOfNotNull(here?.coordinates) + saved.map { it.city.coordinates }).distinct()
-            fetch(places, force = reason == RefreshReason.MANUAL, timeout = timeout)
-            cache.deleteAllExcept(places.map { it.key })
+            var places: List<Coordinates>? = null
+            var arrived: List<Forecast> = emptyList()
+            val locateAndFetch: suspend () -> Unit = {
+                val current = if (mode == WeatherPlaceMode.AUTO) location.current(if (morning) MorningFixTimeout else RequestTimeout)?.rounded() else null
+                if (current != null) settings.saveLastLocation(current, clock.now())
+                val saved = cities.cities.first()
+                val here = resolveHere(mode, current, settings.lastLocation.first()?.coordinates, saved.firstOrNull { it.isHome }?.city)
+                val wanted = (listOfNotNull(here?.coordinates) + saved.map { it.city.coordinates }).distinct()
+                places = wanted
+                arrived = withTimeoutOrNull(timeoutFor(reason)) { download(stale(wanted, force = reason == RefreshReason.MANUAL)) }.orEmpty()
+            }
+            try {
+                // Morning has 5 s for everything. A fix that doesn't come in its share leaves the last fix, the home
+                // city or the zone's city, and the rest of the 5 s for the request.
+                if (morning) withTimeoutOrNull(MorningTimeout) { locateAndFetch() } else locateAndFetch()
+            } catch (e: FetchException) {
+                if (e.rateLimited) settings.setWeatherBackoffUntil(backoffUntil(clock.now()))
+            }
+            store(arrived)
+            places?.let { cache.deleteAllExcept(it.map(Coordinates::key)) }
         } finally {
             refreshing.unlock()
         }
@@ -170,16 +184,26 @@ class WeatherRepository(
         settings.weatherEnabled.first() && !isBackingOff(settings.weatherBackoffUntil.first(), clock.now())
 
     private suspend fun fetch(places: List<Coordinates>, force: Boolean, timeout: Duration) {
-        val fetchedAt = cache.getAll().associate { it.placeKey to Instant.fromEpochMilliseconds(it.fetchedAt) }
-        val now = clock.now()
-        val stale = places.filter { force || needsRefresh(fetchedAt[it.key], now) }
-        if (stale.isEmpty()) return
         val forecasts = try {
-            withTimeoutOrNull(timeout) { source.forecast(stale) } ?: return
+            withTimeoutOrNull(timeout) { download(stale(places, force)) } ?: return
         } catch (e: FetchException) {
-            if (e.rateLimited) settings.setWeatherBackoffUntil(backoffUntil(now))
+            if (e.rateLimited) settings.setWeatherBackoffUntil(backoffUntil(clock.now()))
             return
         }
+        store(forecasts)
+    }
+
+    /** The [places] whose cache is older than 30 minutes, or all of them when [force]d. */
+    private suspend fun stale(places: List<Coordinates>, force: Boolean): List<Coordinates> {
+        val fetchedAt = cache.getAll().associate { it.placeKey to Instant.fromEpochMilliseconds(it.fetchedAt) }
+        val now = clock.now()
+        return places.filter { force || needsRefresh(fetchedAt[it.key], now) }
+    }
+
+    private suspend fun download(places: List<Coordinates>): List<Forecast> = if (places.isEmpty()) emptyList() else source.forecast(places)
+
+    private suspend fun store(forecasts: List<Forecast>) {
+        if (forecasts.isEmpty()) return
         cache.upsert(forecasts.map { WeatherCacheEntity(it.place.key, OpenMeteoJson.encodeToString(Forecast.serializer(), it), it.fetchedAt.toEpochMilliseconds()) })
     }
 
@@ -205,6 +229,9 @@ class WeatherRepository(
     private companion object {
         val RequestTimeout = 10.seconds
         val MorningTimeout = 5.seconds
+
+        /** Of [MorningTimeout], what finding the location may take. */
+        val MorningFixTimeout = 2.seconds
 
         fun timeoutFor(reason: RefreshReason) = if (reason == RefreshReason.MORNING) MorningTimeout else RequestTimeout
     }

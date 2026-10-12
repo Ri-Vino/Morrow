@@ -396,6 +396,9 @@ private fun RingPreviewRoute(services: MorrowServices, alarm: Alarm, onSystemBar
         )
         PreviewStage.MORNING -> MorningRoute(
             settings = services.settings,
+            weather = services.weather,
+            speaker = services.speaker,
+            phoneCountry = services.phoneCountry,
             wokeAt = Instant.fromEpochMilliseconds(wokeAt),
             onStartDay = { intention ->
                 scope.launch {
@@ -439,6 +442,9 @@ private fun WakeRoute(services: MorrowServices, alarmId: Long, onSystemBarsChang
     when {
         woke != null -> MorningRoute(
             settings = services.settings,
+            weather = services.weather,
+            speaker = services.speaker,
+            phoneCountry = services.phoneCountry,
             wokeAt = Instant.fromEpochMilliseconds(woke),
             onStartDay = { intention ->
                 scope.launch {

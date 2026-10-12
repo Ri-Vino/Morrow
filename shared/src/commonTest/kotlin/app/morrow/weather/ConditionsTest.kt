@@ -23,24 +23,24 @@ class ConditionsTest {
 
     @Test
     fun withinTheHourItWasFetchedTheCurrentConditionsStand() {
-        assertEquals(Conditions(12.4, Sky.RAIN), forecast.conditionsAt(fetchedAt))
-        assertEquals(Conditions(12.4, Sky.RAIN), forecast.conditionsAt(fetchedAt + 19.minutes))
+        assertEquals(CurrentWeather(12.4, Sky.RAIN, isDay = true), forecast.conditionsAt(fetchedAt))
+        assertEquals(CurrentWeather(12.4, Sky.RAIN, isDay = true), forecast.conditionsAt(fetchedAt + 19.minutes))
     }
 
     @Test
     fun laterTheForecastForTheHourItIsNowTakesOver() {
-        assertEquals(Conditions(11.0, Sky.RAIN), forecast.conditionsAt(Instant.parse("2026-10-11T08:00:00Z")))
-        assertEquals(Conditions(15.0, Sky.PARTLY_CLOUDY), forecast.conditionsAt(Instant.parse("2026-10-11T12:59:00Z")))
+        assertEquals(CurrentWeather(12.0, Sky.RAIN, isDay = true), forecast.conditionsAt(Instant.parse("2026-10-11T09:00:00Z")))
+        assertEquals(CurrentWeather(15.0, Sky.PARTLY_CLOUDY, isDay = true), forecast.conditionsAt(Instant.parse("2026-10-11T12:59:00Z")))
     }
 
     @Test
-    fun pastTheLastForecastHourTheFetchedConditionsAreAllThereIs() {
-        assertEquals(Conditions(12.4, Sky.RAIN), forecast.conditionsAt(Instant.parse("2026-10-11T19:00:00Z")))
+    fun pastTheLastForecastHourThereIsNothingToShow() {
+        assertNull(forecast.conditionsAt(Instant.parse("2026-10-11T19:00:00Z")))
     }
 
     @Test
     fun aClockSetBeforeTheFetchKeepsTheFetchedConditions() {
-        assertEquals(Conditions(12.4, Sky.RAIN), forecast.conditionsAt(fetchedAt - 2.hours))
+        assertEquals(CurrentWeather(12.4, Sky.RAIN, isDay = true), forecast.conditionsAt(fetchedAt - 2.hours))
     }
 
     @Test
