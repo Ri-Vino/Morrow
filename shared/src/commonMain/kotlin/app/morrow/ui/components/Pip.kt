@@ -81,7 +81,7 @@ internal fun DrawScope.drawZs(zs: List<TextLayoutResult>, seconds: Float, starts
 /** Width and height of everything Pip can draw, glow included, in design units. Pip's body has a radius of 30. */
 internal const val PIP_EXTENT = 124f
 
-/** Draws Pip centred on the origin, in design units. [seconds] drives breathing and the turning rays. */
+/** Draws Pip centred on the origin, in design units. [seconds] drives breathing, the turning rays and talking. */
 internal fun DrawScope.drawPip(look: PipLook, seconds: Float) {
     if (look.glow) drawCircle(if (look.moon) MoonGlow else SunGlow, 62f, Offset.Zero)
     if (look.rays && !look.moon) {
@@ -96,12 +96,12 @@ internal fun DrawScope.drawPip(look: PipLook, seconds: Float) {
     // Breathes in to 104.5% and out again every 4.5 s.
     val breath = 1f + 0.0225f * (1f - cos(2f * PI.toFloat() * seconds / 4.5f))
     scale(breath, Offset.Zero) {
-        if (look.moon) drawMoonFace() else drawSunFace(look.mood)
+        if (look.moon) drawMoonFace(look.talking, seconds) else drawSunFace(look.mood, look.talking, seconds)
         if (look.nightcap) drawNightcap()
     }
 }
 
-private fun DrawScope.drawSunFace(mood: PipMood) {
+private fun DrawScope.drawSunFace(mood: PipMood, talking: Boolean, seconds: Float) {
     val ink = Illustration.sunInk
     drawCircle(Illustration.sun, 30f, Offset.Zero)
     drawCircle(Illustration.sunLight.copy(alpha = 0.75f), 10f, Offset(-9f, -10f))
@@ -120,7 +120,9 @@ private fun DrawScope.drawSunFace(mood: PipMood) {
         }
     }
     drawCheeks(Illustration.sunCheek.copy(alpha = 0.75f))
-    if (mood == PipMood.YAWNING) {
+    if (talking) {
+        drawTalkingMouth(ink, seconds)
+    } else if (mood == PipMood.YAWNING) {
         drawOval(ink, topLeft = Offset(-3.75f, 5f), size = Size(7.5f, 10f))
     } else if (mood == PipMood.DELIGHTED) {
         drawPath(Grin, ink)
@@ -136,7 +138,7 @@ private fun DrawScope.drawSunFace(mood: PipMood) {
     }
 }
 
-private fun DrawScope.drawMoonFace() {
+private fun DrawScope.drawMoonFace(talking: Boolean, seconds: Float) {
     drawCircle(Illustration.moon, 30f, Offset.Zero)
     drawCircle(Illustration.moonCrater, 5f, Offset(12f, -15f))
     drawCircle(Illustration.moonCrater, 3.5f, Offset(19f, 6f))
@@ -144,7 +146,13 @@ private fun DrawScope.drawMoonFace() {
     drawCircle(Illustration.moonLight.copy(alpha = 0.7f), 9f, Offset(-9f, -10f))
     drawPath(ClosedEyes, Illustration.moonInk, style = line(2.6f))
     drawCheeks(Illustration.moonCheek.copy(alpha = 0.6f))
-    drawPath(Smile, Illustration.moonInk, style = line(2.4f))
+    if (talking) drawTalkingMouth(Illustration.moonInk, seconds) else drawPath(Smile, Illustration.moonInk, style = line(2.4f))
+}
+
+/** A round open mouth that half closes and opens again once a second, as Pip speaks. Open when [seconds] holds still. */
+private fun DrawScope.drawTalkingMouth(ink: Color, seconds: Float) {
+    val open = 1f - 0.55f * (0.5f - 0.5f * cos(2f * PI.toFloat() * seconds))
+    scale(1f, open, TalkingMouth.center) { drawOval(ink, TalkingMouth.topLeft, TalkingMouth.size) }
 }
 
 private fun DrawScope.drawCheeks(color: Color) {
@@ -192,5 +200,6 @@ private val Grin = svgPath("M-7.5 7.5 q7.5 8.3 15 0Z")
 private val Tongue = svgPath("M-3.3 10.8 q3.3 2.5 6.7 0Z")
 private val ShadesFrame = svgPath("M-3 -5 h6M-20 -6 l-8 -3M20 -6 l8 -3")
 private val ShadesGlint = svgPath("M-16 -6 l4 -1M7 -6 l4 -1")
+private val TalkingMouth = Rect(-4.2f, 6.55f, 4.2f, 14.05f)
 private val Nightcap = svgPath("M-26 -14 C-22 -40 12 -52 40 -38 C30 -34 26 -24 26 -14 Z")
 private val NightcapStripe = svgPath("M-12 -32 C2 -40 18 -42 30 -38")

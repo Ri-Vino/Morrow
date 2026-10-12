@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -21,7 +19,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -34,8 +31,8 @@ import app.morrow.missions.SumsState
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
 import app.morrow.ui.components.Icons
+import app.morrow.ui.components.Keypad
 import app.morrow.ui.components.MorrowIcon
-import app.morrow.ui.components.pressable
 
 @Composable
 internal fun SumsBody(state: SumsState, mission: SumsMission) {
@@ -81,45 +78,12 @@ internal fun SumsBody(state: SumsState, mission: SumsMission) {
             BasicText(state.answer.ifEmpty { "?" }, style = type.display.copy(color = colors.text, fontFeatureSettings = "tnum"))
         }
 
-        Keypad(onDigit = mission::type, onDelete = mission::delete, onCheck = mission::check)
-    }
-}
-
-@Composable
-private fun Keypad(onDigit: (Int) -> Unit, onDelete: () -> Unit, onCheck: () -> Unit) {
-    val colors = MorrowTheme.colors
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        for (row in listOf(listOf(1, 2, 3), listOf(4, 5, 6), listOf(7, 8, 9))) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                row.forEach { digit -> DigitKey(digit, onDigit) }
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Key(onDelete, colors.surface, "Delete digit") { MorrowIcon(Icons.DeleteDigit, colors.muted, size = 28.dp) }
-            DigitKey(0, onDigit)
-            Key(onCheck, colors.accent, "Check answer") { MorrowIcon(Icons.Check, colors.onAccent, size = 28.dp, strokeWidth = 3f) }
+        Keypad(onDigit = mission::type) {
+            Key("Delete digit", mission::delete) { MorrowIcon(Icons.DeleteDigit, colors.muted, size = 28.dp) }
+            Digit("0") { mission.type(0) }
+            Key("Check answer", mission::check, colors.accent) { MorrowIcon(Icons.Check, colors.onAccent, size = 28.dp, strokeWidth = 3f) }
         }
     }
-}
-
-@Composable
-private fun RowScope.DigitKey(digit: Int, onDigit: (Int) -> Unit) {
-    Key({ onDigit(digit) }, MorrowTheme.colors.surface, label = null) {
-        BasicText(digit.toString(), style = MorrowTheme.type.title.copy(color = MorrowTheme.colors.text))
-    }
-}
-
-@Composable
-private fun RowScope.Key(onClick: () -> Unit, background: Color, label: String?, content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier
-            .weight(1f)
-            .heightIn(min = 56.dp)
-            .pressable(onClick)
-            .background(background, RoundedCornerShape(20.dp))
-            .then(if (label != null) Modifier.semantics { contentDescription = label } else Modifier),
-        contentAlignment = Alignment.Center,
-    ) { content() }
 }
 
 /** How far, in dp, a field shaking "no" has moved at [t] from 0 to 1. */

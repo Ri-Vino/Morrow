@@ -29,6 +29,9 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -46,6 +49,7 @@ import app.morrow.platform.AlarmPermission
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
 import app.morrow.theme.colors
+import app.morrow.ui.components.BottomSheet
 import app.morrow.ui.components.Icons
 import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.components.MorrowToggle
@@ -56,6 +60,9 @@ import app.morrow.ui.components.pressable
 import app.morrow.ui.firstrun.icon
 import app.morrow.weather.Units
 import app.morrow.weather.WeatherPlaceMode
+
+private const val SPEAKER_ICON = "M4 9v6h4l5 4V5L8 9H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"
+private const val PLAY_ICON = "M9 7.5v9l7-4.5z"
 
 class SettingsChoices(val difficulty: Difficulty, val sound: WakeSound, val ramp: VolumeRamp)
 
@@ -73,6 +80,10 @@ class SettingsActions(
     val onWeatherMode: (WeatherPlaceMode) -> Unit = {},
     val onPickHomeCity: () -> Unit = {},
     val onUnits: (Units) -> Unit = {},
+    val onReadAloud: (Boolean) -> Unit = {},
+    /** Pip's voice was picked in the sheet: null for the phone's default. */
+    val onPickVoice: (String?) -> Unit = {},
+    val onHearSample: () -> Unit = {},
 )
 
 @Composable
@@ -82,9 +93,35 @@ fun SettingsScreen(
     actions: SettingsActions,
     modifier: Modifier = Modifier,
     weather: WeatherSection? = null,
+    voice: VoiceSection? = null,
+) {
+    var pickingVoice by rememberSaveable { mutableStateOf(false) }
+    Box(modifier.fillMaxSize()) {
+        SettingsContent(model, choices, actions, weather, voice, onPickVoice = { pickingVoice = true })
+        if (pickingVoice && voice != null) {
+            VoicePickerSheet(
+                voice,
+                onPick = { id ->
+                    pickingVoice = false
+                    actions.onPickVoice(id)
+                },
+                onClose = { pickingVoice = false },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsContent(
+    model: SettingsModel,
+    choices: SettingsChoices,
+    actions: SettingsActions,
+    weather: WeatherSection?,
+    voice: VoiceSection?,
+    onPickVoice: () -> Unit,
 ) {
     val colors = MorrowTheme.colors
-    Column(modifier.fillMaxSize().background(colors.bg).statusBarsPadding()) {
+    Column(Modifier.fillMaxSize().background(colors.bg).statusBarsPadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -113,6 +150,7 @@ fun SettingsScreen(
                 }
             }
             if (weather != null) Section("Weather") { WeatherSettings(weather, actions) }
+            if (voice != null) Section("Voice") { VoiceSettings(voice, actions.onHearSample, onPickVoice) }
             Section("Mission difficulty") {
                 SegmentedControl(Difficulty.entries, choices.difficulty, Difficulty::displayName, actions.onDifficulty)
                 Note(model.difficultyLevel)
@@ -187,16 +225,16 @@ private fun Card(selectable: Boolean = true, content: @Composable ColumnScope.()
     )
 }
 
+/** A switch row in a card of its own, or with [framed] false, a row inside a card. */
 @Composable
-private fun ToggleRow(title: String, description: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+private fun ToggleRow(title: String, description: String, checked: Boolean, onChange: (Boolean) -> Unit, framed: Boolean = true) {
     val colors = MorrowTheme.colors
     val shape = RoundedCornerShape(24.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 72.dp)
-            .background(colors.surface, shape)
-            .border(1.dp, colors.line, shape)
+            .then(if (framed) Modifier.background(colors.surface, shape).border(1.dp, colors.line, shape) else Modifier)
             .toggleable(checked, role = Role.Switch, onValueChange = onChange)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -250,6 +288,70 @@ private fun ColumnScope.WeatherSettings(weather: WeatherSection, actions: Settin
                 description = { if (it == Units.CELSIUS) "Celsius" else "Fahrenheit" },
             )
         }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.line))
+        ToggleRow(
+            "Pip reads it out when you wake",
+            "After your wake-up games. Off unless you turn it on.",
+            weather.readAloud,
+            actions.onReadAloud,
+            framed = false,
+        )
+    }
+}
+
+@Composable
+private fun ColumnScope.VoiceSettings(voice: VoiceSection, onHearSample: () -> Unit, onPickVoice: () -> Unit) {
+    val colors = MorrowTheme.colors
+    Card(selectable = false) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 64.dp)
+                .pressable(onPickVoice)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            MorrowIcon(SPEAKER_ICON, colors.hi, size = 22.dp)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                BasicText("Pip’s voice", style = MorrowTheme.type.button.copy(color = colors.text))
+                BasicText(voice.current, style = MorrowTheme.type.body.copy(color = colors.muted))
+            }
+            MorrowIcon(Icons.Forward, colors.muted, size = 20.dp, strokeWidth = 2.2f)
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(colors.line))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+                .pressable(onHearSample)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            // The design's play triangle is solid; a thick round stroke draws one.
+            MorrowIcon(PLAY_ICON, colors.hi, size = 20.dp, strokeWidth = 4.5f)
+            BasicText("Hear a sample", style = MorrowTheme.type.button.copy(color = colors.hi))
+        }
+    }
+    Note("Reads timer notes and the morning weather. It uses your phone’s own voices, so nothing is sent anywhere.")
+}
+
+@Composable
+private fun VoicePickerSheet(voice: VoiceSection, onPick: (String?) -> Unit, onClose: () -> Unit) {
+    val colors = MorrowTheme.colors
+    BottomSheet(title = "Pip’s voice", onClose = onClose) {
+        BasicText(
+            "Pip’s voice",
+            style = MorrowTheme.type.title.copy(color = colors.text),
+            modifier = Modifier.semantics { heading() },
+        )
+        Card {
+            voice.choices.forEachIndexed { i, choice ->
+                RadioRow(choice.title, selected = choice.selected, divider = i > 0, detail = choice.detail) { onPick(choice.id) }
+            }
+        }
+        voice.emptyNote?.let { Note(it) }
     }
 }
 
@@ -330,7 +432,7 @@ private fun <T> SegmentedControl(
 }
 
 @Composable
-private fun RadioRow(label: String, selected: Boolean, divider: Boolean, onClick: () -> Unit) {
+private fun RadioRow(label: String, selected: Boolean, divider: Boolean, detail: String? = null, onClick: () -> Unit) {
     val colors = MorrowTheme.colors
     if (divider) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.line))
     Row(
@@ -348,7 +450,10 @@ private fun RadioRow(label: String, selected: Boolean, divider: Boolean, onClick
         ) {
             if (selected) Box(Modifier.size(12.dp).background(colors.hi, CircleShape))
         }
-        BasicText(label, style = MorrowTheme.type.bodyLarge.copy(color = colors.text), modifier = Modifier.weight(1f))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            BasicText(label, style = MorrowTheme.type.bodyLarge.copy(color = colors.text))
+            detail?.let { BasicText(it, style = MorrowTheme.type.body.copy(color = colors.muted)) }
+        }
     }
 }
 

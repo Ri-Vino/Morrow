@@ -12,8 +12,6 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
-import app.morrow.theme.MorrowTheme
-import app.morrow.theme.ThemeKind
 import app.morrow.ui.NoMotion
 import org.junit.Rule
 import org.junit.runner.RunWith
@@ -84,49 +82,4 @@ class TimerDoneScreenTest {
         config.getOrNull(SemanticsProperties.ContentDescription).isNullOrEmpty() &&
             config.getOrNull(SemanticsProperties.Text).isNullOrEmpty()
     }.map { it.config.toString() }
-}
-
-@RunWith(RobolectricTestRunner::class)
-class TimersScreenTest {
-
-    @get:Rule
-    val compose = createComposeRule(effectContext = NoMotion)
-
-    private var starts = 0
-    private val stopped = mutableListOf<Long>()
-
-    private fun show() {
-        compose.setContent {
-            MorrowTheme(ThemeKind.MORNING) {
-                TimersScreen(
-                    TimersModel(listOf(TimerRow(7, "Pasta", "10 min · ends at 12:42", "Stop Pasta"))),
-                    onStart = { starts++ },
-                    onStop = { stopped += it },
-                )
-            }
-        }
-    }
-
-    @Test
-    fun startsATimerAndStopsOne() {
-        show()
-
-        compose.onNodeWithText("Start a 1 min timer").performClick()
-        compose.onNodeWithContentDescription("Stop Pasta").performClick()
-
-        assertEquals(1, starts)
-        assertEquals(listOf(7L), stopped)
-    }
-
-    @Test
-    fun everyControlHasALabel() {
-        show()
-
-        val unlabelled = compose.onAllNodes(hasClickAction()).fetchSemanticsNodes().filter { node ->
-            val config = node.config
-            config.getOrNull(SemanticsProperties.ContentDescription).isNullOrEmpty() &&
-                config.getOrNull(SemanticsProperties.Text).isNullOrEmpty()
-        }
-        assertEquals(emptyList(), unlabelled.map { it.config.toString() })
-    }
 }

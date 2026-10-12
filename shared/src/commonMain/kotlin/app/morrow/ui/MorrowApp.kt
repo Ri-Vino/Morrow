@@ -37,7 +37,9 @@ import app.morrow.places.CityRepository
 import app.morrow.places.CitySearch
 import app.morrow.platform.AlarmPermission
 import app.morrow.platform.AlarmSound
+import app.morrow.platform.NoSpeaker
 import app.morrow.platform.PermissionGate
+import app.morrow.platform.Speaker
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeClock
 import app.morrow.theme.ThemeKind
@@ -101,6 +103,7 @@ class MorrowServices(
     val weather: WeatherRepository,
     /** The phone's region, like "GB", for the default temperature units. */
     val phoneCountry: String,
+    val speaker: Speaker = NoSpeaker,
     val timers: TimerCoordinator,
 )
 
@@ -159,6 +162,7 @@ fun MorrowApp(
                                 cities = services.cities,
                                 here = services.weather.here,
                                 phoneCountry = services.phoneCountry,
+                                speaker = services.speaker,
                                 developerTools = developerTools,
                                 onPickHomeCity = { pickingHome = true },
                                 onWeatherChanged = { services.weather.refreshSoon(RefreshReason.SETTINGS) },
@@ -185,7 +189,7 @@ fun MorrowApp(
                             }
                             TabHost(
                                 tab, onSelect = { tab = it }, barHidden = tab == Tab.WORLD && worldSheetOpen, world = world,
-                                timers = { TimersRoute(services.timers, services.permissions) },
+                                timers = { screens.SaveableStateProvider(TIMERS) { TimersRoute(services.timers, services.permissions) } },
                             ) {
                                 screens.SaveableStateProvider(HOME) {
                                     Home(
@@ -450,6 +454,7 @@ private fun WakeRoute(services: MorrowServices, alarmId: Long, onSystemBarsChang
 private const val NEW_ALARM = "new"
 private const val HOME = "home"
 private const val EDIT = "edit"
+private const val TIMERS = "timers"
 
 /**
  * What to put in `editing` to open Edit for a new alarm that keeps [city]'s clock, as the World tab's

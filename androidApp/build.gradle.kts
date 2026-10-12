@@ -46,4 +46,5 @@ dependencies {
     // Reads codes on the phone. ML Kit would add Google's telemetry and the INTERNET permission.
     implementation(libs.zxing.core)
     testImplementation(libs.kotlin.test.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

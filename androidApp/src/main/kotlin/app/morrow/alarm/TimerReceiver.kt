@@ -16,8 +16,14 @@ class TimerReceiver : BroadcastReceiver() {
         when (intent.action) {
             // RingService looks for every timer that has ended, so timers ending together ring together.
             ACTION_ENDED -> RingService.ringTimers(context)
-            ACTION_STOP_RINGING -> goAsync { timers.stopRinging() }
-            ACTION_SNOOZE_RINGING -> goAsync { timers.snoozeRinging() }
+            ACTION_STOP_RINGING -> {
+                context.morrow.timerVoice.hush()
+                goAsync { timers.stopRinging() }
+            }
+            ACTION_SNOOZE_RINGING -> {
+                context.morrow.timerVoice.hush()
+                goAsync { timers.snoozeRinging() }
+            }
             ACTION_PAUSE -> if (id != null) goAsync { timers.pause(id) }
             ACTION_RESUME -> if (id != null) goAsync { timers.resume(id) }
             ACTION_ADD_MINUTE -> if (id != null) goAsync { timers.addMinute(id) }

@@ -49,6 +49,9 @@ object Illustration {
 
     /** The Timer done screen's evening sky, behind its text. */
     val duskSky = Color(0xFF2E1D33)
+    /** The rings of evening light around Pip on the Timer done screen, outermost first, and the hill below him. */
+    val duskBands = listOf(Color(0xFF4A2540), Color(0xFF8E4356), Color(0xFFC9605C), Color(0xFFEE9362))
+    val duskHill = Color(0xFF5A2E3A)
 
     /** Wrong answers and wrong codes in a mission. */
     val mistake = Color(0xFFE8806A)

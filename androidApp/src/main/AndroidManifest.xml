@@ -23,6 +23,13 @@
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
 
+    <!-- Lets Pip find the phone's text-to-speech engine. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".MorrowApp"
         android:allowBackup="false"

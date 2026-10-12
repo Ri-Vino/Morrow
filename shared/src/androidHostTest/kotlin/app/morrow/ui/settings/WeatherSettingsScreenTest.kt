@@ -22,6 +22,7 @@ import app.morrow.places.CityCatalog
 import app.morrow.places.CityRepository
 import app.morrow.platform.AlarmPermission
 import app.morrow.platform.AndroidPermissions
+import app.morrow.platform.FakeSpeaker
 import app.morrow.platform.PermissionGate
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
@@ -76,6 +77,7 @@ class WeatherSettingsScreenTest {
                     cities = cities,
                     here = here,
                     phoneCountry = country,
+                    speaker = FakeSpeaker(),
                     developerTools = null,
                     onPickHomeCity = { homePicks++ },
                     onWeatherChanged = { weatherChanges++ },

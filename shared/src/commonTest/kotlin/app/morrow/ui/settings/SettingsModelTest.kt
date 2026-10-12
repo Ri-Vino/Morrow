@@ -4,6 +4,7 @@ import app.morrow.domain.Difficulty
 import app.morrow.platform.AlarmPermission
 import app.morrow.platform.AndroidPermissions
 import app.morrow.platform.IosPermissions
+import app.morrow.platform.VoiceInfo
 import app.morrow.theme.ThemeKind
 import app.morrow.weather.Coordinates
 import app.morrow.weather.HerePlace
@@ -13,6 +14,7 @@ import app.morrow.weather.WeatherPlaceMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SettingsModelTest {
@@ -65,7 +67,7 @@ class SettingsModelTest {
 
     @Test
     fun whereIAmSaysWhichPlaceItIsUsingNow() {
-        val section = weatherSection(enabled = true, WeatherPlaceMode.AUTO, here = leeds, homeCity = "London", Units.CELSIUS)
+        val section = weatherSection(enabled = true, WeatherPlaceMode.AUTO, here = leeds, homeCity = "London", Units.CELSIUS, readAloud = false)
 
         assertEquals("Your rough location while Morrow is open, or the last place it knew. Now: Leeds.", section.description)
         assertEquals("London", section.homeCityName)
@@ -77,14 +79,14 @@ class SettingsModelTest {
     fun whereIAmFallingBackToTheHomeCityNamesIt() {
         val home = HerePlace(Coordinates(51.51, -0.13), "London", HereSource.HOME_CITY)
 
-        val section = weatherSection(enabled = true, WeatherPlaceMode.AUTO, here = home, homeCity = "London", Units.CELSIUS)
+        val section = weatherSection(enabled = true, WeatherPlaceMode.AUTO, here = home, homeCity = "London", Units.CELSIUS, readAloud = false)
 
         assertEquals("Your rough location while Morrow is open, or the last place it knew. Now: London.", section.description)
     }
 
     @Test
     fun whereIAmBeforeAnyPlaceIsKnownSaysNoMore() {
-        val section = weatherSection(enabled = true, WeatherPlaceMode.AUTO, here = null, homeCity = null, Units.FAHRENHEIT)
+        val section = weatherSection(enabled = true, WeatherPlaceMode.AUTO, here = null, homeCity = null, Units.FAHRENHEIT, readAloud = false)
 
         assertEquals("Your rough location while Morrow is open, or the last place it knew.", section.description)
         assertEquals("None yet", section.homeCityName)
@@ -92,7 +94,7 @@ class SettingsModelTest {
 
     @Test
     fun homeCityModeIsAlwaysTheHomeCity() {
-        val section = weatherSection(enabled = true, WeatherPlaceMode.HOME, here = leeds, homeCity = "London", Units.CELSIUS)
+        val section = weatherSection(enabled = true, WeatherPlaceMode.HOME, here = leeds, homeCity = "London", Units.CELSIUS, readAloud = false)
 
         assertEquals("Always London, wherever you are.", section.description)
     }
@@ -101,5 +103,80 @@ class SettingsModelTest {
     fun weatherChoicesReadAsTheDesignSays() {
         assertEquals(listOf("Where I am", "Home city"), WeatherPlaceMode.entries.map { it.displayName })
         assertEquals(listOf("°C", "°F"), Units.entries.map { it.symbol })
+    }
+
+    @Test
+    fun readingTheWeatherAloudFollowsTheSetting() {
+        fun section(readAloud: Boolean) = weatherSection(true, WeatherPlaceMode.AUTO, here = null, homeCity = null, Units.CELSIUS, readAloud)
+
+        assertFalse(section(readAloud = false).readAloud)
+        assertTrue(section(readAloud = true).readAloud)
+    }
+
+    private val british = VoiceInfo("gb-1", "English (UK) · Voice 1", "English (UK)")
+    private val britishToo = VoiceInfo("gb-2", "English (UK) · Voice 2", "English (UK)")
+    private val american = VoiceInfo("us", "English (US)", "English (US)")
+
+    @Test
+    fun theDefaultVoiceNamesTheLanguageItSpeaks() {
+        val section = voiceSection(voiceId = null, listOf(british, britishToo, american))
+
+        assertEquals("Phone’s default · English (UK)", section.current)
+        assertNull(section.emptyNote)
+    }
+
+    @Test
+    fun thePickerListsTheDefaultFirstThenEveryVoice() {
+        val section = voiceSection(voiceId = null, listOf(british, britishToo, american))
+
+        assertEquals(
+            listOf(
+                VoiceChoice(null, "Phone’s default", "English (UK)", selected = true),
+                VoiceChoice("gb-1", "English (UK) · Voice 1", null, selected = false),
+                VoiceChoice("gb-2", "English (UK) · Voice 2", null, selected = false),
+                VoiceChoice("us", "English (US)", null, selected = false),
+            ),
+            section.choices,
+        )
+    }
+
+    @Test
+    fun aPickedVoiceIsNamedAndTheOnlyOneSelected() {
+        val section = voiceSection(voiceId = "gb-2", listOf(british, britishToo, american))
+
+        assertEquals("English (UK) · Voice 2", section.current)
+        assertEquals(listOf("gb-2"), section.choices.filter { it.selected }.map { it.id })
+    }
+
+    @Test
+    fun aVoiceThatIsNoLongerInstalledFallsBackToTheDefault() {
+        val section = voiceSection(voiceId = "removed", listOf(british, american))
+
+        assertEquals("Phone’s default · English (UK)", section.current)
+        assertEquals(listOf<String?>(null), section.choices.filter { it.selected }.map { it.id })
+    }
+
+    @Test
+    fun withNoVoicesTheRowSaysSoAndThePickerOffersOnlyTheDefault() {
+        val section = voiceSection(voiceId = "gb-1", emptyList())
+
+        assertEquals("No voices on this phone", section.current)
+        assertEquals(listOf(VoiceChoice(null, "Phone’s default", null, selected = true)), section.choices)
+        assertEquals("This phone has no voice for Pip, so Pip stays quiet. The words stay on screen.", section.emptyNote)
+    }
+
+    @Test
+    fun whileTheVoicesAreLoadingItSaysJustTheDefault() {
+        val section = voiceSection(voiceId = null, voices = null)
+
+        assertEquals("Phone’s default", section.current)
+        assertNull(section.emptyNote)
+        assertEquals(listOf(VoiceChoice(null, "Phone’s default", null, selected = true)), section.choices)
+    }
+
+    @Test
+    fun theSampleSentencesAreTheDesigns() {
+        assertEquals("Good morning! It’s twelve degrees and rainy in London. Take an umbrella.", VOICE_SAMPLE_PHRASE)
+        assertEquals("Hello, I’m Pip. This is how I’ll sound.", VOICE_PICKED_PHRASE)
     }
 }

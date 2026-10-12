@@ -31,8 +31,9 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * The Timer done screen over the lock screen, opened by RingService's full-screen notification while timers ring. It
- * shows every ringing timer and closes once [app.morrow.timers.TimerCoordinator.ringing] empties: after Stop or
- * "+1 minute", at the safety stop, or when an alarm takes over.
+ * shows every ringing timer, with Pip talking while RingService has him read their notes, and closes once
+ * [app.morrow.timers.TimerCoordinator.ringing] empties: after Stop or "+1 minute", at the safety stop, or when an alarm
+ * takes over.
  */
 class TimerRingActivity : ComponentActivity() {
 
@@ -49,9 +50,11 @@ class TimerRingActivity : ComponentActivity() {
         onBackPressedDispatcher.addCallback(this) {}
 
         val timers = morrow.timers
+        val voice = morrow.timerVoice
         setContent {
             WithTestFontScale {
                 val ringing by timers.ringing.collectAsState()
+                val speaking by voice.speaking.collectAsState()
                 var shown by remember { mutableStateOf(false) }
                 LaunchedEffect(ringing.isEmpty()) {
                     if (ringing.isNotEmpty()) {
@@ -65,11 +68,17 @@ class TimerRingActivity : ComponentActivity() {
                 if (ringing.isEmpty()) {
                     Box(Modifier.fillMaxSize().background(Illustration.duskSky))
                 } else {
-                    val model = remember(ringing) { timerDoneModel(ringing, TimeZone.currentSystemDefault()) }
+                    val model = remember(ringing, speaking) { timerDoneModel(ringing, TimeZone.currentSystemDefault(), speaking) }
                     TimerDoneScreen(
                         model,
-                        onStop = { lifecycleScope.launch { timers.stopRinging() } },
-                        onAddMinute = { lifecycleScope.launch { timers.snoozeRinging() } },
+                        onStop = {
+                            voice.hush()
+                            lifecycleScope.launch { timers.stopRinging() }
+                        },
+                        onAddMinute = {
+                            voice.hush()
+                            lifecycleScope.launch { timers.snoozeRinging() }
+                        },
                     )
                 }
             }

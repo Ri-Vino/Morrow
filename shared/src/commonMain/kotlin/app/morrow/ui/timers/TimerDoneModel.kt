@@ -21,11 +21,17 @@ data class TimerDoneModel(
     /** What TalkBack says for Stop, which stops every timer on the screen. */
     val stopLabel: String,
     val addMinuteLabel: String,
+    /** "Pip is reading your note" while he reads the notes out, or null while he's quiet. */
+    val reading: String? = null,
 )
 
-/** The Timer done screen for [timers], which ended together or while the screen was up, in the order they ended. */
-fun timerDoneModel(timers: List<Timer>, zone: TimeZone): TimerDoneModel {
+/**
+ * The Timer done screen for [timers], which ended together or while the screen was up, in the order they ended.
+ * [speaking] is whether Pip is reading notes out now; he only ever reads notes, so without one he's shown quiet.
+ */
+fun timerDoneModel(timers: List<Timer>, zone: TimeZone, speaking: Boolean = false): TimerDoneModel {
     val many = timers.size > 1
+    val notes = timers.count { it.note.isNotBlank() }
     return TimerDoneModel(
         timers = timers.map { timer ->
             val total = totalText(timer.duration)
@@ -39,5 +45,10 @@ fun timerDoneModel(timers: List<Timer>, zone: TimeZone): TimerDoneModel {
         },
         stopLabel = if (many) "Stop all ${timers.size} timers" else "Stop the timer",
         addMinuteLabel = if (many) "Ring all ${timers.size} again in a minute" else "Ring again in a minute",
+        reading = when {
+            !speaking || notes == 0 -> null
+            notes == 1 -> "Pip is reading your note"
+            else -> "Pip is reading your notes"
+        },
     )
 }

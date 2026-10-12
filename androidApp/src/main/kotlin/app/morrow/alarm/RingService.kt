@@ -20,6 +20,7 @@ import app.morrow.domain.Alarm
 import app.morrow.domain.DefaultGames
 import app.morrow.morrow
 import app.morrow.timers.Timer
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -42,9 +43,9 @@ import kotlin.time.Duration.Companion.seconds
  * - **Alarm**, from AlarmReceiver: the alarm's sound, ramping up, until its games are done. Timers that end meanwhile
  *   don't ring but wait in `TimerCoordinator.waiting`, until the alarm's Morning screen has gone (RingActivity lets them
  *   go then) or, if the alarm reaches its safety stop and no Morning screen follows, until that.
- * - **Timers**, from TimerReceiver: the Bell for every timer that has ended, until `TimerCoordinator.ringing` empties
- *   (Stop, "+1 minute", or the timers' safety stop). An alarm going off meanwhile takes over, and the timers wait
- *   behind it as above.
+ * - **Timers**, from TimerReceiver: the Bell for every timer that has ended, with Pip reading their notes over it
+ *   (`TimerVoice`), until `TimerCoordinator.ringing` empties (Stop, "+1 minute", or the timers' safety stop). An alarm
+ *   going off meanwhile takes over, silencing Pip too, and the timers wait behind it as above.
  *
  * Each mode has its own safety stop, counted from when it started ringing: for an alarm from when it went off, for
  * timers from when the latest of them ended. Leaving a mode cancels its safety stop, so an alarm that takes over from
@@ -61,6 +62,7 @@ class RingService : Service() {
     private var mode = Mode.IDLE
     private var lastStartId = 0
     private var followingTimers: Job? = null
+    private var readingNotes: Job? = null
     private val alarmSafetyStop = Runnable { stopAlarm(gamesDone = false) }
     private val timerSafetyStop = Runnable { timeOutTimers() }
 
@@ -166,10 +168,26 @@ class RingService : Service() {
                 mode != Mode.TIMERS -> Unit
                 // Stopped from its notification just as it ended, say.
                 ringing.isEmpty() -> stopTimers()
-                followingTimers == null -> followingTimers = scope.launch {
-                    morrow.timers.ringing.collect { timers -> if (timers.isEmpty()) stopTimers() else showRinging(timers) }
+                followingTimers == null -> {
+                    // Started first, so that if the timers have been stopped meanwhile, stopTimers() below cancels it too.
+                    readingNotes = scope.launch { readNotes() }
+                    followingTimers = scope.launch {
+                        morrow.timers.ringing.collect { timers -> if (timers.isEmpty()) stopTimers() else showRinging(timers) }
+                    }
                 }
             }
+        }
+    }
+
+    /** Pip reads the ringing timers' notes, ducking the Bell while he speaks, until [leaveTimers] cancels him. */
+    private suspend fun readNotes() {
+        try {
+            morrow.timerVoice.readNotes(morrow.timers.ringing, sound::duck)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // The Bell rings on without him.
+            Log.e(TAG, "Pip couldn't read the notes", e)
         }
     }
 
@@ -197,9 +215,11 @@ class RingService : Service() {
         }
     }
 
-    /** Stops the Bell, its safety stop and its notification. Which timers ring is the coordinator's business. */
+    /** Stops the Bell, Pip, the safety stop and the notification. Which timers ring is the coordinator's business. */
     private fun leaveTimers() {
         handler.removeCallbacks(timerSafetyStop)
+        readingNotes?.cancel()
+        readingNotes = null
         followingTimers?.cancel()
         followingTimers = null
         quiet()

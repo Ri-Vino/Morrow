@@ -15,9 +15,12 @@ import app.morrow.places.CitySearch
 import app.morrow.places.bundledCityCatalog
 import app.morrow.platform.AndroidHttpClient
 import app.morrow.platform.AndroidLocationProvider
+import app.morrow.platform.AndroidSpeaker
+import app.morrow.platform.Speaker
 import app.morrow.theme.ThemeClock
 import app.morrow.timers.TimerCoordinator
 import app.morrow.timers.TimerRepository
+import app.morrow.timers.TimerVoice
 import app.morrow.weather.OpenMeteoGeocoder
 import app.morrow.weather.OpenMeteoSource
 import app.morrow.weather.WeatherRepository
@@ -53,9 +56,13 @@ class MorrowApp : Application() {
         )
     }
 
+    val speaker: Speaker by lazy { AndroidSpeaker(this) }
+    val timerVoice by lazy { TimerVoice(speaker) }
+
     override fun onCreate() {
         super.onCreate()
         appScope.launch { settings.pinnedTheme.collect(themeClock::pin) }
+        appScope.launch { settings.voiceId.collect { speaker.setVoice(it) } }
         appScope.launch { cities.ensureSeeded() }
     }
 
