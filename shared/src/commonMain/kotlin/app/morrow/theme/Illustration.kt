@@ -60,4 +60,34 @@ object Illustration {
     /** The pale wash under dark card text, and the dark one under light card text. */
     val cityScrimLight = Color(0xFFFFFFFF)
     val cityScrimDark = Color(0xFF140C0A)
+
+    /** What weather mixes a sky toward, by day and by night: grey, or its own colour in fog, snow and storms. */
+    val tintGreyDay = Color(0xFFAEB9C4)
+    val tintGreyNight = Color(0xFF2C2934)
+    val tintFogDay = Color(0xFFD9DEE3)
+    val tintFogNight = Color(0xFF3D3946)
+    val tintSnowDay = Color(0xFFE4EAF0)
+    val tintSnowNight = Color(0xFF3E4252)
+    val tintStormDay = Color(0xFF6B7180)
+    val tintStormNight = Color(0xFF24222C)
+
+    /** Clouds by day and by night: bright in a partly cloudy sky, grey in heavier weather, dark in a storm. */
+    val cloudBrightDay = Color(0xFFFFFFFF)
+    val cloudBrightNight = Color(0xFF5A5468)
+    val cloudDay = Color(0xFFE8EDF2)
+    val cloudNight = Color(0xFF4A4557)
+    val stormCloudDay = Color(0xFF7D8493)
+    val stormCloudNight = Color(0xFF3A3744)
+
+    /** Rain and drizzle over a light sky, and over a dark one. */
+    val rainOnLight = Color(0xFF4F6B84)
+    val rainOnDark = Color(0xFFC9D6E2)
+    val snowflake = Color(0xFFFFFFFF)
+    val fogDay = Color(0xFFFFFFFF)
+    val fogNight = Color(0xFFB9B3C3)
+    val lightning = Color(0xFFFFE08A)
+
+    /** What a city card's back and front hills are mixed toward under snow. */
+    val snowHillBack = Color(0xFFFFFFFF)
+    val snowHillFront = Color(0xFFF4F7FA)
 }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -33,6 +35,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.hideFromAccessibility
@@ -48,6 +51,7 @@ import app.morrow.ui.components.PillButton
 import app.morrow.ui.components.PrimaryButton
 import app.morrow.ui.components.largeText
 import app.morrow.ui.components.pressable
+import app.morrow.ui.components.weatherIcon
 
 class WorldActions(
     val onAddCity: () -> Unit,
@@ -86,6 +90,13 @@ private fun WorldContent(model: WorldModel, actions: WorldActions, modifier: Mod
     ) {
         Header(model.header, actions.onAddCity)
         CityCards(model.cards, actions)
+        model.footer?.let {
+            BasicText(
+                it,
+                style = MorrowTheme.type.caption.copy(color = colors.muted, textAlign = TextAlign.Center),
+                modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 8.dp),
+            )
+        }
     }
 }
 
@@ -163,6 +174,7 @@ private fun CityCards(cards: List<WorldCard>, actions: WorldActions) {
                 relative = card.relative,
                 clock = card.clock,
                 minuteOfDay = card.minute,
+                weather = card.weather,
                 onClick = { actions.onOpenCity(card.id) },
                 modifier = Modifier
                     .zIndex(if (held) 1f else 0f)
@@ -222,7 +234,13 @@ private fun CitySheetView(sheet: CitySheet, actions: WorldActions) {
                 clock()
             }
         }
-        BasicText(sheet.relative, style = type.body.copy(color = colors.muted), modifier = Modifier.padding(horizontal = 8.dp))
+        BasicText(
+            listOfNotNull(sheet.relative, sheet.conditions).joinToString(" · "),
+            style = type.body.copy(color = colors.muted),
+            modifier = Modifier.padding(horizontal = 8.dp),
+        )
+        if (sheet.hours.isNotEmpty()) NextHours(sheet.hours)
+        sheet.day?.let { BasicText(it, style = type.body.copy(color = colors.muted), modifier = Modifier.padding(horizontal = 8.dp)) }
         PrimaryButton(sheet.newAlarm, { actions.onNewAlarm(sheet.id) })
         if (sheet.isHome) {
             BasicText(
@@ -247,6 +265,39 @@ private fun CitySheetView(sheet: CitySheet, actions: WorldActions) {
                     makeHome(Modifier.weight(1f))
                     remove(Modifier.weight(1f))
                 }
+            }
+        }
+    }
+}
+
+/** The next hours in six even columns, or three to a row with large text. */
+@Composable
+private fun NextHours(hours: List<SheetHour>) {
+    val colors = MorrowTheme.colors
+    val type = MorrowTheme.type
+    val perRow = if (largeText()) 3 else 6
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(colors.surface, RoundedCornerShape(20.dp))
+            .padding(horizontal = 8.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        hours.chunked(perRow).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                row.forEach { hour ->
+                    Column(
+                        modifier = Modifier.weight(1f).semantics(mergeDescendants = true) { contentDescription = hour.spoken },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        BasicText(hour.time, style = type.caption.copy(color = colors.muted))
+                        MorrowIcon(weatherIcon(hour.sky, hour.night), colors.hi, size = 22.dp)
+                        BasicText(hour.temperature, style = type.bodyStrong.copy(color = colors.text))
+                    }
+                }
+                // Keeps a short last row in the same columns as the rows above it.
+                repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }

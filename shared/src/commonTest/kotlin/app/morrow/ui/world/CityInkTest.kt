@@ -5,6 +5,8 @@ import androidx.compose.ui.graphics.compositeOver
 import app.morrow.theme.Illustration
 import app.morrow.theme.SkyCurve
 import app.morrow.theme.contrastRatio
+import app.morrow.ui.components.cityScene
+import app.morrow.weather.Sky
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -54,6 +56,38 @@ class CityInkTest {
             for (fraction in leftText + rightText) {
                 val ratio = contrastRatio(washed(sky, ink, fraction), ink.text)
                 assertTrue(ratio >= 4.5f, "Ink at minute $minute, ${(fraction * 100).toInt()}% across, was only $ratio:1")
+            }
+        }
+    }
+
+    // Under weather the sky can be a mid-grey at dawn, where the design's wash is too thin near the middle of the card
+    // for 4.5:1. Only the large name and clock reach that far, and they need 3:1; the smaller lines sit near the edges.
+    private val smallText = listOf(0f, 0.15f, 0.3f, 0.4f, 0.75f, 0.8f, 1f)
+
+    @Test
+    fun underAnyWeatherSmallTextNearTheEdgesReadsAllDay() {
+        for (weather in Sky.entries) {
+            for (minute in 0 until 24 * 60 step 10) {
+                val sky = cityScene(minute, weather).sky
+                val ink = inkFor(sky)
+                for (fraction in smallText) {
+                    val ratio = contrastRatio(washed(sky, ink, fraction), ink.text)
+                    assertTrue(ratio >= 4.5f, "Ink in $weather at minute $minute, ${(fraction * 100).toInt()}% across, was only $ratio:1")
+                }
+            }
+        }
+    }
+
+    @Test
+    fun underAnyWeatherLargeTextReadsAnywhereAcrossTheCard() {
+        for (weather in Sky.entries) {
+            for (minute in 0 until 24 * 60 step 10) {
+                val sky = cityScene(minute, weather).sky
+                val ink = inkFor(sky)
+                for (fraction in (0..20).map { it / 20f }) {
+                    val ratio = contrastRatio(washed(sky, ink, fraction), ink.text)
+                    assertTrue(ratio >= 3f, "Ink in $weather at minute $minute, ${(fraction * 100).toInt()}% across, was only $ratio:1")
+                }
             }
         }
     }

@@ -3,9 +3,11 @@ package app.morrow.ui.components
 import app.morrow.theme.Illustration
 import app.morrow.theme.SkyCurve
 import app.morrow.theme.mix
+import app.morrow.weather.Sky
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class CitySceneTest {
@@ -88,5 +90,71 @@ class CitySceneTest {
     fun minutesOutsideTheDayWrapRound() {
         assertEquals(scene(1), cityScene(25 * 60))
         assertEquals(scene(23), cityScene(-60))
+    }
+
+    @Test
+    fun withoutWeatherTheSunAndMoonShowAndThereIsNoLayer() {
+        assertEquals(1f, scene(12).bodyAlpha)
+        assertEquals(1f, scene(0).bodyAlpha)
+        assertNull(scene(12).weather)
+    }
+
+    @Test
+    fun theWeatherTintsTheSkyByDayAndByNight() {
+        assertEquals(skyTint(SkyCurve.at(12 * 60f), Sky.RAIN, isDay = true), cityScene(12 * 60, Sky.RAIN).sky)
+        assertEquals(skyTint(SkyCurve.at(23 * 60f), Sky.RAIN, isDay = false), cityScene(23 * 60, Sky.RAIN).sky)
+    }
+
+    @Test
+    fun theSunAndMoonShowInAClearOrBrightSkyAndHalfThroughFog() {
+        for (minute in listOf(12 * 60, 0)) {
+            assertEquals(1f, cityScene(minute, Sky.CLEAR).bodyAlpha)
+            assertEquals(1f, cityScene(minute, Sky.PARTLY_CLOUDY).bodyAlpha)
+            assertEquals(0.5f, cityScene(minute, Sky.FOG).bodyAlpha)
+        }
+    }
+
+    @Test
+    fun theSunAndMoonHideInHeavyWeather() {
+        for (weather in listOf(Sky.CLOUDY, Sky.DRIZZLE, Sky.RAIN, Sky.STORM, Sky.SNOW)) {
+            assertEquals(0f, cityScene(12 * 60, weather).bodyAlpha, "$weather by day")
+            assertEquals(0f, cityScene(0, weather).bodyAlpha, "$weather by night")
+        }
+    }
+
+    @Test
+    fun starsShowOnlyUnderAClearOrBrightNightSky() {
+        assertEquals(1f, cityScene(0, Sky.CLEAR).starAlpha)
+        assertEquals(1f, cityScene(0, Sky.PARTLY_CLOUDY).starAlpha)
+        for (weather in listOf(Sky.CLOUDY, Sky.FOG, Sky.DRIZZLE, Sky.RAIN, Sky.STORM, Sky.SNOW)) {
+            assertEquals(0f, cityScene(0, weather).starAlpha, "$weather")
+        }
+    }
+
+    @Test
+    fun snowWhitensTheHills() {
+        for (minute in listOf(12 * 60, 22 * 60 + 30)) {
+            val s = cityScene(minute, Sky.SNOW)
+            assertEquals(mix(s.sky, Illustration.snowHillBack, 0.5f), s.hillBack)
+            assertEquals(mix(s.sky, Illustration.snowHillFront, 0.78f), s.hillFront)
+        }
+    }
+
+    @Test
+    fun otherWeatherKeepsTheHillsDarkUnderTheTintedSky() {
+        for (weather in Sky.entries - Sky.SNOW) {
+            val s = cityScene(12 * 60, weather)
+            assertEquals(mix(s.sky, Illustration.ground, 0.3f), s.hillBack, "$weather")
+            assertEquals(mix(s.sky, Illustration.ground, 0.5f), s.hillFront, "$weather")
+        }
+    }
+
+    @Test
+    fun theLayerIsDrawnForTheTintedSky() {
+        assertNull(cityScene(12 * 60, Sky.CLEAR).weather)
+        val rain = cityScene(23 * 60, Sky.RAIN)
+        assertEquals(weatherLook(Sky.RAIN, rain.sky, isDay = false), rain.weather)
+        val partly = cityScene(10 * 60, Sky.PARTLY_CLOUDY)
+        assertEquals(weatherLook(Sky.PARTLY_CLOUDY, partly.sky, isDay = true), partly.weather)
     }
 }

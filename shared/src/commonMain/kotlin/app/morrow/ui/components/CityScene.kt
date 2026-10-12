@@ -1,11 +1,12 @@
 package app.morrow.ui.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -17,62 +18,84 @@ import app.morrow.theme.Illustration
 import app.morrow.theme.SkyCurve
 import app.morrow.theme.mix
 import app.morrow.theme.sunElevation
+import app.morrow.weather.Sky
 import kotlin.math.abs
 
 /** What a city card's scene shows at a given minute of that city's day, in the design's 342 × 128 units. */
 data class CitySceneState(
+    /** The sky for the time of day, tinted by the weather. */
     val sky: Color,
     val starAlpha: Float,
     /** True for the sun, false for the moon in its nightcap. */
     val sunUp: Boolean,
     val bodyX: Float,
     val bodyY: Float,
+    /** How much of the sun or moon shows: all of it under a clear or bright sky, half through fog, none behind heavier weather. */
+    val bodyAlpha: Float,
     /** The sun wears shades from 11:00 to 15:00. */
     val shades: Boolean,
     val hillBack: Color,
     val hillFront: Color,
+    /** What's drawn over the sky, or null for nothing. */
+    val weather: WeatherLook?,
 )
 
-fun cityScene(minuteOfDay: Int): CitySceneState {
+/** The scene at [minuteOfDay] under [weather], or under the time of day's own sky when there's none to show. */
+fun cityScene(minuteOfDay: Int, weather: Sky? = null): CitySceneState {
     val minute = ((minuteOfDay % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY
-    val sky = SkyCurve.at(minute.toFloat())
     val elevation = sunElevation(minute.toFloat()).toFloat()
     val sunUp = minute in SUNRISE until SUNSET
+    val sky = SkyCurve.at(minute.toFloat()).let { if (weather != null) skyTint(it, weather, sunUp) else it }
+    val bright = weather == null || weather == Sky.CLEAR || weather == Sky.PARTLY_CLOUDY
     val travelled = if (sunUp) minute - SUNRISE else (minute - SUNSET + MINUTES_PER_DAY) % MINUTES_PER_DAY
+    val snowy = weather == Sky.SNOW
     return CitySceneState(
         sky = sky,
-        starAlpha = if (sunUp) 0f else (-elevation * 2.5f).coerceIn(0f, 1f),
+        starAlpha = if (sunUp || !bright) 0f else (-elevation * 2.5f).coerceIn(0f, 1f),
         sunUp = sunUp,
         bodyX = BODY_LEFT + travelled / 720f * BODY_SPAN,
         bodyY = HORIZON - abs(elevation) * BODY_RISE,
+        bodyAlpha = when {
+            bright -> 1f
+            weather == Sky.FOG -> 0.5f
+            else -> 0f
+        },
         shades = minute in 11 * 60 until 15 * 60,
-        hillBack = mix(sky, Illustration.ground, 0.3f),
-        hillFront = mix(sky, Illustration.ground, 0.5f),
+        hillBack = if (snowy) mix(sky, Illustration.snowHillBack, 0.5f) else mix(sky, Illustration.ground, 0.3f),
+        hillFront = if (snowy) mix(sky, Illustration.snowHillFront, 0.78f) else mix(sky, Illustration.ground, 0.5f),
+        weather = weather?.let { weatherLook(it, sky, sunUp) },
     )
 }
 
 /**
- * A small sky for a city card: the sun in shades or the moon in a nightcap, crossing the card as the city's day goes by,
- * above two hills. Still, because it sits in a list. It fills the space it is given; the card's text is laid over it.
+ * A small sky for a city card, as [state] has it: the sun in shades or the moon in a nightcap crossing the card as the
+ * city's day goes by, the weather, and two hills in front. Pip holds still, because it sits in a list; only the weather
+ * moves. It fills the space it is given; the card's text is laid over it.
  */
 @Composable
-fun CityScene(minuteOfDay: Int, modifier: Modifier = Modifier) {
-    val state = remember(minuteOfDay) { cityScene(minuteOfDay) }
-    Canvas(modifier) {
-        val across = size.width / SCENE_WIDTH
-        val down = size.height / SCENE_HEIGHT
-        drawRect(state.sky)
-        if (state.starAlpha > 0f) {
-            Stars.forEach { (x, y, r) -> drawCircle(Illustration.starlight.copy(alpha = state.starAlpha), r * down, Offset(x * across, y * down)) }
-        }
-        translate(state.bodyX * across, state.bodyY * down) {
-            scale(down, Offset.Zero) {
-                if (state.sunUp) drawSun(state.shades) else drawMoon()
+fun CityScene(state: CitySceneState, modifier: Modifier = Modifier) {
+    Box(modifier) {
+        Canvas(Modifier.matchParentSize()) {
+            val across = size.width / SCENE_WIDTH
+            val down = size.height / SCENE_HEIGHT
+            drawRect(state.sky)
+            if (state.starAlpha > 0f) {
+                Stars.forEach { (x, y, r) -> drawCircle(Illustration.starlight.copy(alpha = state.starAlpha), r * down, Offset(x * across, y * down)) }
+            }
+            translate(state.bodyX * across, state.bodyY * down) {
+                scale(down, Offset.Zero) {
+                    withAlpha(state.bodyAlpha, BodyBounds) {
+                        if (state.sunUp) drawSun(state.shades) else drawMoon()
+                    }
+                }
             }
         }
-        scale(across, down, Offset.Zero) {
-            drawPath(CityPaths.HillBack, state.hillBack)
-            drawPath(CityPaths.HillFront, state.hillFront)
+        state.weather?.let { WeatherLayer(it, WeatherShapes.Card, Modifier.matchParentSize()) }
+        Canvas(Modifier.matchParentSize()) {
+            scale(size.width / SCENE_WIDTH, size.height / SCENE_HEIGHT, Offset.Zero) {
+                drawPath(CityPaths.HillBack, state.hillBack)
+                drawPath(CityPaths.HillFront, state.hillFront)
+            }
         }
     }
 }
@@ -116,6 +139,9 @@ private const val BODY_LEFT = 40f
 private const val BODY_SPAN = 262f
 private const val HORIZON = 104f
 private const val BODY_RISE = 76f
+
+/** Holds the sun's glow and the moon's nightcap, around the body's centre. */
+private val BodyBounds = Rect(-26f, -26f, 26f, 26f)
 
 private val Stars = listOf(
     Triple(28f, 22f, 1.3f), Triple(92f, 44f, 1.1f), Triple(150f, 16f, 1.4f), Triple(206f, 52f, 1.1f),

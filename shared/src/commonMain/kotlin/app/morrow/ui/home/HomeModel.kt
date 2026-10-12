@@ -7,12 +7,18 @@ import app.morrow.domain.nextAlarm
 import app.morrow.domain.nextRing
 import app.morrow.platform.AlarmPermission
 import app.morrow.theme.sunElevation
+import app.morrow.ui.degrees
 import app.morrow.ui.displayName
 import app.morrow.ui.edit.zoneName
 import app.morrow.ui.formatDuration
 import app.morrow.ui.gamesText
 import app.morrow.ui.hhmm
 import app.morrow.ui.world.cityClock
+import app.morrow.weather.Sky
+import app.morrow.weather.Units
+import app.morrow.weather.WeatherState
+import app.morrow.weather.conditionsAt
+import app.morrow.weather.forecastAt
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.daysUntil
@@ -33,6 +39,19 @@ data class HomeModel(
     val banner: String?,
     val alarmCount: String,
     val rows: List<AlarmRow>,
+    /** The weather line under the greeting, and the weather in the sky; null with weather off or none recent enough. */
+    val weather: HomeWeather? = null,
+)
+
+/** The weather where you are, as Home shows it. */
+data class HomeWeather(
+    val sky: Sky,
+    /** Whether it's night here, for the moon icon on a clear night. */
+    val night: Boolean,
+    /** "12° · Rain in London". */
+    val text: String,
+    /** What screen readers hear for the line, which opens World: "12° and rain in London. Open World". */
+    val label: String,
 )
 
 data class SleepCard(val lead: String, val big: String, val detail: String, val night: Boolean)
@@ -52,7 +71,15 @@ data class AlarmRow(
     val zoneText: String? = null,
 )
 
-fun homeModel(alarms: List<Alarm>, now: Instant, zone: TimeZone, missing: List<AlarmPermission>, intention: String? = null): HomeModel {
+fun homeModel(
+    alarms: List<Alarm>,
+    now: Instant,
+    zone: TimeZone,
+    missing: List<AlarmPermission>,
+    intention: String? = null,
+    /** From [homeWeather]. */
+    weather: HomeWeather? = null,
+): HomeModel {
     val local = now.toLocalDateTime(zone)
     val minute = local.hour * 60 + local.minute
     val blockers = missing.filter { it.required }
@@ -81,6 +108,25 @@ fun homeModel(alarms: List<Alarm>, now: Instant, zone: TimeZone, missing: List<A
                 zoneText = alarm.zoneName()?.let { city -> "$city time · ${cityClock(alarm.nextRing(now, zone), zone)} here" },
             )
         },
+        weather = weather,
+    )
+}
+
+/**
+ * Home's weather line for the weather where you are, at [now] in [zone]. Null, so the line and the sky's weather hide,
+ * with weather off, before it loads, or when there's no forecast from the last 24 hours.
+ */
+fun homeWeather(state: WeatherState?, now: Instant, zone: TimeZone, units: Units): HomeWeather? {
+    val forecast = state?.takeIf { it.enabled }?.hereWeather?.forecastAt(now) ?: return null
+    val conditions = forecast.conditionsAt(now)
+    val temperature = degrees(conditions.temperature, units)
+    val where = state.here?.name?.let { " in $it" } ?: ""
+    val local = now.toLocalDateTime(zone)
+    return HomeWeather(
+        sky = conditions.sky,
+        night = sunElevation(local.hour * 60f + local.minute) < 0,
+        text = "$temperature · ${conditions.sky.displayName}$where",
+        label = "$temperature and ${conditions.sky.displayName.lowercase()}$where. Open World",
     )
 }
 

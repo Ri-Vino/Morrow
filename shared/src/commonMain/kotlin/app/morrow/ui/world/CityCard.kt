@@ -4,8 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,15 +25,17 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.morrow.theme.MorrowTheme
-import app.morrow.theme.SkyCurve
 import app.morrow.ui.components.CityScene
 import app.morrow.ui.components.MorrowIcon
+import app.morrow.ui.components.cityScene
 import app.morrow.ui.components.largeText
 import app.morrow.ui.components.pressable
+import app.morrow.ui.components.weatherIcon
 
 /**
- * A saved city: its own sky at its own time of day, with the name, how far it is from here, and its clock over the top.
- * Screen readers get the whole card as one button.
+ * A saved city: its own sky at its own time of day under its [weather], with the name, how far it is from here, its
+ * clock, and the weather over the top. Without [weather] it shows the time of day only. Screen readers get the whole
+ * card as one button.
  */
 @Composable
 fun CityCard(
@@ -41,11 +46,13 @@ fun CityCard(
     minuteOfDay: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    weather: CardWeather? = null,
 ) {
     val colors = MorrowTheme.colors
     val type = MorrowTheme.type
     val shape = RoundedCornerShape(28.dp)
-    val ink = remember(minuteOfDay) { inkFor(SkyCurve.at(minuteOfDay.toFloat())) }
+    val scene = remember(minuteOfDay, weather?.sky) { cityScene(minuteOfDay, weather?.sky) }
+    val ink = remember(scene.sky) { inkFor(scene.sky) }
     val wash = remember(ink) {
         Brush.horizontalGradient(
             0f to ink.scrim.copy(alpha = ink.scrimLeft),
@@ -54,7 +61,8 @@ fun CityCard(
         )
     }
     val stacked = largeText()
-    val label = "$name, ${if (isHome) "home city, " else ""}$clock, $relative"
+    val label = "$name, ${if (isHome) "home city, " else ""}$clock, $relative" + (weather?.let { ", ${it.spoken}" } ?: "")
+    val clockText = @Composable { BasicText(clock, style = type.display.copy(color = ink.text, fontFeatureSettings = "tnum")) }
 
     Box(
         modifier
@@ -65,17 +73,31 @@ fun CityCard(
             .pressable({ onClick() }, onClickLabel = "Open $name")
             .semantics(mergeDescendants = true) { contentDescription = label },
     ) {
-        CityScene(minuteOfDay, Modifier.matchParentSize())
+        CityScene(scene, Modifier.matchParentSize())
         Box(Modifier.matchParentSize().background(wash))
         if (stacked) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Details(name, isHome, relative, ink, stacked = true)
-                BasicText(clock, style = type.display.copy(color = ink.text, fontFeatureSettings = "tnum"))
+                clockText()
+                weather?.let {
+                    Conditions(it, ink)
+                    HighLow(it, ink)
+                }
             }
         } else {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(Modifier.weight(1f)) { Details(name, isHome, relative, ink, stacked = false) }
-                BasicText(clock, style = type.display.copy(color = ink.text, fontFeatureSettings = "tnum"))
+            // The weather sits along the bottom of the card, under the name on the left and the clock on the right.
+            Row(
+                Modifier.fillMaxWidth().height(IntrinsicSize.Min).heightIn(min = 128.dp).padding(horizontal = 20.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
+                    Details(name, isHome, relative, ink, stacked = false)
+                    weather?.let { Conditions(it, ink) }
+                }
+                Column(Modifier.fillMaxHeight(), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.SpaceBetween) {
+                    clockText()
+                    weather?.let { HighLow(it, ink) }
+                }
             }
         }
     }
@@ -105,6 +127,19 @@ private fun Details(name: String, isHome: Boolean, relative: String, ink: CardIn
         }
         BasicText(relative, style = type.body.copy(color = ink.text))
     }
+}
+
+@Composable
+private fun Conditions(weather: CardWeather, ink: CardInk) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        MorrowIcon(weatherIcon(weather.sky, weather.night), ink.text, strokeWidth = 2.2f)
+        BasicText(weather.conditions, style = MorrowTheme.type.button.copy(color = ink.text))
+    }
+}
+
+@Composable
+private fun HighLow(weather: CardWeather, ink: CardInk) {
+    BasicText(weather.highLow, style = MorrowTheme.type.bodyStrong.copy(color = ink.text))
 }
 
 @Composable

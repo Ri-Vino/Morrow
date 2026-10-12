@@ -56,6 +56,7 @@ import app.morrow.ui.firstrun.WelcomeScreen
 import app.morrow.ui.home.HomeActions
 import app.morrow.ui.home.HomeScreen
 import app.morrow.ui.home.homeModel
+import app.morrow.ui.home.homeWeather
 import app.morrow.ui.components.skySceneState
 import app.morrow.ui.mission.MissionServices
 import app.morrow.ui.mission.SequenceRoute
@@ -72,6 +73,8 @@ import app.morrow.ui.world.CityPickPurpose
 import app.morrow.ui.world.WorldRoute
 import app.morrow.weather.RefreshReason
 import app.morrow.weather.WeatherRepository
+import app.morrow.weather.WeatherState
+import app.morrow.weather.defaultUnits
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -173,6 +176,8 @@ fun MorrowApp(
                                     onAddCity = { addingCity = true },
                                     onNewAlarm = { editing = it?.let(::newAlarmTarget) ?: NEW_ALARM },
                                     onSheetChange = { worldSheetOpen = it },
+                                    weather = services.weather.forecasts,
+                                    units = remember { services.settings.effectiveUnits(services.phoneCountry) },
                                 )
                             }
                             TabHost(tab, onSelect = { tab = it }, barHidden = tab == Tab.WORLD && worldSheetOpen, world = world) {
@@ -182,6 +187,7 @@ fun MorrowApp(
                                         onEdit = { editing = it?.toString() ?: NEW_ALARM },
                                         onPreview = { previewing = it },
                                         onSettings = { inSettings = true },
+                                        onOpenWorld = { tab = Tab.WORLD },
                                     )
                                 }
                             }
@@ -242,20 +248,25 @@ private fun Home(
     onEdit: (Long?) -> Unit,
     onPreview: (Alarm) -> Unit,
     onSettings: () -> Unit,
+    onOpenWorld: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val alarms by services.repository.alarms.collectAsStateWithLifecycle<List<Alarm>?>(initialValue = null)
     val missing by services.permissions.missing.collectAsStateWithLifecycle()
     val intention by services.settings.intention.collectAsStateWithLifecycle(initialValue = null)
+    val forecasts by services.weather.forecasts.collectAsStateWithLifecycle<WeatherState?>(initialValue = null)
+    val units by remember { services.settings.effectiveUnits(services.phoneCountry) }
+        .collectAsStateWithLifecycle(initialValue = defaultUnits(services.phoneCountry))
     val now by remember { minuteTicks() }.collectAsStateWithLifecycle(initialValue = Clock.System.now())
     val zone = TimeZone.currentSystemDefault()
     val minute = now.toLocalDateTime(zone).let { it.hour * 60 + it.minute }.toFloat()
-    val lightIcons = !skySceneState(minute, theme).sky.isLightSky()
+    val weather = homeWeather(forecasts, now, zone, units)
+    val lightIcons = !skySceneState(minute, theme, weather?.sky).sky.isLightSky()
     LaunchedEffect(lightIcons) { onSystemBarsChange(lightIcons) }
 
     val loaded = alarms ?: return
     HomeScreen(
-        model = homeModel(loaded, now, zone, missing, intention),
+        model = homeModel(loaded, now, zone, missing, intention, weather),
         theme = theme,
         minuteOfDay = minute,
         actions = HomeActions(
@@ -266,6 +277,7 @@ private fun Home(
             onTrySunrise = { onPreview(loaded.nextAlarm(Clock.System.now(), zone)?.alarm ?: loaded.firstOrNull() ?: newAlarm()) },
             onSettings = onSettings,
             onFixPermissions = { missing.firstOrNull { it.required }?.let(services.permissions::request) },
+            onOpenWorld = onOpenWorld,
         ),
     )
 }

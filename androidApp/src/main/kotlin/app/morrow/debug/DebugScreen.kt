@@ -17,8 +17,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,6 +70,11 @@ fun DebugScreen(permissions: PermissionGate, onBack: () -> Unit) {
     var hourOffset by remember { mutableIntStateOf(0) }
     val sceneMinute = pinned?.let(::designMinute) ?: (minuteNow + hourOffset * 60).mod(24 * 60)
     val sceneTheme = pinned ?: ThemeKind.at(sceneMinute)
+    var cardStates by rememberSaveable { mutableStateOf(false) }
+    if (cardStates) {
+        CityCardStates(onBack = { cardStates = false })
+        return
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(colors.bg).safeDrawingPadding()) {
         SkyScene(sceneMinute.toFloat(), sceneTheme)
@@ -135,6 +142,7 @@ fun DebugScreen(permissions: PermissionGate, onBack: () -> Unit) {
             }
 
             WeatherPanel()
+            DebugButton("City card states") { cardStates = true }
 
             LazyColumn(modifier = Modifier.weight(1f)) {
                 items(alarms, key = Alarm::id) { alarm ->

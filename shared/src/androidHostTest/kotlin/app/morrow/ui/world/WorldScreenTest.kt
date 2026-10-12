@@ -5,10 +5,13 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasContentDescriptionExactly
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -21,7 +24,10 @@ import app.morrow.places.City
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
 import app.morrow.ui.NoMotion
+import app.morrow.weather.Units
+import app.morrow.weather.WeatherState
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.runner.RunWith
@@ -29,6 +35,7 @@ import org.robolectric.RobolectricTestRunner
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.hours
 
 @RunWith(RobolectricTestRunner::class)
 class WorldScreenTest {
@@ -40,17 +47,103 @@ class WorldScreenTest {
     private var addCityTapped = 0
     private val newAlarms = mutableListOf<City?>()
 
-    private fun show() {
+    private fun show(weather: WeatherState = WeatherState.Off, units: Units = Units.CELSIUS) {
         runBlocking {
             world.cities.ensureSeeded()
             world.cities.add(world.tokyo)
             world.cities.add(world.newYork)
         }
+        val forecasts = flowOf(weather)
+        val inUnits = flowOf(units)
         compose.setContent {
             MorrowTheme(ThemeKind.MORNING) {
-                WorldRoute(world.cities, onAddCity = { addCityTapped++ }, onNewAlarm = { newAlarms += it }, ticks = world.ticks, phoneZone = world.phoneZone)
+                WorldRoute(
+                    world.cities,
+                    onAddCity = { addCityTapped++ },
+                    onNewAlarm = { newAlarms += it },
+                    weather = forecasts,
+                    units = inUnits,
+                    ticks = world.ticks,
+                    phoneZone = world.phoneZone,
+                )
             }
         }
+    }
+
+    private fun assertNoTemperatures() {
+        compose.onAllNodes(hasText("°", substring = true), useUnmergedTree = true).assertCountEquals(0)
+        compose.onAllNodes(hasContentDescription("°", substring = true), useUnmergedTree = true).assertCountEquals(0)
+    }
+
+    @Test
+    fun withWeatherOffCardsShowTheirTimesOnly() {
+        show(WeatherState.Off)
+
+        listOf("07:40", "16:40", "02:40").forEach { compose.onNodeWithText(it, useUnmergedTree = true).assertExists() }
+        listOf(londonCard, tokyoCard, newYorkCard).forEach { compose.onNodeWithContentDescription(it).assertExists() }
+        assertNoTemperatures()
+        compose.onNodeWithText("Weather is off, so cards show the time of day only.").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun withWeatherOffTheSheetHasNoHoursOrDay() {
+        show(WeatherState.Off)
+
+        compose.onNodeWithContentDescription(londonCard).performClick()
+
+        compose.onNodeWithText("England, United Kingdom").assertIsDisplayed()
+        assertNoTemperatures()
+    }
+
+    @Test
+    fun weatherOverADayOldLeavesTheTimesOnly() {
+        show(world.weather(age = 25.hours))
+
+        listOf(londonCard, tokyoCard, newYorkCard).forEach { compose.onNodeWithContentDescription(it).assertExists() }
+        assertNoTemperatures()
+        compose.onNodeWithText("No recent weather, so cards show the time of day only.").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun withWeatherOnCardsShowTheTemperatureConditionAndHighAndLow() {
+        show(world.weather())
+
+        compose.onNodeWithText("12° Rain", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("H 14°  L 8°", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("21° Partly cloudy", useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription("$londonCard, 12° and rain").assertExists()
+        compose.onNodeWithContentDescription("$newYorkCard, 11° and clear").assertExists()
+        compose.onNodeWithText("Weather by Open-Meteo.com · updated 5 min ago").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun cardsFollowTheChosenUnits() {
+        show(world.weather(), Units.FAHRENHEIT)
+
+        compose.onNodeWithText("54° Rain", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("H 57°  L 46°", useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun theSheetAddsTheNextSixHoursAndTheDay() {
+        show(world.weather())
+
+        compose.onNodeWithContentDescription("$londonCard, 12° and rain").performClick()
+
+        compose.onNodeWithText("Today · your time · 12° Rain").assertIsDisplayed()
+        compose.onNodeWithContentDescription("08:00, 13°, rain").assertIsDisplayed()
+        compose.onNodeWithContentDescription("13:00, 18°, rain").assertIsDisplayed()
+        compose.onNodeWithContentDescription("14:00, 19°, rain").assertDoesNotExist()
+        compose.onNodeWithText("High 14° · Low 8° · 80% chance of rain").assertIsDisplayed()
+    }
+
+    @Test
+    fun withWeatherOnEveryControlStillHasALabel() {
+        show(world.weather())
+        assertAllLabelled()
+
+        compose.onNodeWithContentDescription("$tokyoCard, 21° and partly cloudy").performClick()
+        assertAllLabelled()
     }
 
     private fun saved() = runBlocking { world.cities.cities.first() }

@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.drawscope.translate
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
+import app.morrow.weather.Sky
 import kotlin.math.PI
 import kotlin.math.cos
 
@@ -30,12 +32,13 @@ private const val SCENE_WIDTH = 390f
 private const val SCENE_HEIGHT = 330f
 
 /**
- * The Home header: the sky for [minuteOfDay], stars, Pip as the sun or the sleeping moon, hills and the cottage.
- * Its bottom edge is drawn in the theme's background colour so the screen continues below it. Decorative.
+ * The Home header: the sky for [minuteOfDay], stars, Pip as the sun or the sleeping moon, the [weather] over them, then
+ * hills and the cottage. Its bottom edge is drawn in the theme's background colour so the screen continues below it.
+ * Decorative.
  */
 @Composable
-fun SkyScene(minuteOfDay: Float, theme: ThemeKind, modifier: Modifier = Modifier) {
-    val target = skySceneState(minuteOfDay, theme)
+fun SkyScene(minuteOfDay: Float, theme: ThemeKind, modifier: Modifier = Modifier, weather: Sky? = null) {
+    val target = skySceneState(minuteOfDay, theme, weather)
     val slow = tween<Color>(durationMillis = 1200)
     val sky by animateColorAsState(target.sky, slow)
     val hillBack by animateColorAsState(target.hillBack, slow)
@@ -48,19 +51,28 @@ fun SkyScene(minuteOfDay: Float, theme: ThemeKind, modifier: Modifier = Modifier
 
     val zs = rememberZs(Illustration.starlight, sizes = listOf(16f, 12f, 10f))
 
-    Canvas(modifier.fillMaxWidth().aspectRatio(SCENE_WIDTH / SCENE_HEIGHT).clipToBounds()) {
-        val t = seconds.value
-        scale(size.width / SCENE_WIDTH, Offset.Zero) {
-            drawRect(sky, size = Size(SCENE_WIDTH, SCENE_HEIGHT))
-            drawStars(target.starAlpha, t)
-            translate(292f, pipY) {
-                drawPip(target.pip, t)
-                if (target.pip.mood == PipMood.ASLEEP) drawZs(zs, t, MoonZs)
+    // The weather goes between Pip and the hills, so it's drawn on its own between the scene's back and front.
+    Box(modifier.fillMaxWidth().aspectRatio(SCENE_WIDTH / SCENE_HEIGHT).clipToBounds()) {
+        Canvas(Modifier.matchParentSize()) {
+            val t = seconds.value
+            scale(size.width / SCENE_WIDTH, Offset.Zero) {
+                drawRect(sky, size = Size(SCENE_WIDTH, SCENE_HEIGHT))
+                drawStars(target.starAlpha, t)
+                translate(292f, pipY) {
+                    drawPip(target.pip, t)
+                    if (target.pip.mood == PipMood.ASLEEP) drawZs(zs, t, MoonZs)
+                }
             }
-            drawPath(HillBack, hillBack)
-            drawCottage(house, windowLit, target.doorLit, target.smokeAlpha, t)
-            drawPath(HillMid, hillMid)
-            drawPath(HillFront, ground)
+        }
+        target.weather?.let { WeatherLayer(it, WeatherShapes.Home, Modifier.matchParentSize(), pipY = { pipY }) }
+        Canvas(Modifier.matchParentSize()) {
+            val t = seconds.value
+            scale(size.width / SCENE_WIDTH, Offset.Zero) {
+                drawPath(HillBack, hillBack)
+                drawCottage(house, windowLit, target.doorLit, target.smokeAlpha, t)
+                drawPath(HillMid, hillMid)
+                drawPath(HillFront, ground)
+            }
         }
     }
 }

@@ -39,7 +39,10 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -59,6 +62,7 @@ import app.morrow.ui.components.PrimaryButton
 import app.morrow.ui.components.SkyScene
 import app.morrow.ui.components.pressable
 import app.morrow.ui.components.skySceneState
+import app.morrow.ui.components.weatherIcon
 
 class HomeActions(
     val onToggle: (id: Long, enabled: Boolean) -> Unit,
@@ -67,6 +71,8 @@ class HomeActions(
     val onTrySunrise: () -> Unit,
     val onSettings: () -> Unit,
     val onFixPermissions: () -> Unit,
+    /** The weather line under the greeting switches to the World tab. */
+    val onOpenWorld: () -> Unit = {},
 )
 
 @Composable
@@ -79,8 +85,8 @@ fun HomeScreen(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: 
         // Large text can make the header taller than the sky; then the content starts below it instead.
         val contentTop = maxOf(maxWidth * (262f / 390f), headerHeight + 16.dp)
         Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            SkyScene(minuteOfDay, theme)
-            Header(model, theme, minuteOfDay, actions.onSettings, Modifier.onSizeChanged { headerHeight = with(density) { it.height.toDp() } })
+            SkyScene(minuteOfDay, theme, weather = model.weather?.sky)
+            Header(model, theme, minuteOfDay, actions, Modifier.onSizeChanged { headerHeight = with(density) { it.height.toDp() } })
             Column(
                 modifier = Modifier
                     .padding(top = contentTop, start = 16.dp, end = 16.dp, bottom = 184.dp)
@@ -126,9 +132,9 @@ fun HomeScreen(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: 
 }
 
 @Composable
-private fun Header(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, onSettings: () -> Unit, modifier: Modifier = Modifier) {
+private fun Header(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: HomeActions, modifier: Modifier = Modifier) {
     val colors = MorrowTheme.colors
-    val scene = skySceneState(minuteOfDay, theme)
+    val scene = skySceneState(minuteOfDay, theme, model.weather?.sky)
     val ink by animateColorAsState(scene.ink, tween(1200))
     val inkMuted by animateColorAsState(scene.inkMuted, tween(1200))
     Column(
@@ -159,7 +165,7 @@ private fun Header(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, onSet
             Box(
                 modifier = Modifier
                     .size(44.dp)
-                    .pressable(onSettings, onClickLabel = "Open settings")
+                    .pressable(actions.onSettings, onClickLabel = "Open settings")
                     .background(colors.bg.copy(alpha = 0.7f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
@@ -172,6 +178,7 @@ private fun Header(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, onSet
             style = MorrowTheme.type.display.copy(color = ink),
             modifier = Modifier.semantics { heading() },
         )
+        model.weather?.let { WeatherLine(it, ink, actions.onOpenWorld) }
         model.lookingForward?.let {
             BasicText(
                 it,
@@ -179,6 +186,25 @@ private fun Header(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, onSet
                 modifier = Modifier.widthIn(max = 200.dp),
             )
         }
+    }
+}
+
+/** "12° · Rain in London" under the greeting, in the sky's ink; it opens World. Nudged left so its icon lines up with the greeting. */
+@Composable
+private fun WeatherLine(weather: HomeWeather, ink: Color, onOpenWorld: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .offset(x = (-8).dp)
+            .heightIn(min = 44.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .pressable(onOpenWorld)
+            .semantics(mergeDescendants = true) { contentDescription = weather.label }
+            .padding(start = 8.dp, end = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        MorrowIcon(weatherIcon(weather.sky, weather.night), ink)
+        BasicText(weather.text, style = MorrowTheme.type.bodyStrong.copy(color = ink))
     }
 }
 
