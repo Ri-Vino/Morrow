@@ -12,6 +12,7 @@ import app.morrow.weather.Units
 import app.morrow.weather.WeatherAge
 import app.morrow.weather.WeatherState
 import app.morrow.weather.conditionsAt
+import app.morrow.weather.dayAt
 import app.morrow.weather.forecastAt
 import app.morrow.weather.weatherAge
 import kotlinx.datetime.TimeZone
@@ -48,8 +49,8 @@ data class CardWeather(
     val night: Boolean,
     /** "12° Rain". */
     val conditions: String,
-    /** "H 14°  L 8°". */
-    val highLow: String,
+    /** "H 14°  L 8°", for the day it is in the city; null when the forecast doesn't have that day. */
+    val highLow: String?,
     /** "12° and rain", for screen readers. */
     val spoken: String,
 )
@@ -143,7 +144,7 @@ fun citySheet(saved: SavedCity, now: Instant, phoneZone: TimeZone, weather: Weat
                 spoken = "$time:00, $temperature, ${hour.sky.displayName.lowercase()}",
             )
         },
-        day = forecast?.today?.let { today ->
+        day = forecast?.dayAt(now)?.let { today ->
             "High ${degrees(today.high, units)} · Low ${degrees(today.low, units)}" +
                 (today.rainChance?.let { " · $it% chance of rain" } ?: "")
         },
@@ -170,7 +171,7 @@ private fun cardWeather(forecast: Forecast, now: Instant, minute: Int, units: Un
         sky = conditions.sky,
         night = sunElevation(minute.toFloat()) < 0,
         conditions = "$temperature ${conditions.sky.displayName}",
-        highLow = "H ${degrees(forecast.today.high, units)}  L ${degrees(forecast.today.low, units)}",
+        highLow = forecast.dayAt(now)?.let { day -> "H ${degrees(day.high, units)}  L ${degrees(day.low, units)}" },
         spoken = "$temperature and ${conditions.sky.displayName.lowercase()}",
     )
 }

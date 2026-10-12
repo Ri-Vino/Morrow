@@ -19,13 +19,16 @@ class AndroidSpeakerTest {
 
     private class FakeEngine(var voices: List<EngineVoice> = emptyList(), var accepts: Boolean = true) : SpeechEngine {
         val spoken = mutableListOf<Pair<String, String>>()
-        val voicesUsed = mutableListOf<String?>()
+        val voicesUsed = mutableListOf<String>()
         var stops = 0
         var shutDown = false
+        var default: EngineVoice? = offline("en-gb-x-default")
 
         override fun voices() = voices
 
-        override fun useVoice(name: String?) {
+        override fun defaultVoice() = default
+
+        override fun useVoice(name: String) {
             voicesUsed += name
         }
 
@@ -52,11 +55,13 @@ class AndroidSpeakerTest {
 
         /** Changes the next engine started, once. */
         var prepare: ((FakeEngine) -> Unit)? = null
+        private var onBegin: (String) -> Unit = {}
         private var onEnd: (String) -> Unit = {}
         private var onStarted: ((SpeechEngine?) -> Unit)? = null
 
-        override fun start(onUtteranceEnd: (id: String) -> Unit, onStarted: (SpeechEngine?) -> Unit) {
+        override fun start(onUtteranceStart: (id: String) -> Unit, onUtteranceEnd: (id: String) -> Unit, onStarted: (SpeechEngine?) -> Unit) {
             starts++
+            onBegin = onUtteranceStart
             onEnd = onUtteranceEnd
             this.onStarted = onStarted
             if (startsAtOnce) finishStarting()
@@ -74,6 +79,8 @@ class AndroidSpeakerTest {
             }
             onStarted?.invoke(engine)
         }
+
+        fun utteranceBegan(id: String) = onBegin(id)
 
         fun utteranceEnded(id: String) = onEnd(id)
 
@@ -147,7 +154,7 @@ class AndroidSpeakerTest {
         }
         runCurrent()
 
-        speaker.stop()
+        speaker.stop(SpeechPurpose.TIMER_NOTE)
         runCurrent()
 
         assertTrue(returned)
@@ -312,7 +319,7 @@ class AndroidSpeakerTest {
         }
         runCurrent()
 
-        speaker.stop()
+        speaker.stop(SpeechPurpose.TIMER_NOTE)
         factory.finishStarting()
         runCurrent()
 
@@ -372,14 +379,155 @@ class AndroidSpeakerTest {
     fun theChosenVoiceIsUsedFromTheStartAndWhenItChanges() = runTest {
         val factory = FakeFactory()
         val speaker = speaker(factory)
+        factory.prepare = { it.voices = listOf(offline("en-gb-x-rjs-local")) }
         speaker.setVoice("en-gb-x-rjs-local")
-        val job = launch { speaker.speak("Hello", SpeechPurpose.SAMPLE) }
-        runCurrent()
-        assertEquals(listOf<String?>("en-gb-x-rjs-local"), factory.engine.voicesUsed)
+        sayOnce(speaker, factory)
+        assertEquals(listOf("en-gb-x-rjs-local"), factory.engine.voicesUsed)
 
         speaker.setVoice(null)
+        sayOnce(speaker, factory)
 
-        assertEquals(listOf<String?>("en-gb-x-rjs-local", null), factory.engine.voicesUsed)
+        assertEquals(listOf("en-gb-x-rjs-local", "en-gb-x-default"), factory.engine.voicesUsed)
+    }
+
+    @Test
+    fun aDefaultVoiceThatNeedsTheNetworkIsPassedOverForAnInstalledOne() = runTest {
+        val factory = FakeFactory()
+        val speaker = speaker(factory)
+        factory.prepare = {
+            val cloud = EngineVoice("en-gb-x-cloud", Locale.forLanguageTag("en-GB"), 500, needsNetwork = true, installed = true)
+            it.default = cloud
+            it.voices = listOf(cloud, offline("en-gb-x-rjs-local"))
+        }
+
+        sayOnce(speaker, factory)
+
+        assertEquals(listOf("en-gb-x-rjs-local"), factory.engine.voicesUsed)
+    }
+
+    @Test
+    fun aDefaultVoiceThatIsNotInstalledIsPassedOverForAnInstalledOne() = runTest {
+        val factory = FakeFactory()
+        val speaker = speaker(factory)
+        factory.prepare = {
+            val big = EngineVoice("en-gb-x-big", Locale.forLanguageTag("en-GB"), 500, needsNetwork = false, installed = false)
+            it.default = big
+            it.voices = listOf(big, offline("en-gb-x-rjs-local"))
+        }
+
+        sayOnce(speaker, factory)
+
+        assertEquals(listOf("en-gb-x-rjs-local"), factory.engine.voicesUsed)
+    }
+
+    @Test
+    fun withNoVoiceThatWorksOfflineNothingIsSaid() = runTest {
+        val factory = FakeFactory()
+        val speaker = speaker(factory)
+        factory.prepare = {
+            val cloud = EngineVoice("en-gb-x-cloud", Locale.forLanguageTag("en-GB"), 500, needsNetwork = true, installed = true)
+            it.default = cloud
+            it.voices = listOf(cloud)
+        }
+
+        speaker.speak("Hello", SpeechPurpose.TIMER_NOTE)
+
+        assertEquals(emptyList(), factory.engine.spoken)
+    }
+
+    @Test
+    fun stoppingOtherSpeechLeavesATimersNoteAlone() = runTest {
+        val factory = FakeFactory()
+        val speaker = speaker(factory)
+        var returned = false
+        launch {
+            speaker.speak("Take the pasta off the hob", SpeechPurpose.TIMER_NOTE)
+            returned = true
+        }
+        runCurrent()
+
+        speaker.stop(SpeechPurpose.MORNING_WEATHER)
+        runCurrent()
+
+        assertFalse(returned)
+        assertEquals(0, factory.engine.stops)
+        factory.utteranceEnded(factory.engine.lastId)
+        runCurrent()
+        assertTrue(returned)
+    }
+
+    @Test
+    fun otherSpeechIsSkippedWhileATimersNoteIsRead() = runTest {
+        val factory = FakeFactory()
+        val speaker = speaker(factory)
+        var noteReturned = false
+        launch {
+            speaker.speak("Take the pasta off the hob", SpeechPurpose.TIMER_NOTE)
+            noteReturned = true
+        }
+        runCurrent()
+
+        speaker.speak("Good morning", SpeechPurpose.MORNING_WEATHER)
+
+        assertFalse(noteReturned)
+        assertEquals(listOf("Take the pasta off the hob"), factory.engine.spoken.map { it.second })
+        factory.utteranceEnded(factory.engine.lastId)
+        runCurrent()
+        assertTrue(noteReturned)
+    }
+
+    @Test
+    fun aTimersNoteCutsOffOtherSpeech() = runTest {
+        val factory = FakeFactory()
+        val speaker = speaker(factory)
+        var morningReturned = false
+        launch {
+            speaker.speak("Good morning", SpeechPurpose.MORNING_WEATHER)
+            morningReturned = true
+        }
+        runCurrent()
+
+        val note = launch { speaker.speak("Take the pasta off the hob", SpeechPurpose.TIMER_NOTE) }
+        runCurrent()
+
+        assertTrue(morningReturned)
+        factory.utteranceEnded(factory.engine.lastId)
+        note.join()
+    }
+
+    @Test
+    fun onStartRunsOnceWhenTheWordsBeginAndNotForAnotherUtterance() = runTest {
+        val factory = FakeFactory()
+        val speaker = speaker(factory)
+        var starts = 0
+        val job = launch { speaker.speak("Hello", SpeechPurpose.TIMER_NOTE) { starts++ } }
+        runCurrent()
+        assertEquals(0, starts)
+
+        factory.utteranceBegan("someone else's")
+        factory.utteranceBegan(factory.engine.lastId)
+        factory.utteranceBegan(factory.engine.lastId)
+        runCurrent()
+        assertEquals(1, starts)
+
+        factory.utteranceEnded(factory.engine.lastId)
+        job.join()
+    }
+
+    @Test
+    fun onStartNeverRunsWhenThereIsNoEngine() = runTest {
+        val factory = FakeFactory(installed = false)
+        val speaker = speaker(factory)
+        var started = false
+
+        speaker.speak("Hello", SpeechPurpose.TIMER_NOTE) { started = true }
+
+        assertFalse(started)
+    }
+
+    private suspend fun TestScope.sayOnce(speaker: AndroidSpeaker, factory: FakeFactory) {
+        val job = launch { speaker.speak("Hello", SpeechPurpose.SAMPLE) }
+        runCurrent()
         factory.utteranceEnded(factory.engine.lastId)
         job.join()
     }
@@ -413,3 +561,5 @@ class AndroidSpeakerTest {
         assertTrue(factory.engine.shutDown)
     }
 }
+
+private fun offline(name: String) = EngineVoice(name, Locale.forLanguageTag("en-GB"), 300, needsNetwork = false, installed = true)

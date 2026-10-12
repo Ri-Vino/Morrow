@@ -150,6 +150,13 @@ class TimerTextTest {
     }
 
     @Test
+    fun roundingUpToAWholeHourCountsTheHour() {
+        assertEquals("2 h", totalText(1.hours + 59.minutes + 40.seconds))
+        assertEquals("1 h", totalText(59.minutes + 45.seconds))
+        assertEquals("59 min", totalText(59.minutes + 20.seconds))
+    }
+
+    @Test
     fun theClockCountsDownInMinutesAndSecondsThenHours() {
         assertEquals("04:12", clockText(4.minutes + 12.seconds))
         assertEquals("00:01", clockText(300.milliseconds))

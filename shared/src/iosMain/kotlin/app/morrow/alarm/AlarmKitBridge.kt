@@ -55,6 +55,15 @@ interface AlarmKitBridge {
      */
     fun scheduledIds(): List<Long>
 
+    /** Of what AlarmKit holds, the countdowns counting down now. */
+    fun countingDownIds(): List<Long>
+
+    /** Of what AlarmKit holds, those ringing on their alert now. */
+    fun alertingIds(): List<Long>
+
+    /** Those AlarmKit refused when last handed them, as with `maximumLimitReached`, so they never rang. */
+    fun refusedIds(): List<Long>
+
     /** Calls [onChange] on the main thread whenever what AlarmKit holds changes, as when a timer starts or stops ringing. */
     fun watch(onChange: () -> Unit)
 }

@@ -35,7 +35,7 @@ class TimerWakeRouteTest {
     private val repository = TimerRepository(FakeTimerDao())
     private val scheduler = FakeTimerScheduler()
     private val timers = TimerCoordinator(repository, scheduler, FakeTimerNotifier(), clock)
-    private val speaker = FakeSpeaker()
+    private var speaker = FakeSpeaker()
     private var done = 0
 
     private fun open(vararg ids: Long) {
@@ -57,6 +57,18 @@ class TimerWakeRouteTest {
         compose.waitForIdle()
         assertEquals(listOf("Take the pasta off the hob" to SpeechPurpose.TIMER_NOTE), speaker.spoken)
         assertEquals(0, done)
+    }
+
+    @Test
+    fun pipIsShownTalkingWhileHeReadsAndNothingPromisesTheScreenStopsByItself() {
+        speaker = FakeSpeaker(talkFor = 10.minutes)
+        val id = runBlocking { timers.start(10.minutes, "Take the pasta off the hob")!! }
+        clock.now = noon + 11.minutes
+
+        open(id)
+
+        waitForText("Pip is reading your note")
+        assertEquals(0, compose.onAllNodesWithText("Stops by itself", substring = true).fetchSemanticsNodes().size)
     }
 
     @Test
@@ -88,11 +100,24 @@ class TimerWakeRouteTest {
     }
 
     @Test
-    fun aTimerThatHasNotEndedShowsNothing() {
+    fun aTimerStoppedSinceShowsNothing() {
         val id = runBlocking { timers.start(10.minutes)!! }
+        clock.now = noon + 11.minutes
+        runBlocking { timers.stop(id) }
 
         open(id)
 
         compose.waitUntil(timeoutMillis = 5_000) { done == 1 }
+    }
+
+    @Test
+    fun aPausedTimerResumedAndRungByTheSystemStillShowsWhenOpened() {
+        val id = runBlocking { timers.start(10.minutes, "Take the pasta off the hob")!!.also { timers.pause(it) } }
+        clock.now = noon + 30.minutes
+
+        open(id)
+
+        waitForText("Take the pasta off the hob")
+        assertEquals(0, done)
     }
 }

@@ -23,6 +23,7 @@ import app.morrow.platform.IosLocationProvider
 import app.morrow.platform.IosSpeaker
 import app.morrow.theme.ThemeClock
 import app.morrow.timers.TimerCoordinator
+import app.morrow.timers.SystemTimers
 import app.morrow.timers.TimerRepository
 import app.morrow.timers.isTimerAlarmKitId
 import app.morrow.timers.timerIdOf
@@ -32,7 +33,9 @@ import app.morrow.weather.OpenMeteoGeocoder
 import app.morrow.weather.OpenMeteoSource
 import app.morrow.weather.RefreshReason
 import app.morrow.weather.WeatherRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -188,14 +191,29 @@ object IosApp {
     }
 
     /**
-     * Keeps the stored timers in step with AlarmKit, which rings them and lets the user stop them on its alert without
-     * telling Morrow. Timers opened from their alerts are left for their done screen.
+     * Keeps the stored timers in step with AlarmKit, which rings them and lets the user stop or resume them on its own
+     * views without telling Morrow. Timers opened from their alerts are left for their done screen. When the timers
+     * can't be settled yet, this runs again a little later.
      */
-    private fun syncTimers() = scope.launch {
+    private fun syncTimers(): Job = scope.launch {
         if (!alarmKit.authorized) return@launch
-        val held = alarmKit.scheduledIds().filter(::isTimerAlarmKitId).map(::timerIdOf)
-        services.timers.catchUp((held + wakingTimersState.value).toSet())
+        fun timers(ids: List<Long>) = ids.filter(::isTimerAlarmKitId).map(::timerIdOf).toSet()
+        val system = SystemTimers(
+            held = timers(alarmKit.scheduledIds()) + wakingTimersState.value,
+            counting = timers(alarmKit.countingDownIds()),
+            alerting = timers(alarmKit.alertingIds()),
+            refused = timers(alarmKit.refusedIds()),
+        )
+        if (services.timers.catchUp(system)) {
+            syncingTimersAgain?.cancel()
+            syncingTimersAgain = scope.launch {
+                delay(TimerCoordinator.ALERT_HANDOVER)
+                syncTimers()
+            }
+        }
     }
+
+    private var syncingTimersAgain: Job? = null
 
     private fun appVersion(): String = NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String ?: "0"
 }

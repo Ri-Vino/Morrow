@@ -12,12 +12,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicIntegerArray
 import kotlin.time.Duration.Companion.seconds
 
 /**
  * Pip's voice through the phone's own text-to-speech engine, which is started on first use and released
  * [IDLE_RELEASE] after the last use. The words go to the phone's engine and nowhere else. With no engine, or one that
- * won't start in time, nothing is spoken and every call returns at once.
+ * won't start in time, nothing is spoken and every call returns at once. Pip only uses an installed voice that works
+ * offline (see [voiceToUse]); with none, he says nothing.
  *
  * A [VoiceInfo]'s [VoiceInfo.language] is the voice's language and region as the phone reads them ("English (UK)"), and
  * its [VoiceInfo.name] is what the picker shows.
@@ -30,28 +32,34 @@ class AndroidSpeaker internal constructor(
 
     constructor(context: Context) : this(TextToSpeechFactory(context.applicationContext), Dispatchers.Main.immediate)
 
-    private class Utterance(val id: String, val done: CompletableDeferred<Unit> = CompletableDeferred())
+    private class Utterance(val id: String, val purpose: SpeechPurpose, val onStart: () -> Unit) {
+        val done = CompletableDeferred<Unit>()
+        var started = false
+    }
 
     private val scope = CoroutineScope(SupervisorJob() + main)
 
-    // Everything below is used on the main thread, except that stop() may come from anywhere.
+    // Everything below is used on the main thread, except that stop() and the engine's callbacks may come from anywhere.
     @Volatile private var engine: SpeechEngine? = null
     @Volatile private var current: Utterance? = null
-    @Volatile private var stopped = 0
+    private val stopped = AtomicIntegerArray(SpeechPurpose.entries.size)
     @Volatile private var chosenVoice: String? = null
     private var starting: CompletableDeferred<SpeechEngine?>? = null
     private var releasing: Job? = null
     private var uses = 0
     private var utterances = 0
 
-    override suspend fun speak(text: String, purpose: SpeechPurpose) {
+    override suspend fun speak(text: String, purpose: SpeechPurpose, onStart: () -> Unit) {
         if (text.isBlank()) return
-        val stopsBefore = stopped
+        val stopsBefore = stopped[purpose.ordinal]
         withContext(main) {
             withEngine { engine ->
                 // A stop() while the engine was starting meant this wasn't wanted any more.
-                if (stopped != stopsBefore) return@withEngine
-                val utterance = Utterance("morrow-${++utterances}")
+                if (stopped[purpose.ordinal] != stopsBefore) return@withEngine
+                if (current?.purpose == SpeechPurpose.TIMER_NOTE && purpose != SpeechPurpose.TIMER_NOTE) return@withEngine
+                val voice = voiceToUse(engine.voices(), engine.defaultVoice(), chosenVoice, phoneLocale()) ?: return@withEngine
+                engine.useVoice(voice)
+                val utterance = Utterance("morrow-${++utterances}", purpose, onStart)
                 current?.done?.complete(Unit)
                 current = utterance
                 try {
@@ -73,9 +81,10 @@ class AndroidSpeaker internal constructor(
         }
     }
 
-    override fun stop() {
-        stopped++
-        current?.done?.complete(Unit)
+    override fun stop(purpose: SpeechPurpose) {
+        stopped.incrementAndGet(purpose.ordinal)
+        val speaking = current?.takeIf { it.purpose == purpose } ?: return
+        speaking.done.complete(Unit)
         engine?.stop()
     }
 
@@ -83,9 +92,9 @@ class AndroidSpeaker internal constructor(
         withEngine { installedVoices(it.voices(), phoneLocale()) } ?: emptyList()
     }
 
+    /** Takes effect from the next words. */
     override fun setVoice(id: String?) {
         chosenVoice = id
-        engine?.useVoice(id)
     }
 
     /** Runs [block] with a started engine and keeps the engine alive meanwhile; null when there is none. */
@@ -111,16 +120,23 @@ class AndroidSpeaker internal constructor(
     private fun start(): CompletableDeferred<SpeechEngine?> {
         val pending = CompletableDeferred<SpeechEngine?>()
         starting = pending
-        factory.start(onUtteranceEnd = ::utteranceEnded) { started ->
+        factory.start(onUtteranceStart = ::utteranceStarted, onUtteranceEnd = ::utteranceEnded) { started ->
             starting = null
             if (started != null) {
-                started.useVoice(chosenVoice)
                 engine = started
                 releaseWhenIdle()
             }
             pending.complete(started)
         }
         return pending
+    }
+
+    private fun utteranceStarted(id: String) {
+        scope.launch {
+            val utterance = current?.takeIf { it.id == id && !it.started && !it.done.isCompleted } ?: return@launch
+            utterance.started = true
+            utterance.onStart()
+        }
     }
 
     private fun utteranceEnded(id: String) {

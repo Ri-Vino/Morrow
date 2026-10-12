@@ -1,16 +1,24 @@
 package app.morrow.data
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import kotlin.time.Duration
 
 class FakeTimerDao : TimerDao {
     val rows = MutableStateFlow<Map<Long, TimerEntity>>(emptyMap())
     private var nextId = 1L
 
+    /** How long [getAll] takes, in virtual time, as a database read does in real time. */
+    var readTime: Duration = Duration.ZERO
+
     override fun observeAll(): Flow<List<TimerEntity>> = rows.map(::ordered)
 
-    override suspend fun getAll(): List<TimerEntity> = ordered(rows.value)
+    override suspend fun getAll(): List<TimerEntity> {
+        if (readTime.isPositive()) delay(readTime)
+        return ordered(rows.value)
+    }
 
     override suspend fun get(id: Long): TimerEntity? = rows.value[id]
 

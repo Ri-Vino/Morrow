@@ -485,25 +485,33 @@ internal fun TimerWakeRoute(
     var shown by remember { mutableStateOf(false) }
     val read = remember { mutableSetOf<Long>() }
     LaunchedEffect(timerIds) {
-        // Nothing to show when none of them has ended, as when the alert was for a timer stopped since.
+        // Nothing to show when none of them is still stored, as when the alert was for a timer stopped since.
         if (timers.openFromAlert(timerIds.toSet()).isEmpty()) onDone()
     }
     LaunchedEffect(ringing.isEmpty()) {
         if (ringing.isNotEmpty()) shown = true else if (shown) onDone()
     }
+    var speaking by remember { mutableStateOf(false) }
     if (ringing.isEmpty()) return
     LaunchedEffect(ringing) {
-        for (timer in ringing) {
-            if (timer.note.isBlank() || timer.id in read) continue
-            speaker.speak(timer.note, SpeechPurpose.TIMER_NOTE)
-            read += timer.id
+        try {
+            for (timer in ringing) {
+                if (timer.note.isBlank() || timer.id in read) continue
+                speaker.speak(timer.note, SpeechPurpose.TIMER_NOTE) { speaking = true }
+                speaking = false
+                read += timer.id
+            }
+        } finally {
+            speaking = false
         }
     }
-    DisposableEffect(speaker) { onDispose { speaker.stop() } }
+    DisposableEffect(speaker) { onDispose { speaker.stop(SpeechPurpose.TIMER_NOTE) } }
+    // iOS has no safety stop: this stays until Stop or "+1 minute".
     TimerDoneScreen(
-        model = timerDoneModel(ringing, zone),
+        model = timerDoneModel(ringing, zone, speaking),
         onStop = { scope.launch { timers.stopRinging() } },
         onAddMinute = { scope.launch { timers.snoozeRinging() } },
+        stopsByItself = false,
     )
 }
 

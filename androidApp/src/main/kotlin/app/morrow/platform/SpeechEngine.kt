@@ -16,8 +16,11 @@ internal interface SpeechEngine {
     /** Every voice the engine offers, before any filtering. */
     fun voices(): List<EngineVoice>
 
-    /** Speaks with the voice called [name] from now on, or the engine's default when null or unknown. */
-    fun useVoice(name: String?)
+    /** The voice the engine speaks with unless told otherwise, if it says. */
+    fun defaultVoice(): EngineVoice?
+
+    /** Speaks with the voice called [name] from now on. */
+    fun useVoice(name: String)
 
     /** Cuts off whatever is being said and starts saying [text] as [id]. False if the engine refused. */
     fun speak(text: String, id: String): Boolean
@@ -31,7 +34,8 @@ internal interface SpeechEngine {
 internal interface EngineFactory {
     /**
      * Starts an engine and calls [onStarted] on the main thread with it once ready, or with null when there is none or
-     * it failed. [onUtteranceEnd] hears the id of each utterance that finishes, fails or is stopped.
+     * it failed. [onUtteranceStart] hears the id of each utterance as its words begin, and [onUtteranceEnd] as it
+     * finishes, fails or is stopped; both may be called on any thread.
      */
-    fun start(onUtteranceEnd: (id: String) -> Unit, onStarted: (SpeechEngine?) -> Unit)
+    fun start(onUtteranceStart: (id: String) -> Unit, onUtteranceEnd: (id: String) -> Unit, onStarted: (SpeechEngine?) -> Unit)
 }

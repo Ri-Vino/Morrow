@@ -1,6 +1,9 @@
 package app.morrow.weather
 
+import app.morrow.domain.timeZoneOrNull
+import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.plus
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Instant
@@ -19,6 +22,20 @@ fun Forecast.conditionsAt(now: Instant): CurrentWeather? {
     if (now - fetchedAt <= NowIsFreshFor) return this.now
     val hour = hours.firstOrNull { it.time <= now && now < it.time + 1.hours } ?: return null
     return CurrentWeather(hour.temperature, hour.sky, isDay = isDaylight(hour.time))
+}
+
+/**
+ * The high, low and rain for the day it is at [now] where the forecast is for, or null when the forecast doesn't have
+ * that day. So a card shown past the place's midnight has the new day's, not yesterday's.
+ */
+fun Forecast.dayAt(now: Instant): DayWeather? {
+    val place = timeZoneOrNull(timeZone) ?: return today
+    val fetchedOn = fetchedAt.toLocalDateTime(place).date
+    return when (now.toLocalDateTime(place).date) {
+        fetchedOn -> today
+        fetchedOn.plus(1, DateTimeUnit.DAY) -> tomorrow
+        else -> null
+    }
 }
 
 private fun Forecast.isDaylight(at: Instant): Boolean {

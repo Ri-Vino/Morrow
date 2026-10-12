@@ -24,6 +24,8 @@
 	<true/>
 	<key>NSAlarmKitUsageDescription</key>
 	<string>Morrow sets your alarms so they ring on time, even when the app is closed.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>Morrow uses the camera only during a Scan mission, to read the code you chose.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

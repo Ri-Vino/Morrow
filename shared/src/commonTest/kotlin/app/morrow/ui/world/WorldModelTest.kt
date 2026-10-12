@@ -173,6 +173,21 @@ class WorldModelTest {
     }
 
     @Test
+    fun pastTheCitysMidnightItsCardHasTheNewDaysHighAndLow() {
+        val evening = LocalDateTime(2026, 1, 15, 22, 0).toInstant(london)
+        val small = LocalDateTime(2026, 1, 16, 1, 0).toInstant(london)
+        val fetched = forecast(londonCity, evening, 12.0, Sky.RAIN, 14.0, 8.0)
+            .copy(tomorrow = DayWeather(10.0, 3.0, 20), hours = List(12) { i -> HourWeather(evening + i.hours, 9.0, Sky.CLOUDY, 20) })
+        val state = WeatherState(true, null, null, mapOf(londonCity.id to PlaceWeather(londonCity.coordinates, fetched, weatherAge(evening, small))))
+
+        val card = worldModel(saved, small, london, state).cards.first()
+        val sheet = citySheet(saved.first(), small, london, state)
+
+        assertEquals("H 10°  L 3°", card.weather?.highLow)
+        assertEquals("High 10° · Low 3° · 20% chance of rain", sheet.day)
+    }
+
+    @Test
     fun cardsCanShowFahrenheit() {
         val card = worldModel(saved, now, london, weather(), Units.FAHRENHEIT).cards.first()
         assertEquals("54° Rain", card.weather?.conditions)

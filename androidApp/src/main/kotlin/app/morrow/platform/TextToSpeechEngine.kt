@@ -9,7 +9,7 @@ import android.speech.tts.Voice
 /** Starts the phone's [TextToSpeech], heard on the alarm volume so Pip is heard when media is muted. */
 internal class TextToSpeechFactory(private val context: Context) : EngineFactory {
 
-    override fun start(onUtteranceEnd: (id: String) -> Unit, onStarted: (SpeechEngine?) -> Unit) {
+    override fun start(onUtteranceStart: (id: String) -> Unit, onUtteranceEnd: (id: String) -> Unit, onStarted: (SpeechEngine?) -> Unit) {
         var created: TextToSpeech? = null
         var earlyStatus: Int? = null
 
@@ -25,7 +25,7 @@ internal class TextToSpeechFactory(private val context: Context) : EngineFactory
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build(),
             )
-            tts.setOnUtteranceProgressListener(UtteranceEnds(onUtteranceEnd))
+            tts.setOnUtteranceProgressListener(UtteranceProgress(onUtteranceStart, onUtteranceEnd))
             onStarted(TextToSpeechEngine(tts))
         }
 
@@ -39,8 +39,10 @@ internal class TextToSpeechFactory(private val context: Context) : EngineFactory
     }
 }
 
-private class UtteranceEnds(private val onEnd: (String) -> Unit) : UtteranceProgressListener() {
-    override fun onStart(utteranceId: String?) = Unit
+private class UtteranceProgress(private val onStart: (String) -> Unit, private val onEnd: (String) -> Unit) : UtteranceProgressListener() {
+    override fun onStart(utteranceId: String?) {
+        utteranceId?.let(onStart)
+    }
 
     override fun onDone(utteranceId: String?) {
         utteranceId?.let(onEnd)
@@ -70,9 +72,20 @@ private class TextToSpeechEngine(private val tts: TextToSpeech) : SpeechEngine {
             emptyList()
         }
 
-    override fun useVoice(name: String?) {
-        val voice = name?.let { wanted -> tts.voices.orEmpty().firstOrNull { it.name == wanted } } ?: tts.defaultVoice
-        if (voice != null) tts.setVoice(voice)
+    override fun defaultVoice(): EngineVoice? =
+        try {
+            tts.defaultVoice?.toEngineVoice()
+        } catch (_: RuntimeException) {
+            null
+        }
+
+    override fun useVoice(name: String) {
+        val voice = try {
+            tts.voices.orEmpty().firstOrNull { it.name == name }
+        } catch (_: RuntimeException) {
+            null
+        }
+        if (voice != null && voice != tts.voice) tts.setVoice(voice)
     }
 
     override fun speak(text: String, id: String): Boolean =

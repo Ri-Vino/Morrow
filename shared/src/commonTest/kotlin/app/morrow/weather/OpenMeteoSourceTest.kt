@@ -30,6 +30,7 @@ class OpenMeteoSourceTest {
         assertEquals(now, forecast.fetchedAt)
         assertEquals(CurrentWeather(temperature = 11.4, sky = Sky.RAIN, isDay = true), forecast.now)
         assertEquals(DayWeather(high = 14.2, low = 7.9, rainChance = 80), forecast.today)
+        assertEquals(DayWeather(high = 15.0, low = 8.4, rainChance = 20), forecast.tomorrow)
     }
 
     @Test

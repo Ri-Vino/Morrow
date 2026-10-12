@@ -234,6 +234,39 @@ class TimerVoiceTest {
     }
 
     @Test
+    fun withAnEngineThatNeverStartsTheChimeIsNeverDuckedAndPipIsNotShownTalking() = runTest {
+        // Before first unlock, say, when text-to-speech can't start.
+        val speaker = FakeSpeaker(silent = true)
+        val voice = TimerVoice(speaker)
+        ringing.value = listOf(pasta)
+        follow(voice)
+        val seen = mutableListOf<Boolean>()
+        backgroundScope.launch { voice.speaking.collect { seen += it } }
+
+        advance(10.minutes)
+
+        assertEquals(emptyList(), ducks)
+        assertEquals(listOf(false), seen)
+    }
+
+    @Test
+    fun theMorningScreenStoppingItsOwnSpeechDoesNotCutPipOff() = runTest {
+        val speaker = FakeSpeaker(talkFor = 5.seconds)
+        val voice = TimerVoice(speaker)
+        ringing.value = listOf(pasta)
+        follow(voice)
+
+        advance(3.seconds)
+        speaker.stop(SpeechPurpose.MORNING_WEATHER)
+        speaker.speak("Good morning", SpeechPurpose.MORNING_WEATHER)
+        runCurrent()
+
+        assertTrue(voice.speaking.value)
+        assertEquals(listOf(true), ducks)
+        assertEquals(listOf("Take the pasta off the hob"), speaker.said)
+    }
+
+    @Test
     fun noteEndingsAreKeptAndOthersGetAFullStop() {
         assertEquals("Eggs!", spokenNotes(listOf("Eggs!")))
         assertEquals("Eggs! Tea? Done. Call Mum.", spokenNotes(listOf("Eggs!", "Tea?", "Done.", "Call Mum")))

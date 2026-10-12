@@ -13,8 +13,9 @@ data class Timer(
     val duration: Duration,
     /**
      * When a running timer ends, as a moment on the phone's clock; null while paused. Changing the clock by hand moves
-     * the end with it, so a timer with 20 minutes left rings at once when the clock is put an hour ahead. That's
-     * accepted: time since boot would keep the length, but it starts again from zero after a reboot.
+     * the end with it, so a timer with 20 minutes left rings at once when the clock is put an hour ahead, as ending
+     * then (see [TimerCoordinator.rescheduleAll]). That's accepted: time since boot would keep the length, but it
+     * starts again from zero after a reboot.
      */
     val endsAt: Instant?,
     /** What was left when it was paused. Null while running. */

@@ -3,12 +3,16 @@ package app.morrow.timers
 import app.morrow.alarms.FakeClock
 import app.morrow.data.FakeTimerDao
 import app.morrow.platform.FakeTimerNotifier
+import app.morrow.platform.FakeTimerNotifier.CantResume
 import app.morrow.platform.FakeTimerNotifier.Missed
 import app.morrow.platform.FakeTimerNotifier.Ongoing
 import app.morrow.platform.FakeTimerNotifier.Waiting
 import app.morrow.platform.FakeTimerScheduler
 import app.morrow.platform.MissedReason
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,6 +21,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
@@ -297,6 +302,51 @@ class TimerCoordinatorTest {
         assertEquals(listOf(waiting), coordinator.waiting.value.map { it.id })
         assertNotNull(stored(ringing))
         assertNotNull(stored(waiting))
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun theMorningScreenGoingWhileATimerIsBeingFoundLetsItRingRatherThanWaitForGood() = runTest {
+        val id = coordinator.start(10.minutes)!!
+        clock.now = noon + 10.minutes
+        var morningShowing = true
+        dao.readTime = 50.milliseconds
+        val finding = launch { coordinator.ringEnded { morningShowing } }
+        runCurrent()
+
+        // Morning goes while the stored timers are still being read, and lets go of the waiting ones: none, yet.
+        morningShowing = false
+        coordinator.releaseWaiting()
+        finding.join()
+
+        assertEquals(listOf(id), coordinator.ringing.value.map { it.id })
+        assertEquals(emptyList(), coordinator.waiting.value)
+    }
+
+    @Test
+    fun withoutExactAlarmsResumingSaysWhatToAllow() = runTest {
+        val id = coordinator.start(10.minutes)!!
+        coordinator.pause(id)
+        scheduler.allowed = false
+
+        assertFalse(coordinator.resume(id))
+
+        assertEquals(CantResume(stored(id)!!), notifier.shown[id])
+    }
+
+    @Test
+    fun aClockPutForwardPastATimersEndRingsItNowRatherThanMissingIt() = runTest {
+        val id = coordinator.start(20.minutes, "Pasta")!!
+        // The clock is put an hour ahead: the timer's end is now 40 minutes past.
+        clock.now = noon + 1.hours
+        scheduler.scheduled.clear()
+
+        coordinator.rescheduleAll(clockChanged = true)
+        assertEquals(mapOf(id to noon + 1.hours), scheduler.scheduled)
+        coordinator.ringEnded(behindAlarm = false)
+
+        assertEquals(listOf(id), coordinator.ringing.value.map { it.id })
+        assertTrue(notifier.shown.values.none { it is Missed })
     }
 
     @Test

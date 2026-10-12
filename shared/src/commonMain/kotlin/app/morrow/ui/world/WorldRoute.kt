@@ -49,7 +49,8 @@ fun WorldRoute(
     val scope = rememberCoroutineScope()
     val saved by cities.cities.collectAsStateWithLifecycle<List<SavedCity>?>(initialValue = null)
     val forecasts by weather.collectAsStateWithLifecycle<WeatherState?>(initialValue = null)
-    val unit by units.collectAsStateWithLifecycle(initialValue = Units.CELSIUS)
+    // Until the units are known, no weather shows, so a °F phone never sees °C first.
+    val unit by units.collectAsStateWithLifecycle<Units?>(initialValue = null)
     val now by remember(ticks) { ticks ?: minuteTicks() }.collectAsStateWithLifecycle(initialValue = Clock.System.now())
     var openId by rememberSaveable { mutableStateOf<Long?>(null) }
 
@@ -60,9 +61,11 @@ fun WorldRoute(
         onSheetChange(sheetOpen)
         onDispose { onSheetChange(false) }
     }
+    val shownWeather = forecasts.takeIf { unit != null }
+    val shownIn = unit ?: Units.CELSIUS
     WorldScreen(
-        model = worldModel(list, now, phoneZone, forecasts, unit),
-        sheet = open?.let { citySheet(it, now, phoneZone, forecasts, unit) },
+        model = worldModel(list, now, phoneZone, shownWeather, shownIn),
+        sheet = open?.let { citySheet(it, now, phoneZone, shownWeather, shownIn) },
         actions = WorldActions(
             onAddCity = onAddCity,
             onOpenCity = { openId = it },

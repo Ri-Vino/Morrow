@@ -5,6 +5,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -27,8 +28,8 @@ import kotlin.time.Instant
  *
  * Opening it refreshes the weather, for up to 5 s. The card shows as soon as there is a forecast from today, and a
  * fresh fetch replaces it in place; with nothing from today, it stays hidden. With "Pip reads it out when you wake"
- * on, [speaker] reads the card once after the refresh, and a button reads it again. [phoneCountry] is the phone's
- * region, for the default units.
+ * on, [speaker] reads the card once after the refresh, and a button reads it again; leaving the screen or "Start my
+ * day" cuts off only what this screen is saying. [phoneCountry] is the phone's region, for the default units.
  */
 @Composable
 fun MorningRoute(
@@ -48,16 +49,21 @@ fun MorningRoute(
     val model = morningModel(wokeAt, wentToBed, zone)
 
     var refreshed by remember { mutableStateOf(false) }
+    var stored by remember { mutableStateOf<Instant?>(null) }
     LaunchedEffect(weather) {
-        try {
+        stored = try {
             weather.refresh(RefreshReason.MORNING)
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
             // The weather is a nicety here; whatever is cached stays.
+            null
         }
         refreshed = true
     }
+    // The database passes a new forecast on a moment after storing it, so the refresh is done once the card has it.
+    val shownFetchedAt = forecasts?.hereWeather?.forecast?.fetchedAt
+    val settled = refreshed && stored.let { it == null || (shownFetchedAt != null && shownFetchedAt >= it) }
 
     val now = remember(forecasts) { clock.now() }
     val card = remember(forecasts, units, now, zone) {
@@ -69,24 +75,28 @@ fun MorningRoute(
     val latestSpeech by rememberUpdatedState(speech)
 
     var spoken by rememberSaveable { mutableStateOf(false) }
-    var talking by remember { mutableStateOf(false) }
-    // Waits for the refresh, so Pip reads the weather the card ends up showing, and reads it only once.
-    LaunchedEffect(speech != null, readAloud, refreshed) {
-        val text = latestSpeech
-        if (text != null && readAloud == true && refreshed && !spoken) {
-            spoken = true
-            talking = true
+    var talking by remember { mutableIntStateOf(0) }
+    val say: suspend (String) -> Unit = { text ->
+        talking++
+        try {
             speaker.speak(text, SpeechPurpose.MORNING_WEATHER)
+        } finally {
+            talking--
         }
     }
-    DisposableEffect(speaker) { onDispose { if (talking) speaker.stop() } }
+    // Waits for the refresh, so Pip reads the weather the card ends up showing, and reads it only once.
+    LaunchedEffect(speech != null, readAloud, settled) {
+        val text = latestSpeech
+        if (text != null && readAloud == true && settled && !spoken) {
+            spoken = true
+            say(text)
+        }
+    }
+    DisposableEffect(speaker) { onDispose { if (talking > 0) speaker.stop(SpeechPurpose.MORNING_WEATHER) } }
 
     val scope = rememberCoroutineScope()
     val replay: (() -> Unit)? = if (speech != null && readAloud == true) {
-        {
-            talking = true
-            scope.launch { speaker.speak(speech, SpeechPurpose.MORNING_WEATHER) }
-        }
+        { scope.launch { say(speech) } }
     } else {
         null
     }
@@ -95,7 +105,7 @@ fun MorningRoute(
         weather = card,
         onReplay = replay,
         onStartDay = { intention ->
-            if (talking) speaker.stop()
+            if (talking > 0) speaker.stop(SpeechPurpose.MORNING_WEATHER)
             onStartDay(intention)
         },
     )

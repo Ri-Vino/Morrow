@@ -21,7 +21,10 @@ class BootReceiver : BroadcastReceiver() {
         goAsync {
             // Each on its own, so a problem with one doesn't keep the other from coming back.
             runCatching { app.coordinator.rescheduleAll() }.onFailure { Log.e(TAG, "Couldn't restore the alarms", it) }
-            app.timers.rescheduleAll(afterReboot = intent.action in BOOTS)
+            runCatching {
+                // A clock put forward past a timer's end rings it now, rather than counting it missed.
+                app.timers.rescheduleAll(afterReboot = intent.action in BOOTS, clockChanged = intent.action == Intent.ACTION_TIME_CHANGED)
+            }.onFailure { Log.e(TAG, "Couldn't restore the timers", it) }
         }
     }
 

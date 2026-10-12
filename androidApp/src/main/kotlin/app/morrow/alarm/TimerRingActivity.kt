@@ -1,7 +1,9 @@
 package app.morrow.alarm
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -34,8 +36,13 @@ import kotlin.time.Duration.Companion.seconds
  * shows every ringing timer, with Pip talking while RingService has him read their notes, and closes once
  * [app.morrow.timers.TimerCoordinator.ringing] empties: after Stop or "+1 minute", at the safety stop, or when an alarm
  * takes over.
+ *
+ * Opened by [TimerNotifications.ringWithoutService] instead, when RingService couldn't start from the background, it
+ * starts RingService itself once it's in front, which is always allowed.
  */
 class TimerRingActivity : ComponentActivity() {
+
+    private var startRinging = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val transparent = android.graphics.Color.TRANSPARENT
@@ -49,6 +56,7 @@ class TimerRingActivity : ComponentActivity() {
         // Stop and +1 minute are right there; leaving would only hide a chime that keeps going.
         onBackPressedDispatcher.addCallback(this) {}
 
+        startRinging = intent.getBooleanExtra(EXTRA_START_RINGING, false)
         val timers = morrow.timers
         val voice = morrow.timerVoice
         setContent {
@@ -83,5 +91,29 @@ class TimerRingActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.getBooleanExtra(EXTRA_START_RINGING, false)) startRinging = true
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (!startRinging) return
+        startRinging = false
+        try {
+            RingService.ringTimers(this)
+            TimerNotifications.hideAlert(this)
+        } catch (e: IllegalStateException) {
+            // Its alert stays up, with its sound.
+            Log.e(TAG, "Couldn't start ringing", e)
+        }
+    }
+
+    companion object {
+        /** Starts RingService, for when it couldn't start itself. */
+        const val EXTRA_START_RINGING = "start_ringing"
+        private const val TAG = "TimerRingActivity"
     }
 }

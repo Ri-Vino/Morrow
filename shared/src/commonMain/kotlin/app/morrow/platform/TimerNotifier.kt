@@ -25,5 +25,8 @@ interface TimerNotifier {
     /** Leaves a notification, in place of its ongoing one, that [timer] ended without being heard, and why. */
     fun showMissed(timer: Timer, reason: MissedReason)
 
+    /** Paused [timer] wasn't resumed, as the phone wouldn't ring it on time: shows it paused, saying what to allow. */
+    fun showCantResume(timer: Timer) = show(timer)
+
     fun hide(timerId: Long)
 }

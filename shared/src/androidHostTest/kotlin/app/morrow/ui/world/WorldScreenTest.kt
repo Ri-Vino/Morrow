@@ -26,6 +26,8 @@ import app.morrow.theme.ThemeKind
 import app.morrow.ui.NoMotion
 import app.morrow.weather.Units
 import app.morrow.weather.WeatherState
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
@@ -47,14 +49,14 @@ class WorldScreenTest {
     private var addCityTapped = 0
     private val newAlarms = mutableListOf<City?>()
 
-    private fun show(weather: WeatherState = WeatherState.Off, units: Units = Units.CELSIUS) {
+    private fun show(weather: WeatherState = WeatherState.Off, units: Units = Units.CELSIUS, unitsFrom: Flow<Units>? = null) {
         runBlocking {
             world.cities.ensureSeeded()
             world.cities.add(world.tokyo)
             world.cities.add(world.newYork)
         }
         val forecasts = flowOf(weather)
-        val inUnits = flowOf(units)
+        val inUnits = unitsFrom ?: flowOf(units)
         compose.setContent {
             MorrowTheme(ThemeKind.MORNING) {
                 WorldRoute(
@@ -93,6 +95,21 @@ class WorldScreenTest {
 
         compose.onNodeWithText("England, United Kingdom").assertIsDisplayed()
         assertNoTemperatures()
+    }
+
+    @Test
+    fun untilTheUnitsAreKnownNoTemperatureShows() {
+        // Settings are still loading: a °F phone mustn't see °C first.
+        val units = MutableSharedFlow<Units>(replay = 1)
+        show(world.weather(), unitsFrom = units)
+
+        compose.waitForIdle()
+        assertNoTemperatures()
+
+        runBlocking { units.emit(Units.FAHRENHEIT) }
+        compose.waitUntil(timeoutMillis = 5_000) {
+            compose.onAllNodes(hasText("°", substring = true), useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     @Test

@@ -6,8 +6,8 @@ import kotlin.time.Duration
 fun totalText(duration: Duration): String {
     val seconds = duration.inWholeSeconds
     if (seconds < 60) return "$seconds s"
-    val hours = seconds / 3600
     val minutes = (seconds + 30) / 60
+    val hours = minutes / 60
     return when {
         hours == 0L -> "$minutes min"
         minutes % 60 == 0L -> "$hours h"

@@ -7,6 +7,7 @@ import app.morrow.weather.Units
 import app.morrow.weather.WeatherAge
 import app.morrow.weather.WeatherState
 import app.morrow.weather.conditionsAt
+import app.morrow.weather.dayAt
 import app.morrow.weather.dayLine
 import app.morrow.weather.toFahrenheit
 import app.morrow.weather.weatherTip
@@ -74,18 +75,20 @@ fun morningWeather(state: WeatherState, units: Units, now: Instant, zone: TimeZo
     val current = forecast.conditionsAt(now) ?: return null
     val place = state.here?.name?.let { " in $it" }.orEmpty()
     val adjective = current.sky.adjective()
+    val day = forecast.dayAt(now)
     val detail = listOfNotNull(
-        "High ${degrees(forecast.today.high, units)}",
-        "Low ${degrees(forecast.today.low, units)}",
+        day?.let { "High ${degrees(it.high, units)}" },
+        day?.let { "Low ${degrees(it.low, units)}" },
         dayLine(forecast, now, zone),
     )
+    val high = day?.let { ", with a high of ${spokenDegrees(it.high, units)}" }.orEmpty()
     return MorningWeather(
         sky = current.sky,
         night = !current.isDay,
         headline = "${degrees(current.temperature, units)} and $adjective$place",
         detail = detail.joinToString(" · "),
         tip = weatherTip(forecast, now, zone),
-        spoken = "It's ${spokenDegrees(current.temperature, units)} degrees and $adjective$place, with a high of ${spokenDegrees(forecast.today.high, units)}.",
+        spoken = "It's ${spokenDegrees(current.temperature, units)} degrees and $adjective$place$high.",
     )
 }
 

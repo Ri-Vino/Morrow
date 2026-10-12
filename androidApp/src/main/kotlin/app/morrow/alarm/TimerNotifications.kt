@@ -7,6 +7,9 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.Icon
+import android.media.AudioAttributes
+import android.net.Uri
+import android.provider.Settings
 import app.morrow.MainActivity
 import app.morrow.R
 import app.morrow.platform.MissedReason
@@ -27,11 +30,16 @@ class TimerNotifications(private val context: Context) : TimerNotifier {
 
     private val manager get() = context.getSystemService(NotificationManager::class.java)
 
-    override fun show(timer: Timer) {
+    override fun show(timer: Timer) = show(timer, cantResume = false)
+
+    /** Without exact alarms a timer can't resume, so tapping this opens the screen to allow them. */
+    override fun showCantResume(timer: Timer) = show(timer, cantResume = true)
+
+    private fun show(timer: Timer, cantResume: Boolean) {
         val endsAt = timer.endsAt
         val notification = builder(context, CHANNEL_RUNNING, timer.name)
             .setOngoing(true)
-            .setContentIntent(openApp(context))
+            .setContentIntent(if (cantResume && endsAt == null) allowExactAlarms(context) else openApp(context))
             .apply {
                 if (endsAt != null) {
                     setContentText("${totalText(timer.duration)} · ends at ${clock(endsAt)}")
@@ -41,7 +49,8 @@ class TimerNotifications(private val context: Context) : TimerNotifier {
                     setChronometerCountDown(true)
                     addAction(button("Pause", TimerReceiver.ACTION_PAUSE, timer.id))
                 } else {
-                    setContentText("Paused · ${clockText(timer.remaining ?: timer.duration)} left")
+                    val left = "Paused · ${clockText(timer.remaining ?: timer.duration)} left"
+                    setContentText(if (cantResume) "$left · Allow Alarms & reminders to resume" else left)
                     setShowWhen(false)
                     addAction(button("Resume", TimerReceiver.ACTION_RESUME, timer.id))
                 }
@@ -90,6 +99,10 @@ class TimerNotifications(private val context: Context) : TimerNotifier {
         private const val CHANNEL_RUNNING = "timers"
         private const val CHANNEL_RINGING = "timer_done"
         private const val CHANNEL_MISSED = "timer_missed"
+        private const val CHANNEL_ALERT = "timer_alert"
+
+        /** [ringWithoutService]'s alert. */
+        private const val ALERT_ID = 3
 
         /**
          * While [timers] ring: TimerRingActivity over the lock screen when the phone is locked or off, otherwise a
@@ -126,6 +139,33 @@ class TimerNotifications(private val context: Context) : TimerNotifier {
                 .build()
         }
 
+        /**
+         * For when a timer ends but RingService can't start, as for a late alarm without the exact-alarm permission on
+         * Android 12: an alert that plays the Bell itself, and opens the Timer done screen over the lock screen, which
+         * starts RingService from the front.
+         */
+        fun ringWithoutService(context: Context) {
+            val doneScreen = PendingIntent.getActivity(
+                context,
+                1,
+                Intent(context, TimerRingActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    .putExtra(TimerRingActivity.EXTRA_START_RINGING, true),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+            val notification = builder(context, CHANNEL_ALERT, "Timer done")
+                .setContentText("Tap to see your timer")
+                .setCategory(Notification.CATEGORY_ALARM)
+                .setAutoCancel(true)
+                .setContentIntent(doneScreen)
+                .setFullScreenIntent(doneScreen, true)
+                .build()
+            context.getSystemService(NotificationManager::class.java).notify(ALERT_ID, notification)
+        }
+
+        /** Takes down [ringWithoutService]'s alert, once RingService rings. */
+        fun hideAlert(context: Context) = context.getSystemService(NotificationManager::class.java).cancel(ALERT_ID)
+
         /** For the moment it takes RingService to put a timer that ended behind an alarm's Morning screen on hold. */
         fun holding(context: Context): Notification =
             builder(context, CHANNEL_RUNNING, "Timer done")
@@ -153,6 +193,14 @@ class TimerNotifications(private val context: Context) : TimerNotifier {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
 
+        private fun allowExactAlarms(context: Context): PendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.fromParts("package", context.packageName, null))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+
         private fun clock(at: Instant) = cityClock(at, TimeZone.currentSystemDefault())
 
         /** Clear of the alarm's and RINGING_ID; timer ids are never reused, so neither are these. */
@@ -172,7 +220,16 @@ class TimerNotifications(private val context: Context) : TimerNotifier {
             val missed = NotificationChannel(CHANNEL_MISSED, "Missed timers", NotificationManager.IMPORTANCE_DEFAULT).apply {
                 description = "Timers that ended while your phone was off, or that no one stopped"
             }
-            context.getSystemService(NotificationManager::class.java).createNotificationChannels(listOf(running, ringing, missed))
+            val alert = NotificationChannel(CHANNEL_ALERT, "Timer done without alarms & reminders", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "A timer that ended while Morrow couldn't ring it as usual"
+                setSound(
+                    Uri.parse("android.resource://${context.packageName}/${R.raw.bell}"),
+                    AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build(),
+                )
+                enableVibration(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            }
+            context.getSystemService(NotificationManager::class.java).createNotificationChannels(listOf(running, ringing, missed, alert))
         }
     }
 

@@ -31,6 +31,8 @@ class FakeTimerNotifier : TimerNotifier {
 
     data class Missed(override val timer: Timer, val reason: MissedReason) : Shown
 
+    data class CantResume(override val timer: Timer) : Shown
+
     /** What each timer's notification says now, by timer id. */
     val shown = mutableMapOf<Long, Shown>()
 
@@ -44,6 +46,10 @@ class FakeTimerNotifier : TimerNotifier {
 
     override fun showMissed(timer: Timer, reason: MissedReason) {
         shown[timer.id] = Missed(timer, reason)
+    }
+
+    override fun showCantResume(timer: Timer) {
+        shown[timer.id] = CantResume(timer)
     }
 
     override fun hide(timerId: Long) {

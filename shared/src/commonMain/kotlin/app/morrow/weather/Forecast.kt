@@ -12,7 +12,10 @@ data class Forecast(
     val timeZone: String,
     val fetchedAt: Instant,
     val now: CurrentWeather,
+    /** The day it was fetched on, in the place's own time zone. Use [dayAt] for the day it is now. */
     val today: DayWeather,
+    /** The day after [today], for a forecast still shown after the place's midnight; null if unknown. */
+    val tomorrow: DayWeather? = null,
     /** Up to 12 hours, starting with the current hour. */
     val hours: List<HourWeather>,
 )
@@ -20,7 +23,7 @@ data class Forecast(
 @Serializable
 data class CurrentWeather(val temperature: Double, val sky: Sky, val isDay: Boolean)
 
-/** Today in the place's own time zone. [rainChance] is the highest chance of rain in the day, in percent, or null if unknown. */
+/** One day in the place's own time zone. [rainChance] is the highest chance of rain in the day, in percent, or null if unknown. */
 @Serializable
 data class DayWeather(val high: Double, val low: Double, val rainChance: Int?)
 

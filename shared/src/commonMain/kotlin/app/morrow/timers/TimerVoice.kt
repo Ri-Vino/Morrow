@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlin.concurrent.Volatile
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -24,13 +25,14 @@ import kotlin.time.Duration.Companion.seconds
  */
 class TimerVoice(private val speaker: Speaker) {
     private val speakingState = MutableStateFlow(false)
+    @Volatile private var reading = false
 
     /** True while Pip is reading notes out, so the Timer done screen can show him talking. */
     val speaking: StateFlow<Boolean> = speakingState.asStateFlow()
 
     /**
      * Reads the notes of [ringing] as above, until cancelled. Cancelling stops him at once, so this ends with the
-     * ringing. [duck] lowers the chime with true just before each reading, and brings it back with false after.
+     * ringing. [duck] lowers the chime with true as each reading begins, and brings it back with false after.
      */
     suspend fun readNotes(ringing: Flow<List<Timer>>, duck: (Boolean) -> Unit) {
         ringing
@@ -49,19 +51,25 @@ class TimerVoice(private val speaker: Speaker) {
 
     /** Cuts off the reading under way, if any: for Stop and "+1 minute", before the timers themselves have stopped. */
     fun hush() {
-        if (speakingState.value) speaker.stop()
+        if (reading) speaker.stop(SpeechPurpose.TIMER_NOTE)
     }
 
+    /** The chime is ducked, and [speaking] set, only once the words begin, so a slow or missing engine changes nothing. */
     private suspend fun read(text: String, duck: (Boolean) -> Unit) {
+        var started = false
         var finished = false
-        speakingState.value = true
-        duck(true)
+        reading = true
         try {
-            speaker.speak(text, SpeechPurpose.TIMER_NOTE)
+            speaker.speak(text, SpeechPurpose.TIMER_NOTE) {
+                started = true
+                speakingState.value = true
+                duck(true)
+            }
             finished = true
         } finally {
-            if (!finished) speaker.stop()
-            duck(false)
+            reading = false
+            if (!finished) speaker.stop(SpeechPurpose.TIMER_NOTE)
+            if (started) duck(false)
             speakingState.value = false
         }
     }

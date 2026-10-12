@@ -20,6 +20,7 @@ import app.morrow.data.FakeSavedCityDao
 import app.morrow.data.FakeWeatherCacheDao
 import app.morrow.data.InMemoryPreferences
 import app.morrow.data.MorrowSettings
+import app.morrow.data.WeatherCacheDao
 import app.morrow.data.WeatherCacheEntity
 import app.morrow.places.CityCatalog
 import app.morrow.places.CityRepository
@@ -43,6 +44,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -72,7 +74,8 @@ class MorningRouteTest {
     private val cities = CityRepository(FakeSavedCityDao(), catalog) { "Europe/London" }
     private val cache = FakeWeatherCacheDao()
     private val source = StubSource()
-    private val speaker = FakeSpeaker()
+    private var speaker = FakeSpeaker()
+    private var dao: WeatherCacheDao = cache
     private val location = FakeLocationProvider()
     private val started = mutableListOf<String>()
     private val london = Coordinates(51.51, -0.13)
@@ -82,6 +85,23 @@ class MorningRouteTest {
     private val tip = "“Take an umbrella. It dries up this morning.”"
     private val spoken = "Good morning. It's 12 degrees and rainy in London, with a high of 14. Take an umbrella. It dries up this morning."
     private val replay = "Hear the weather again"
+
+    /** Like Room, whose readers hear of a write a moment after it: here, only once the test calls [publish]. */
+    private class LaggingCacheDao(private val stored: FakeWeatherCacheDao) : WeatherCacheDao {
+        private val seen = MutableStateFlow(stored.rows.value.values.toList())
+
+        override fun observeAll() = seen
+
+        override suspend fun getAll() = stored.getAll()
+
+        override suspend fun upsert(rows: List<WeatherCacheEntity>) = stored.upsert(rows)
+
+        override suspend fun deleteAllExcept(keep: List<String>) = stored.deleteAllExcept(keep)
+
+        fun publish() {
+            seen.value = stored.rows.value.values.toList()
+        }
+    }
 
     private class StubSource : WeatherSource {
         var answer: (Coordinates) -> Forecast = { error("no answer set") }
@@ -118,7 +138,7 @@ class MorningRouteTest {
             catalog.cityForZone("Europe/London")
         }
         val weather = WeatherRepository(
-            settings, cities, catalog, location, source, cache, clock, { "Europe/London" },
+            settings, cities, catalog, location, source, dao, clock, { "Europe/London" },
             CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
         )
         compose.setContent {
@@ -269,7 +289,30 @@ class MorningRouteTest {
     }
 
     @Test
+    fun pipWaitsForTheNewForecastToReachTheCardBeforeReadingIt() {
+        val earlyHours = LocalDateTime(2026, 10, 12, 0, 30).toInstant(zone)
+        cached(rainy(earlyHours, temperature = 6.0))
+        val lagging = LaggingCacheDao(cache)
+        dao = lagging
+        source.answer = { rainy(clock.now, temperature = 12.0) }
+        show(readAloud = true)
+
+        // The new forecast is stored, but the card hasn't heard of it yet.
+        compose.waitUntil(timeoutMillis = 5_000) { cache.rows.value[london.key]?.fetchedAt == now.toEpochMilliseconds() }
+        compose.waitForIdle()
+        assertEquals(emptyList(), speaker.spoken)
+
+        lagging.publish()
+
+        waitForText(headline)
+        compose.waitUntil(timeoutMillis = 5_000) { speaker.spoken.isNotEmpty() }
+        compose.waitForIdle()
+        assertEquals(listOf(spoken to SpeechPurpose.MORNING_WEATHER), speaker.spoken)
+    }
+
+    @Test
     fun startMyDayStopsPipAndHandsOverTheIntention() {
+        speaker = FakeSpeaker(talkFor = 10.minutes)
         cached(rainy(now - 10.minutes))
         show(readAloud = true)
         waitForText(headline)
@@ -279,7 +322,21 @@ class MorningRouteTest {
         compose.onNodeWithText("Start my day").performClick()
 
         assertEquals(listOf("coffee by the window"), started)
-        assertEquals(1, speaker.stops)
+        assertEquals(listOf(SpeechPurpose.MORNING_WEATHER), speaker.stopped)
+    }
+
+    @Test
+    fun oncePipHasFinishedStartMyDayStopsNothing() {
+        cached(rainy(now - 10.minutes))
+        show(readAloud = true)
+        waitForText(headline)
+        compose.waitUntil(timeoutMillis = 5_000) { speaker.spoken.isNotEmpty() }
+        compose.waitForIdle()
+
+        compose.onNodeWithText("Start my day").performClick()
+
+        assertEquals(1, started.size)
+        assertEquals(emptyList(), speaker.stopped, "a timer's note read meanwhile mustn't be cut off")
     }
 
     @Test

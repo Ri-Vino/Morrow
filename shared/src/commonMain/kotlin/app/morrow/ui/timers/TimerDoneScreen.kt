@@ -61,12 +61,19 @@ import kotlin.math.cos
 /**
  * Timers that have ended, all stopped or given a minute together: Pip in a dusk sky above each timer's note and when it
  * ended. While he reads the notes out ([TimerDoneModel.reading]) he talks, with sound waves beside him and a badge
- * saying so. The notes scroll, so Stop and "+1 minute" stay on screen however large the text.
+ * saying so. The notes scroll, so Stop and "+1 minute" stay on screen however large the text. [stopsByItself] says
+ * whether the screen mentions the safety stop, which only Android has.
  */
 @Composable
-fun TimerDoneScreen(model: TimerDoneModel, onStop: () -> Unit, onAddMinute: () -> Unit, modifier: Modifier = Modifier) {
+fun TimerDoneScreen(
+    model: TimerDoneModel,
+    onStop: () -> Unit,
+    onAddMinute: () -> Unit,
+    modifier: Modifier = Modifier,
+    stopsByItself: Boolean = true,
+) {
     MorrowTheme(ThemeKind.NIGHT) {
-        TimerDoneContent(model, rememberSceneSeconds(still = Float.POSITIVE_INFINITY, fullRateFor = INTRO_LENGTH), onStop, onAddMinute, modifier)
+        TimerDoneContent(model, rememberSceneSeconds(still = Float.POSITIVE_INFINITY, fullRateFor = INTRO_LENGTH), onStop, onAddMinute, modifier, stopsByItself)
     }
 }
 
@@ -77,6 +84,7 @@ private fun TimerDoneContent(
     onStop: () -> Unit,
     onAddMinute: () -> Unit,
     modifier: Modifier = Modifier,
+    stopsByItself: Boolean = true,
 ) {
     val type = MorrowTheme.type
     val talking = model.reading != null
@@ -144,11 +152,13 @@ private fun TimerDoneContent(
                     height = 56.dp,
                     border = Illustration.onBadge.copy(alpha = 0.3f),
                 )
-                Box(Modifier.padding(top = 4.dp)) {
-                    BasicText(
-                        "Stops by itself after 10 minutes.",
-                        style = type.body.copy(color = Illustration.starlightMuted, textAlign = TextAlign.Center),
-                    )
+                if (stopsByItself) {
+                    Box(Modifier.padding(top = 4.dp)) {
+                        BasicText(
+                            "Stops by itself after 10 minutes.",
+                            style = type.body.copy(color = Illustration.starlightMuted, textAlign = TextAlign.Center),
+                        )
+                    }
                 }
             }
         }

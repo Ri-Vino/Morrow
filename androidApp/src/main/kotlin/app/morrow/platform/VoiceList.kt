@@ -29,6 +29,18 @@ internal fun installedVoices(all: Collection<EngineVoice>, phone: Locale): List<
     }
 }
 
+/**
+ * The name of the voice Pip speaks with, or null when there's none that works offline, so nothing is said: [chosen] if
+ * it's one of [installedVoices], else the engine's [default] if it's installed and works offline, else the best of
+ * [installedVoices]. Words never go to the network.
+ */
+internal fun voiceToUse(all: Collection<EngineVoice>, default: EngineVoice?, chosen: String?, phone: Locale): String? {
+    val usable = installedVoices(all, phone)
+    usable.firstOrNull { it.id == chosen }?.let { return it.id }
+    if (default != null && default.installed && !default.needsNetwork) return default.name
+    return usable.firstOrNull()?.id
+}
+
 /** "English (UK)": [voice]'s language and region, in the language of [display]. */
 internal fun languageLabel(voice: Locale, display: Locale): String {
     val language = voice.getDisplayLanguage(display).ifEmpty { voice.toLanguageTag() }.replaceFirstChar { it.titlecase(display) }

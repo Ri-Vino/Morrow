@@ -134,26 +134,35 @@ class WeatherRepository(
      * Does nothing at all with weather off or while backing off. One asked for while another runs follows it, as
      * the place may have changed since the running one began. Failures are silent and keep the cache. The fix and the
      * request each get 10 s. [RefreshReason.MORNING] gets 5 s for both together, of which the fix may take 2 s.
+     *
+     * A new fix becomes "here" only once the request has finished, so a request that fails or runs out of time leaves
+     * the last place's weather showing, and the cache is pruned of places no longer asked about only then.
+     *
+     * Returns when the forecast it stored for "here" was fetched, or null when it stored none for it. The database
+     * passes a write on to [forecasts] a moment later, so this tells a screen what to wait for.
      */
-    suspend fun refresh(reason: RefreshReason) {
+    suspend fun refresh(reason: RefreshReason): Instant? {
         if (!refreshing.tryLock()) {
             waiting = reason
-            return
+            return null
         }
+        var storedHere: Instant? = null
         try {
-            if (!mayFetch()) return
+            if (!mayFetch()) return null
             val morning = reason == RefreshReason.MORNING
             val mode = settings.weatherSource.first()
-            var places: List<Coordinates>? = null
-            var arrived: List<Forecast> = emptyList()
             val locateAndFetch: suspend () -> Unit = {
                 val current = if (mode == WeatherPlaceMode.AUTO) location.current(if (morning) MorningFixTimeout else RequestTimeout)?.rounded() else null
-                if (current != null) settings.saveLastLocation(current, clock.now())
                 val saved = cities.cities.first()
                 val here = resolveHere(mode, current, settings.lastLocation.first()?.coordinates, saved.firstOrNull { it.isHome }?.city)
                 val wanted = (listOfNotNull(here?.coordinates) + saved.map { it.city.coordinates }).distinct()
-                places = wanted
-                arrived = withTimeoutOrNull(timeoutFor(reason)) { download(stale(wanted, force = reason == RefreshReason.MANUAL)) }.orEmpty()
+                val arrived = withTimeoutOrNull(timeoutFor(reason)) { download(stale(wanted, force = reason == RefreshReason.MANUAL)) }
+                if (arrived != null) {
+                    store(arrived)
+                    storedHere = arrived.firstOrNull { it.place == here?.coordinates }?.fetchedAt
+                    if (current != null) settings.saveLastLocation(current, clock.now())
+                    cache.deleteAllExcept(wanted.map(Coordinates::key))
+                }
             }
             try {
                 // Morning has 5 s for everything. A fix that doesn't come in its share leaves the last fix, the home
@@ -162,8 +171,6 @@ class WeatherRepository(
             } catch (e: FetchException) {
                 if (e.rateLimited) settings.setWeatherBackoffUntil(backoffUntil(clock.now()))
             }
-            store(arrived)
-            places?.let { cache.deleteAllExcept(it.map(Coordinates::key)) }
         } finally {
             refreshing.unlock()
         }
@@ -171,6 +178,7 @@ class WeatherRepository(
             waiting = null
             refresh(next)
         }
+        return storedHere
     }
 
     /** Fetches just [city], newly added, unless its cache is fresh. Waits for a running refresh rather than skipping. */

@@ -28,7 +28,10 @@ enum class TimerState {
     /** Ended during an alarm, so it rings after the alarm is done. */
     WAITING,
 
-    /** Ended, and nothing has taken it up yet. This only lasts a moment. */
+    /**
+     * Ended, and nothing has taken it up yet. This only lasts a moment, except on iOS for a timer the system refused,
+     * which never rang: it stays until it's stopped.
+     */
     ENDED,
 }
 

@@ -31,10 +31,12 @@ import app.morrow.ui.mission.SequenceRoute
 import app.morrow.ui.morning.MorningRoute
 import app.morrow.ui.ring.RingScreen
 import app.morrow.ui.ring.ringModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import java.util.Locale
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
 /** Shown over the lock screen from the moment an alarm rings until the Morning screen is done. */
@@ -63,15 +65,22 @@ class RingActivity : ComponentActivity() {
                 // The alarm stops when the games are done, or at the safety stop; only the first leads to Morning.
                 LaunchedEffect(alarm, stage) { if (alarm == null && stage != Stage.MORNING) finish() }
                 LaunchedEffect(stage) { matchSystemBars(lightIcons = stage != Stage.MORNING) }
-                // Timers that end during the alarm wait while Morning shows, and ring once it's gone or the screen goes off.
-                LifecycleStartEffect(stage) {
-                    Ringing.morningShowing = stage == Stage.MORNING
+                // Timers that end during the alarm wait while Morning shows, and ring once it's gone or the screen goes
+                // off, or after MORNING_HOLD, so a phone left showing Morning doesn't keep them waiting for good.
+                var holding by rememberSaveable { mutableStateOf(true) }
+                LifecycleStartEffect(stage, holding) {
+                    Ringing.morningShowing = stage == Stage.MORNING && holding
                     onStopOrDispose {
                         if (Ringing.morningShowing) {
                             Ringing.morningShowing = false
                             morrow.timers.releaseWaiting()
                         }
                     }
+                }
+                LaunchedEffect(stage) {
+                    if (stage != Stage.MORNING) return@LaunchedEffect
+                    delay(MORNING_HOLD)
+                    holding = false
                 }
 
                 val ringing = alarm
@@ -133,6 +142,11 @@ class RingActivity : ComponentActivity() {
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         startActivity(home)
         finish()
+    }
+
+    private companion object {
+        /** The longest timers wait behind the Morning screen. */
+        val MORNING_HOLD = 10.minutes
     }
 
     /** Light status-bar icons over the night sky, dark ones over the Morning screen. */

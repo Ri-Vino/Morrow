@@ -39,8 +39,9 @@ fun weatherTip(forecast: Forecast, now: Instant, zone: TimeZone): String? {
         val dry = hours.firstOrNull { it.precipitation() == null } ?: return "Take an umbrella. It isn't going anywhere soon."
         return "Take an umbrella. It dries up ${partOfDay(dry, zone)}."
     }
-    if (forecast.today.high >= VERY_HOT_HIGH) return "Hot one today. Water, shade and sun cream."
-    if (forecast.today.high <= COLD_HIGH || current.temperature <= FREEZING) return "Properly cold today. Coat, hat and gloves."
+    val high = forecast.dayAt(now)?.high
+    if (high != null && high >= VERY_HOT_HIGH) return "Hot one today. Water, shade and sun cream."
+    if ((high != null && high <= COLD_HIGH) || current.temperature <= FREEZING) return "Properly cold today. Coat, hat and gloves."
     return when (current.sky) {
         Sky.CLEAR -> "A lovely clear one. Get outside if you can."
         Sky.PARTLY_CLOUDY -> "Bright spells today. Sunglasses in the bag."

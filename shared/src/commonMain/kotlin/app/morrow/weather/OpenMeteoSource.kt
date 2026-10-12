@@ -86,8 +86,15 @@ private fun ForecastDto.toForecast(place: Coordinates, fetchedAt: Instant): Fore
             low = daily.low.getOrNull(todayIndex) ?: throw FetchException("No low for today"),
             rainChance = daily.rainChance.getOrNull(todayIndex),
         ),
+        tomorrow = daily.day(todayIndex + 1),
         hours = hours,
     )
+}
+
+private fun DailyDto.day(index: Int): DayWeather? {
+    val high = high.getOrNull(index) ?: return null
+    val low = low.getOrNull(index) ?: return null
+    return DayWeather(high, low, rainChance.getOrNull(index))
 }
 
 @Serializable

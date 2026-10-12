@@ -139,7 +139,7 @@ private fun Conditions(weather: CardWeather, ink: CardInk) {
 
 @Composable
 private fun HighLow(weather: CardWeather, ink: CardInk) {
-    BasicText(weather.highLow, style = MorrowTheme.type.bodyStrong.copy(color = ink.text))
+    weather.highLow?.let { BasicText(it, style = MorrowTheme.type.bodyStrong.copy(color = ink.text)) }
 }
 
 @Composable

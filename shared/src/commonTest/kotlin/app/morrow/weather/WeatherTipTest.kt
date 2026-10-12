@@ -171,9 +171,16 @@ class WeatherTipTest {
 
     @Test
     fun withTheForecastsHoursGoneByItTellsOnlyOfNowAndTheDay() {
-        val old = forecast(Sky.CLEAR, Sky.CLEAR, high = 33.0, fetchedAt = now - 20.hours)
+        // Fetched yesterday, so today is its second day.
+        val old = forecast(Sky.CLEAR, Sky.CLEAR, fetchedAt = now - 20.hours).let { it.copy(tomorrow = it.today.copy(high = 33.0)) }
         assertEquals("Hot one today. Water, shade and sun cream.", tip(old, at = seven + 5.hours))
-        assertEquals("A lovely clear one. Get outside if you can.", tip(old.copy(today = old.today.copy(high = 20.0)), at = seven + 5.hours))
+        assertEquals("A lovely clear one. Get outside if you can.", tip(old.copy(tomorrow = old.today.copy(high = 20.0)), at = seven + 5.hours))
+    }
+
+    @Test
+    fun yesterdaysHighIsNotTakenForTodays() {
+        val old = forecast(Sky.CLEAR, Sky.CLEAR, high = 33.0, fetchedAt = now - 20.hours)
+        assertEquals("A lovely clear one. Get outside if you can.", tip(old, at = seven + 5.hours))
     }
 
     // The day line

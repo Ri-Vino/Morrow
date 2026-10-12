@@ -24,10 +24,12 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -41,8 +43,9 @@ import kotlin.time.Duration.Companion.seconds
  *
  * It rings in one of two modes, and an alarm always comes first:
  * - **Alarm**, from AlarmReceiver: the alarm's sound, ramping up, until its games are done. Timers that end meanwhile
- *   don't ring but wait in `TimerCoordinator.waiting`, until the alarm's Morning screen has gone (RingActivity lets them
- *   go then) or, if the alarm reaches its safety stop and no Morning screen follows, until that.
+ *   don't ring but wait in `TimerCoordinator.waiting`, until the alarm's Morning screen has gone or has shown for ten
+ *   minutes (RingActivity lets them go then) or, if the alarm reaches its safety stop and no Morning screen follows,
+ *   until that.
  * - **Timers**, from TimerReceiver: the Bell for every timer that has ended, with Pip reading their notes over it
  *   (`TimerVoice`), until `TimerCoordinator.ringing` empties (Stop, "+1 minute", or the timers' safety stop). An alarm
  *   going off meanwhile takes over, silencing Pip too, and the timers wait behind it as above.
@@ -61,6 +64,7 @@ class RingService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var mode = Mode.IDLE
     private var lastStartId = 0
+    private var findingTimers = 0
     private var followingTimers: Job? = null
     private var readingNotes: Job? = null
     private val alarmSafetyStop = Runnable { stopAlarm(gamesDone = false) }
@@ -139,43 +143,67 @@ class RingService : Service() {
 
     /** A timer has ended, or several: ring every timer that has, unless an alarm is ringing or its Morning screen shows. */
     private fun ringTimers() {
-        val behindAlarm = mode == Mode.ALARM || Ringing.morningShowing
         // startForegroundService() needs a notification straight away, whatever happens next.
         when {
             mode == Mode.ALARM -> startInForeground(RingNotifications.ID, RingNotifications.build(this, Ringing.current.value ?: placeholder(NO_ALARM)))
-            behindAlarm -> startInForeground(TimerNotifications.RINGING_ID, TimerNotifications.holding(this))
-            else -> {
-                startInForeground(TimerNotifications.RINGING_ID, TimerNotifications.ringing(this, morrow.timers.ringing.value))
-                if (mode != Mode.TIMERS) {
-                    mode = Mode.TIMERS
-                    startVibration()
-                    sound.playBell()
-                }
-                // Each timer that ends gets its own ten minutes, so the safety stop starts again.
-                holdWakeLock()
-                handler.removeCallbacks(timerSafetyStop)
-                handler.postDelayed(timerSafetyStop, RING_LIMIT.inWholeMilliseconds)
-            }
+            Ringing.morningShowing -> startInForeground(TimerNotifications.RINGING_ID, TimerNotifications.holding(this))
+            else -> ringBell()
         }
 
+        // While any timer is being found, nothing may stop the service: the timer's alarm has gone off, and nothing
+        // would set it again.
+        findingTimers++
         scope.launch {
-            val ringing = runCatching { morrow.timers.ringEnded(behindAlarm) }
-                .onFailure { Log.e(TAG, "Couldn't read the timers", it) }
-                .getOrDefault(emptyList())
-            when {
-                behindAlarm -> stopIfIdle()
-                // An alarm took over meanwhile; the timers are waiting behind it.
-                mode != Mode.TIMERS -> Unit
-                // Stopped from its notification just as it ended, say.
-                ringing.isEmpty() -> stopTimers()
-                followingTimers == null -> {
-                    // Started first, so that if the timers have been stopped meanwhile, stopTimers() below cancels it too.
-                    readingNotes = scope.launch { readNotes() }
-                    followingTimers = scope.launch {
-                        morrow.timers.ringing.collect { timers -> if (timers.isEmpty()) stopTimers() else showRinging(timers) }
-                    }
+            val ringing = try {
+                withContext(NonCancellable) {
+                    // Asked as the timers join, so an alarm or its Morning screen ending meanwhile can't strand them.
+                    morrow.timers.ringEnded { mode == Mode.ALARM || Ringing.morningShowing }
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Couldn't read the timers", e)
+                emptyList()
+            } finally {
+                findingTimers--
             }
+            val next = afterFindingTimers(
+                alarm = mode == Mode.ALARM,
+                bell = mode == Mode.TIMERS,
+                ringing = ringing.isNotEmpty(),
+                following = followingTimers != null,
+            )
+            when (next) {
+                AfterFinding.WAIT -> Unit
+                AfterFinding.STOP -> if (mode == Mode.TIMERS) stopTimers() else stopIfIdle()
+                AfterFinding.RING -> {
+                    ringBell()
+                    followTimers()
+                }
+                AfterFinding.FOLLOW -> followTimers()
+            }
+        }
+    }
+
+    /** Rings the Bell for the timers that have ended. Each gets its own ten minutes, so the safety stop starts again. */
+    private fun ringBell() {
+        startInForeground(TimerNotifications.RINGING_ID, TimerNotifications.ringing(this, morrow.timers.ringing.value))
+        if (mode != Mode.TIMERS) {
+            mode = Mode.TIMERS
+            startVibration()
+            sound.playBell()
+        }
+        holdWakeLock()
+        handler.removeCallbacks(timerSafetyStop)
+        handler.postDelayed(timerSafetyStop, RING_LIMIT.inWholeMilliseconds)
+    }
+
+    /** Has Pip read the notes, and follows which timers ring until none does. */
+    private fun followTimers() {
+        // Started first, so that if the timers have been stopped meanwhile, stopTimers() below cancels it too.
+        readingNotes = scope.launch { readNotes() }
+        followingTimers = scope.launch {
+            morrow.timers.ringing.collect { timers -> if (timers.isEmpty()) stopTimers() else showRinging(timers) }
         }
     }
 
@@ -226,9 +254,12 @@ class RingService : Service() {
         getSystemService(NotificationManager::class.java).cancel(TimerNotifications.RINGING_ID)
     }
 
-    /** Stops the service once nothing rings. A start that came in meanwhile keeps it going, as it's newer than [lastStartId]. */
+    /**
+     * Stops the service once nothing rings and no timer is still being found; the last one found calls this again. A
+     * start that came in meanwhile keeps it going, as it's newer than [lastStartId].
+     */
     private fun stopIfIdle() {
-        if (mode != Mode.IDLE) return
+        if (mode != Mode.IDLE || findingTimers > 0) return
         release()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf(lastStartId)
@@ -304,4 +335,22 @@ class RingService : Service() {
             context.startService(Intent(context, RingService::class.java).setAction(ACTION_STOP))
         }
     }
+}
+
+/** What RingService does once it has found which timers have ended. */
+internal enum class AfterFinding { WAIT, STOP, RING, FOLLOW }
+
+/**
+ * Given whether an [alarm] is ringing, whether the [bell] is ringing for timers, whether any timers are [ringing] now,
+ * and whether RingService is [following] them already.
+ */
+internal fun afterFindingTimers(alarm: Boolean, bell: Boolean, ringing: Boolean, following: Boolean): AfterFinding = when {
+    // The timers wait behind it.
+    alarm -> AfterFinding.WAIT
+    // Stopped from a notification just as it ended, say, or waiting behind the Morning screen.
+    !ringing -> AfterFinding.STOP
+    // The Bell stopped meanwhile, for the timers ringing before, or the Morning screen let the timers go.
+    !bell -> AfterFinding.RING
+    !following -> AfterFinding.FOLLOW
+    else -> AfterFinding.WAIT
 }

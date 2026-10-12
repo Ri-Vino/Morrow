@@ -22,6 +22,18 @@ class ConditionsTest {
     )
 
     @Test
+    fun theDayIsThePlacesDayAtTheTimeAsked() {
+        val tomorrow = DayWeather(high = 16.0, low = 9.0, rainChance = 10)
+        // Fetched at 22:00 in London; at 01:00 there it's the next day.
+        val late = forecast.copy(fetchedAt = Instant.parse("2026-10-11T21:00:00Z"), tomorrow = tomorrow)
+
+        assertEquals(late.today, late.dayAt(Instant.parse("2026-10-11T22:59:00Z")))
+        assertEquals(tomorrow, late.dayAt(Instant.parse("2026-10-12T00:00:00Z")))
+        assertNull(late.dayAt(Instant.parse("2026-10-12T23:00:00Z")), "two days on, it has no day to give")
+        assertNull(late.copy(tomorrow = null).dayAt(Instant.parse("2026-10-12T00:00:00Z")), "an older cache, with no tomorrow, shows none")
+    }
+
+    @Test
     fun withinTheHourItWasFetchedTheCurrentConditionsStand() {
         assertEquals(CurrentWeather(12.4, Sky.RAIN, isDay = true), forecast.conditionsAt(fetchedAt))
         assertEquals(CurrentWeather(12.4, Sky.RAIN, isDay = true), forecast.conditionsAt(fetchedAt + 19.minutes))

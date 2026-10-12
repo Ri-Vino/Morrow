@@ -253,8 +253,48 @@ class WeatherRepositoryTest {
         weatherWith(slow).refresh(RefreshReason.MORNING)
 
         assertTrue(cache.rows.value.isEmpty(), "1 s for the fix and 4.5 s for the request is over the 5 s")
-        assertEquals(leeds, settings.lastLocation.first()?.coordinates, "the fix is kept even though the request was given up on")
+        assertNull(settings.lastLocation.first(), "the fix waits for its weather, so it isn't kept when the request is given up on")
         assertEquals(5_000L, currentTime)
+    }
+
+    @Test
+    fun aMorningFixInANewPlaceWhoseRequestRunsOutLeavesTheLastPlacesWeatherShowing() = runTest {
+        seedLondonAndTokyo()
+        settings.saveLastLocation(london, start - 1.hours)
+        val weather = weather()
+        weather.refresh(RefreshReason.START)
+        val before = cache.rows.value
+        clock.now = start + 1.hours
+
+        // The phone has moved to Leeds, and the request takes longer than Morning's 5 s.
+        weatherWith(Slow(fixTime = 1.seconds, requestTime = 10.seconds)).refresh(RefreshReason.MORNING)
+
+        assertEquals(before, cache.rows.value)
+        assertEquals(HerePlace(london, "London", HereSource.LOCATION), weather.here.first())
+        assertEquals(london, weather.forecasts.first().hereWeather?.forecast?.place)
+    }
+
+    @Test
+    fun aFailedRequestLeavesTheCacheOfPlacesNoLongerAskedAbout() = runTest {
+        seedLondonAndTokyo()
+        val weather = weather()
+        weather.refresh(RefreshReason.START)
+        cities.remove(tokyo.id)
+        clock.now = start + 1.hours
+        source.failure = FetchException("offline")
+
+        weather.refresh(RefreshReason.START)
+
+        assertEquals(setOf(london.key, tokyoPlace.key), cache.rows.value.keys)
+    }
+
+    @Test
+    fun aRefreshSaysWhenTheForecastItStoredForHereWasFetched() = runTest {
+        seedLondonAndTokyo()
+        val weather = weather()
+
+        assertEquals(start, weather.refresh(RefreshReason.START))
+        assertNull(weather.refresh(RefreshReason.START), "here's forecast is fresh, so nothing new was stored for it")
     }
 
     @Test
