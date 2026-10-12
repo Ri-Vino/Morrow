@@ -3,6 +3,10 @@ package app.morrow.alarm
 /**
  * AlarmKit, which rings alarms like the Clock app's, even with Morrow closed. It's Swift-only, so the app's Swift code
  * implements this and passes it to [app.morrow.IosApp.start]. Ids are Morrow's alarm ids.
+ *
+ * AlarmKit documents no fixed limit on how many alarms an app may hold: the phone may refuse more depending on its
+ * state, and scheduling then fails with `maximumLimitReached`. Each alarm on another city's clock takes up to
+ * [app.morrow.alarms.FIXED_DATE_SLOTS] of them, and each timer one.
  */
 interface AlarmKitBridge {
     /** True once the user has allowed Morrow to set alarms. */
@@ -28,8 +32,29 @@ interface AlarmKitBridge {
      */
     fun scheduleOnce(id: Long, alarmId: Long, label: String, epochSeconds: Long, sound: String)
 
+    /**
+     * Counts down [seconds], showing [title] on the Lock Screen, then rings showing [title] and playing [sound] until
+     * it's stopped. [id] is timer [timerId]'s id in AlarmKit, from [app.morrow.timers.timerAlarmKitId]; the alert's
+     * "Open" button opens Morrow on that timer. Replaces any alarm with the same [id], so it also resumes a paused
+     * countdown, or changes how long is left.
+     */
+    fun startCountdown(id: Long, timerId: Long, title: String, seconds: Double, sound: String)
+
+    /**
+     * Holds the countdown [id], paused with [seconds] left, as [startCountdown] would have counted it. A countdown that
+     * isn't running, because it was lost or was paused with a different time left, is put back first.
+     */
+    fun pauseCountdown(id: Long, timerId: Long, title: String, seconds: Double, sound: String)
+
+    /** Cancels an alarm, a date or a countdown. */
     fun cancel(id: Long)
 
-    /** The alarms AlarmKit holds, waiting or ringing, including ones it's still being handed. Dates count by their own ids. */
+    /**
+     * What AlarmKit holds, waiting, counting down, paused or ringing, including what it's still being handed. Dates and
+     * countdowns count by their own ids.
+     */
     fun scheduledIds(): List<Long>
+
+    /** Calls [onChange] on the main thread whenever what AlarmKit holds changes, as when a timer starts or stops ringing. */
+    fun watch(onChange: () -> Unit)
 }

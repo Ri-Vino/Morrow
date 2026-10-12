@@ -59,8 +59,11 @@ class SettingsModelTest {
 
     @Test
     fun listsOnlyThePlatformsPermissions() {
-        val model = settingsModel(null, ThemeKind.NOON, Difficulty.NORMAL, IosPermissions, missing = emptyList())
-        assertEquals(listOf(PermissionStatus(AlarmPermission.ALARMS, granted = true)), model.permissions)
+        val model = settingsModel(null, ThemeKind.NOON, Difficulty.NORMAL, IosPermissions, missing = listOf(AlarmPermission.LOCATION))
+        assertEquals(
+            listOf(PermissionStatus(AlarmPermission.ALARMS, granted = true), PermissionStatus(AlarmPermission.LOCATION, granted = false)),
+            model.permissions,
+        )
     }
 
     private val leeds = HerePlace(Coordinates(53.8, -1.55), "Leeds", HereSource.LOCATION)

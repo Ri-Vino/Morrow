@@ -72,14 +72,21 @@ class SetupModelTest {
     }
 
     @Test
-    fun iosAsksForOnePermission() {
+    fun iosNeedsOnlyAlarmsAndOffersLocation() {
+        assertEquals(listOf(AlarmPermission.ALARMS, AlarmPermission.LOCATION), IosPermissions)
+
         val waiting = setupModel(IosPermissions, IosPermissions)
-        assertEquals("0 of 1 ready", waiting.readyText)
+        assertEquals("0 of 2 ready", waiting.readyText)
         assertFalse(waiting.ready)
         assertEquals("Alarms can’t ring until this is allowed.", waiting.note)
 
+        val withoutLocation = setupModel(IosPermissions, listOf(AlarmPermission.LOCATION))
+        assertEquals("1 of 2 ready", withoutLocation.readyText)
+        assertTrue(withoutLocation.ready)
+        assertEquals("All set. Location is optional, and gives you local weather.", withoutLocation.note)
+
         val allowed = setupModel(IosPermissions, emptyList())
-        assertEquals("1 of 1 ready", allowed.readyText)
+        assertEquals("2 of 2 ready", allowed.readyText)
         assertTrue(allowed.ready)
         assertEquals("All set. Pip is ready when you are.", allowed.note)
     }

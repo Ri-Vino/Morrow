@@ -27,8 +27,8 @@ val AndroidPermissions = listOf(
     AlarmPermission.LOCATION,
 )
 
-/** The one permission iOS asks for. */
-val IosPermissions = listOf(AlarmPermission.ALARMS)
+/** The permissions iOS asks for, in the order they're shown: AlarmKit's, then location "while using" for the weather. */
+val IosPermissions = listOf(AlarmPermission.ALARMS, AlarmPermission.LOCATION)
 
 /** The platform's view of [AlarmPermission]s. */
 interface PermissionGate {

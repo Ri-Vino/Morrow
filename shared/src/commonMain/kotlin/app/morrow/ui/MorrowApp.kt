@@ -40,6 +40,7 @@ import app.morrow.platform.AlarmSound
 import app.morrow.platform.NoSpeaker
 import app.morrow.platform.PermissionGate
 import app.morrow.platform.Speaker
+import app.morrow.platform.SpeechPurpose
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeClock
 import app.morrow.theme.ThemeKind
@@ -71,7 +72,9 @@ import app.morrow.ui.ring.ringModel
 import app.morrow.ui.tabs.Tab
 import app.morrow.ui.tabs.TabHost
 import app.morrow.ui.tabs.TabSaver
+import app.morrow.ui.timers.TimerDoneScreen
 import app.morrow.ui.timers.TimersRoute
+import app.morrow.ui.timers.timerDoneModel
 import app.morrow.ui.world.AddCityRoute
 import app.morrow.ui.world.CityPickPurpose
 import app.morrow.ui.world.WorldRoute
@@ -112,6 +115,7 @@ class MorrowServices(
  * [onSystemBarsChange] says whether the status bar icons should be light, to stay readable over the sky.
  * [developerTools] opens the host's debug tools from Settings; pass null in release builds.
  * [waking] is an alarm whose mission to run, on iOS where the system rings the alarm; [onWoken] follows Morning.
+ * [wakingTimers] are timers opened from their alerts, also on iOS; [onTimersWoken] follows their done screen.
  */
 @Composable
 fun MorrowApp(
@@ -120,6 +124,8 @@ fun MorrowApp(
     onSystemBarsChange: (lightIcons: Boolean) -> Unit,
     waking: Long? = null,
     onWoken: () -> Unit = {},
+    wakingTimers: List<Long> = emptyList(),
+    onTimersWoken: () -> Unit = {},
 ) {
     val theme by services.themeClock.theme.collectAsState()
     val firstRunDone by services.settings.firstRunDone.collectAsState(initial = null)
@@ -142,6 +148,10 @@ fun MorrowApp(
                     val preview = previewing
                     when {
                         waking != null -> WakeRoute(services, waking, onSystemBarsChange, onDone = onWoken)
+                        wakingTimers.isNotEmpty() -> {
+                            LaunchedEffect(Unit) { onSystemBarsChange(true) }
+                            TimerWakeRoute(services.timers, services.speaker, wakingTimers, onDone = onTimersWoken)
+                        }
                         preview != null -> RingPreviewRoute(services, preview, onSystemBarsChange, onExit = { previewing = null })
                         inSettings && pickingHome -> {
                             LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
@@ -455,6 +465,46 @@ private fun WakeRoute(services: MorrowServices, alarmId: Long, onSystemBarsChang
         )
         chosen != null -> SequenceRoute(decodeGames(chosen), services.missions, onDone = { wokeAt = Clock.System.now().toEpochMilliseconds() })
     }
+}
+
+/**
+ * After a timer's alert on iOS, where the system rang it, and its "Open" button has stopped it and opened Morrow: the
+ * Timer done screen for [timerIds], without the Bell, with Pip reading each note once. This is the only place iOS
+ * reads a timer's note. [onDone] follows Stop or "+1 minute".
+ */
+@Composable
+internal fun TimerWakeRoute(
+    timers: TimerCoordinator,
+    speaker: Speaker,
+    timerIds: List<Long>,
+    onDone: () -> Unit,
+    zone: TimeZone = TimeZone.currentSystemDefault(),
+) {
+    val scope = rememberCoroutineScope()
+    val ringing by timers.ringing.collectAsState()
+    var shown by remember { mutableStateOf(false) }
+    val read = remember { mutableSetOf<Long>() }
+    LaunchedEffect(timerIds) {
+        // Nothing to show when none of them has ended, as when the alert was for a timer stopped since.
+        if (timers.openFromAlert(timerIds.toSet()).isEmpty()) onDone()
+    }
+    LaunchedEffect(ringing.isEmpty()) {
+        if (ringing.isNotEmpty()) shown = true else if (shown) onDone()
+    }
+    if (ringing.isEmpty()) return
+    LaunchedEffect(ringing) {
+        for (timer in ringing) {
+            if (timer.note.isBlank() || timer.id in read) continue
+            speaker.speak(timer.note, SpeechPurpose.TIMER_NOTE)
+            read += timer.id
+        }
+    }
+    DisposableEffect(speaker) { onDispose { speaker.stop() } }
+    TimerDoneScreen(
+        model = timerDoneModel(ringing, zone),
+        onStop = { scope.launch { timers.stopRinging() } },
+        onAddMinute = { scope.launch { timers.snoozeRinging() } },
+    )
 }
 
 private const val NEW_ALARM = "new"

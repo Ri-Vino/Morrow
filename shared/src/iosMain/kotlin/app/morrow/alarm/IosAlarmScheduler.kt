@@ -25,6 +25,8 @@ class IosAlarmScheduler(private val alarmKit: AlarmKitBridge, private val sound:
             alarmKit.cancel(alarm.id)
             cancelDates(alarm.id)
             val file = sound().fileName
+            // Up to FIXED_DATE_SLOTS alarms each. AlarmKit sets no fixed limit but may refuse more when the phone is
+            // short of resources (maximumLimitReached); a refused date is only logged, and comes back when the alarm is next handed over.
             alarm.fixedDates(at, zone).forEachIndexed { i, date ->
                 alarmKit.scheduleOnce(fixedDateId(alarm.id, i + 1), alarm.id, alarm.label, date.epochSeconds, file)
             }

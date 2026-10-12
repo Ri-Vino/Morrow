@@ -3,6 +3,8 @@ package app.morrow
 import app.morrow.alarm.AlarmKitBridge
 import app.morrow.alarm.IosAlarmScheduler
 import app.morrow.alarm.IosAlarmSound
+import app.morrow.alarm.IosTimerNotifier
+import app.morrow.alarm.IosTimerScheduler
 import app.morrow.alarms.AlarmCoordinator
 import app.morrow.alarms.alarmIdOf
 import app.morrow.data.AlarmRepository
@@ -16,13 +18,14 @@ import app.morrow.permissions.IosPermissionGate
 import app.morrow.places.CityRepository
 import app.morrow.places.CitySearch
 import app.morrow.places.bundledCityCatalog
-import app.morrow.platform.NoHttpClientYet
-import app.morrow.platform.NoLocationYet
-import app.morrow.platform.NoTimerNotifierYet
-import app.morrow.platform.NoTimerSchedulerYet
+import app.morrow.platform.IosHttpClient
+import app.morrow.platform.IosLocationProvider
+import app.morrow.platform.IosSpeaker
 import app.morrow.theme.ThemeClock
 import app.morrow.timers.TimerCoordinator
 import app.morrow.timers.TimerRepository
+import app.morrow.timers.isTimerAlarmKitId
+import app.morrow.timers.timerIdOf
 import app.morrow.ui.MorrowServices
 import app.morrow.ui.mission.MissionServices
 import app.morrow.weather.OpenMeteoGeocoder
@@ -43,6 +46,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.TimeZone
+import platform.Foundation.NSBundle
 import platform.Foundation.NSLocale
 import platform.Foundation.NSLocaleCountryCode
 import platform.Foundation.NSNotificationCenter
@@ -72,6 +76,11 @@ object IosApp {
     /** The alarm whose mission to run, after its "Start mission" button opened the app. */
     val waking: StateFlow<Long?> = wakingAlarm.asStateFlow()
 
+    private val wakingTimersState = MutableStateFlow<List<Long>>(emptyList())
+
+    /** The timers whose alerts' "Open" button opened the app, for their done screen. */
+    val wakingTimers: StateFlow<List<Long>> = wakingTimersState.asStateFlow()
+
     fun start(alarmKit: AlarmKitBridge) {
         if (::alarmKit.isInitialized) return
         this.alarmKit = alarmKit
@@ -80,28 +89,36 @@ object IosApp {
         val repository = AlarmRepository(database.alarmDao())
         val coordinator = AlarmCoordinator(repository, IosAlarmScheduler(alarmKit) { sound })
         val themeClock = ThemeClock(scope)
-        val permissions = IosPermissionGate(alarmKit)
+        val location = IosLocationProvider()
+        val permissions = IosPermissionGate(alarmKit, location)
+        // Nothing may use these while weather is off.
+        val http = IosHttpClient(appVersion())
         val scanner = IosCodeScanner()
         val missions = MissionServices(settings, IosMotionSensor(), scanner)
         val catalog = bundledCityCatalog()
         val cities = CityRepository(database.savedCityDao(), catalog) { TimeZone.currentSystemDefault().id }
-        val citySearch = CitySearch(catalog, OpenMeteoGeocoder(NoHttpClientYet), database.citySearchCacheDao(), settings.weatherEnabled, Clock.System)
+        val citySearch = CitySearch(catalog, OpenMeteoGeocoder(http), database.citySearchCacheDao(), settings.weatherEnabled, Clock.System)
         val weather = WeatherRepository(
-            settings, cities, catalog, NoLocationYet, OpenMeteoSource(NoHttpClientYet, Clock.System), database.weatherCacheDao(), Clock.System,
+            settings, cities, catalog, location, OpenMeteoSource(http, Clock.System), database.weatherCacheDao(), Clock.System,
             phoneZone = { TimeZone.currentSystemDefault().id },
             scope = scope,
         )
         val country = NSLocale.currentLocale.objectForKey(NSLocaleCountryCode) as? String
-        val timers = TimerCoordinator(TimerRepository(database.timerDao()), NoTimerSchedulerYet, NoTimerNotifierYet)
+        val timers = TimerCoordinator(TimerRepository(database.timerDao()), IosTimerScheduler(alarmKit), IosTimerNotifier)
+        val speaker = IosSpeaker()
         services = MorrowServices(
             repository, coordinator, themeClock, settings, permissions, IosAlarmSound(), missions, cities, catalog, citySearch, weather,
             phoneCountry = country.orEmpty(),
+            speaker = speaker,
             timers = timers,
         )
         // At launch, trust that each alarm reached AlarmKit when it was saved.
         inSync = alarmKit.authorized
 
         settings.pinnedTheme.onEach(themeClock::pin).launchIn(scope)
+        settings.voiceId.onEach(speaker::setVoice).launchIn(scope)
+        // Catches a timer stopped on its alert while Morrow is open.
+        alarmKit.watch { syncTimers() }
         settings.alarmSetup.map { it.sound }.distinctUntilChanged()
             .onEach { sound = it }
             .drop(1)
@@ -118,6 +135,7 @@ object IosApp {
             permissions.refresh()
             scanner.refresh()
             syncAlarms()
+            syncTimers()
         }
         center.addObserverForName(UIApplicationDidEnterBackgroundNotification, null, NSOperationQueue.mainQueue) { _ ->
             themeClock.pause()
@@ -139,6 +157,18 @@ object IosApp {
     }
 
     /**
+     * Called by a timer alert's "Open" button, before it stops the alert, so that [syncTimers] doesn't take the timer
+     * for one stopped on its alert.
+     */
+    fun wakeTimer(timerId: Long) {
+        if (timerId !in wakingTimersState.value) wakingTimersState.value += timerId
+    }
+
+    fun timersWoken() {
+        wakingTimersState.value = emptyList()
+    }
+
+    /**
      * Keeps AlarmKit in step with the stored alarms. AlarmKit rings and stops alarms without telling Morrow,
      * so this catches up with the ones that rang while it was closed.
      */
@@ -152,8 +182,20 @@ object IosApp {
                     coordinator.rescheduleAll()
                     inSync = true
                 }
-                else -> coordinator.catchUp(alarmKit.scheduledIds().map(::alarmIdOf).toSet())
+                else -> coordinator.catchUp(alarmKit.scheduledIds().filterNot(::isTimerAlarmKitId).map(::alarmIdOf).toSet())
             }
         }
     }
+
+    /**
+     * Keeps the stored timers in step with AlarmKit, which rings them and lets the user stop them on its alert without
+     * telling Morrow. Timers opened from their alerts are left for their done screen.
+     */
+    private fun syncTimers() = scope.launch {
+        if (!alarmKit.authorized) return@launch
+        val held = alarmKit.scheduledIds().filter(::isTimerAlarmKitId).map(::timerIdOf)
+        services.timers.catchUp((held + wakingTimersState.value).toSet())
+    }
+
+    private fun appVersion(): String = NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String ?: "0"
 }

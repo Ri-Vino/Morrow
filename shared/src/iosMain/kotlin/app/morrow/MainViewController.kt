@@ -7,6 +7,7 @@ import app.morrow.ui.MorrowApp
 
 fun MainViewController() = ComposeUIViewController {
     val waking by IosApp.waking.collectAsState()
+    val wakingTimers by IosApp.wakingTimers.collectAsState()
     MorrowApp(
         services = IosApp.services,
         developerTools = null,
@@ -14,5 +15,7 @@ fun MainViewController() = ComposeUIViewController {
         onSystemBarsChange = {},
         waking = waking,
         onWoken = IosApp::woken,
+        wakingTimers = wakingTimers,
+        onTimersWoken = IosApp::timersWoken,
     )
 }

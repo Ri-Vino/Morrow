@@ -26,6 +26,10 @@
 	<string>Morrow sets your alarms so they ring on time, even when the app is closed.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Morrow uses the camera only during a Scan mission, to read the code you chose.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Morrow uses your rough location only while it's open, for your local weather.</string>
+	<key>NSLocationDefaultAccuracyReduced</key>
+	<true/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UILaunchScreen</key>

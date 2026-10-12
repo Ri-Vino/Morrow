@@ -2,6 +2,7 @@ package app.morrow.permissions
 
 import app.morrow.alarm.AlarmKitBridge
 import app.morrow.platform.AlarmPermission
+import app.morrow.platform.IosLocationProvider
 import app.morrow.platform.IosPermissions
 import app.morrow.platform.PermissionGate
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,22 +12,34 @@ import platform.Foundation.NSURL
 import platform.UIKit.UIApplication
 import platform.UIKit.UIApplicationOpenSettingsURLString
 
-class IosPermissionGate(private val alarmKit: AlarmKitBridge) : PermissionGate {
+/** AlarmKit's permission, which alarms and timers need, and location "while using", which the weather may use. */
+class IosPermissionGate(private val alarmKit: AlarmKitBridge, private val location: IosLocationProvider) : PermissionGate {
 
     override val asked: List<AlarmPermission> = IosPermissions
     private val state = MutableStateFlow(check())
     override val missing: StateFlow<List<AlarmPermission>> = state.asStateFlow()
+
+    init {
+        location.onAuthorizationChange = ::refresh
+    }
 
     override fun refresh() {
         state.value = check()
     }
 
     override fun request(permission: AlarmPermission) {
-        if (permission != AlarmPermission.ALARMS) return
-        if (alarmKit.canAsk) alarmKit.requestAuthorization { refresh() } else openAppSettings()
+        when (permission) {
+            AlarmPermission.ALARMS -> if (alarmKit.canAsk) alarmKit.requestAuthorization { refresh() } else openAppSettings()
+            // Location stays optional, so once it has been answered, the Allow button opens Settings to change it.
+            AlarmPermission.LOCATION -> if (location.canAsk) location.requestWhenInUse() else openAppSettings()
+            else -> Unit
+        }
     }
 
-    private fun check(): List<AlarmPermission> = if (alarmKit.authorized) emptyList() else IosPermissions
+    private fun check(): List<AlarmPermission> = buildList {
+        if (!alarmKit.authorized) add(AlarmPermission.ALARMS)
+        if (!location.allowed) add(AlarmPermission.LOCATION)
+    }
 }
 
 /** Morrow's page in the Settings app, where a permission that was refused can be allowed. */

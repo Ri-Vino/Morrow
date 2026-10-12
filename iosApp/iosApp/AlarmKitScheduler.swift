@@ -4,13 +4,14 @@ import Foundation
 import Shared
 import SwiftUI
 
-/// Morrow's alarms in AlarmKit, which rings them like the Clock app's, even with Morrow closed.
+/// Morrow's alarms and timers in AlarmKit, which rings them like the Clock app's, even with Morrow closed.
 final class AlarmKitScheduler: NSObject, AlarmKitBridge {
     private let manager = AlarmManager.shared
 
     /// AlarmKit schedules asynchronously, so changes queue up in order, and ids being handed over count as scheduled.
     private var queue: Task<Void, Never>?
     private var pending: [Int64: Int] = [:]
+    private var watching: Task<Void, Never>?
 
     var authorized: Bool { manager.authorizationState == .authorized }
 
@@ -39,7 +40,7 @@ final class AlarmKitScheduler: NSObject, AlarmKitBridge {
     private func submit(id: Int64, alarmID morrowAlarm: Int64, label: String, schedule: Alarm.Schedule, sound: String) {
         let alert = AlarmPresentation.Alert(
             title: LocalizedStringResource(stringLiteral: label),
-            stopButton: AlarmButton(text: "Stop", textColor: .white, systemImageName: "stop.fill"),
+            stopButton: Self.stopButton,
             secondaryButton: AlarmButton(text: "Start mission", textColor: .white, systemImageName: "sun.max.fill"),
             secondaryButtonBehavior: .custom
         )
@@ -50,6 +51,66 @@ final class AlarmKitScheduler: NSObject, AlarmKitBridge {
             secondaryIntent: StartMissionIntent(alarmID: String(morrowAlarm)),
             sound: .named(sound)
         )
+        handOver(id: id, configuration: configuration)
+    }
+
+    /// A timer: a countdown on the Lock Screen and in the Dynamic Island (MorrowWidgets draws it), then an alert whose
+    /// "Open" button opens Morrow on the timer, where Pip reads its note.
+    func startCountdown(id: Int64, timerId: Int64, title: String, seconds: Double, sound: String) {
+        handOver(id: id, configuration: Self.countdown(id: id, timerId: timerId, title: title, seconds: seconds, sound: sound))
+    }
+
+    func pauseCountdown(id: Int64, timerId: Int64, title: String, seconds: Double, sound: String) {
+        let alarmID = Self.uuid(for: id)
+        let configuration = Self.countdown(id: id, timerId: timerId, title: title, seconds: seconds, sound: sound)
+        pending[id, default: 0] += 1
+        enqueue {
+            let counting = ((try? AlarmManager.shared.alarms) ?? []).contains { $0.id == alarmID && $0.state == .countdown }
+            if !counting {
+                // Lost, or given a minute while paused: a new countdown for what's left, held straight away.
+                try? AlarmManager.shared.cancel(id: alarmID)
+                do {
+                    _ = try await AlarmManager.shared.schedule(id: alarmID, configuration: configuration)
+                } catch {
+                    print("Morrow: couldn't hand over timer \(timerId): \(error)")
+                    return
+                }
+            }
+            try? AlarmManager.shared.pause(id: alarmID)
+        } then: { [weak self] in
+            self?.settle(id)
+        }
+    }
+
+    private static func countdown(id: Int64, timerId: Int64, title: String, seconds: Double, sound: String)
+        -> AlarmManager.AlarmConfiguration<MorrowAlarm>
+    {
+        let name = LocalizedStringResource(stringLiteral: title)
+        let alert = AlarmPresentation.Alert(
+            title: name,
+            stopButton: stopButton,
+            secondaryButton: AlarmButton(text: "Open", textColor: .white, systemImageName: "sun.max.fill"),
+            secondaryButtonBehavior: .custom
+        )
+        // Pausing and resuming happen in Morrow, which keeps the time left; these only label the system's own views.
+        let presentation = AlarmPresentation(
+            alert: alert,
+            countdown: AlarmPresentation.Countdown(title: name),
+            paused: AlarmPresentation.Paused(
+                title: "Paused",
+                resumeButton: AlarmButton(text: "Resume", textColor: .white, systemImageName: "play.fill")
+            )
+        )
+        let attributes = AlarmAttributes<MorrowAlarm>(presentation: presentation, tintColor: sunrise)
+        return .timer(
+            duration: max(seconds, 1),
+            attributes: attributes,
+            secondaryIntent: OpenTimerIntent(alarmID: uuid(for: id).uuidString, timerID: String(timerId)),
+            sound: .named(sound)
+        )
+    }
+
+    private func handOver(id: Int64, configuration: AlarmManager.AlarmConfiguration<MorrowAlarm>) {
         let alarmID = Self.uuid(for: id)
         pending[id, default: 0] += 1
         enqueue {
@@ -57,6 +118,7 @@ final class AlarmKitScheduler: NSObject, AlarmKitBridge {
             do {
                 _ = try await AlarmManager.shared.schedule(id: alarmID, configuration: configuration)
             } catch {
+                // AlarmKit has no fixed limit on alarms, but may refuse more with maximumLimitReached.
                 print("Morrow: couldn't schedule alarm \(id): \(error)")
             }
         } then: { [weak self] in
@@ -74,6 +136,15 @@ final class AlarmKitScheduler: NSObject, AlarmKitBridge {
         return Set(held).union(pending.keys).map { KotlinLong(value: $0) }
     }
 
+    func watch(onChange: @escaping () -> Void) {
+        watching?.cancel()
+        watching = Task { @MainActor in
+            for await _ in AlarmManager.shared.alarmUpdates {
+                onChange()
+            }
+        }
+    }
+
     private func enqueue(_ work: @escaping () async -> Void, then done: @escaping @MainActor () -> Void) {
         let previous = queue
         queue = Task { @MainActor in
@@ -88,10 +159,11 @@ final class AlarmKitScheduler: NSObject, AlarmKitBridge {
         pending[id] = count > 0 ? count : nil
     }
 
-    /// Morrow's ids, its alarms' and their dates', fit in 48 bits; AlarmKit's are UUIDs. This prefix marks Morrow's.
+    /// Morrow's ids, its alarms', their dates' and its timers', fit in 48 bits; AlarmKit's are UUIDs. This prefix marks
+    /// Morrow's. Timers have the top bit set (see TimerAlarmIds.kt), so they never clash with the others.
     private static let prefix = "4D4F5252-4F57-4000-8000-"
 
-    private static func uuid(for id: Int64) -> UUID {
+    static func uuid(for id: Int64) -> UUID {
         UUID(uuidString: prefix + String(format: "%012llX", id))!
     }
 
@@ -114,8 +186,9 @@ final class AlarmKitScheduler: NSObject, AlarmKitBridge {
         }
     }
 
+    // AlarmKit draws its own Stop from iOS 26.1; this one shows on 26.0.
+    private static let stopButton = AlarmButton(text: "Stop", textColor: .white, systemImageName: "stop.fill")
+
     /// Pip's sun, #F5A65B (Illustration.sun), the Ring screen's accent, for the alarm's buttons.
     private static let sunrise = Color(red: 245 / 255, green: 166 / 255, blue: 91 / 255)
 }
-
-struct MorrowAlarm: AlarmMetadata {}

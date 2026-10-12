@@ -175,6 +175,46 @@ class TimerCoordinator(
         miss(found.missed, if (afterReboot) MissedReason.PHONE_OFF else MissedReason.TOO_LATE)
     }
 
+    /**
+     * For iOS, where the system rings timers itself, and where Stop on its alert stops one without Morrow hearing.
+     * Given the timers the system still holds: a running timer it no longer holds has ended there if its end has come,
+     * so it's removed, and was lost if not, so it's handed over again; a paused one it lost is handed over paused.
+     * Ringing timers, and any in [stillScheduled], are left alone. Use this in place of [rescheduleAll] on iOS, which
+     * would ring again a timer already stopped on its alert.
+     */
+    suspend fun catchUp(stillScheduled: Set<Long>) = lock.withLock {
+        val held = held()
+        val now = clock.now()
+        repository.getAll()
+            .filter { it.id !in held && it.id !in stillScheduled }
+            .forEach {
+                when {
+                    !it.running -> scheduler.pause(it)
+                    it.hasEnded(now) -> {
+                        notifier.hide(it.id)
+                        repository.delete(it.id)
+                    }
+                    else -> {
+                        scheduler.schedule(it)
+                        notifier.show(it)
+                    }
+                }
+            }
+    }
+
+    /**
+     * For iOS: the user opened Morrow from the alerts of [ids], which the system rang. Those that have ended join
+     * [ringing], however long ago, since the system rang them until now; the rest are left as they are. Returns [ringing].
+     */
+    suspend fun openFromAlert(ids: Set<Long>): List<Timer> = lock.withLock {
+        val held = held()
+        val now = clock.now()
+        val opened = repository.getAll().filter { it.id in ids && it.id !in held && it.hasEnded(now) }
+        opened.forEach { notifier.hide(it.id) }
+        ringingState.value = (ringingState.value + opened).sortedBy { it.endsAt }
+        ringingState.value
+    }
+
     private suspend fun change(id: Long, update: (Timer, Instant) -> Timer) = lock.withLock {
         val timer = repository.get(id) ?: return@withLock
         val changed = update(timer, clock.now())
@@ -182,7 +222,7 @@ class TimerCoordinator(
         repository.save(changed)
         // A ringing or waiting timer given another minute is running again.
         forget(setOf(id))
-        if (changed.running) scheduler.schedule(changed) else scheduler.cancel(id)
+        if (changed.running) scheduler.schedule(changed) else scheduler.pause(changed)
         notifier.show(changed)
     }
 

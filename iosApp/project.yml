@@ -15,6 +15,10 @@ targets:
     platform: iOS
     sources:
       - path: iosApp
+      - path: Common
+    dependencies:
+      # Embedded in the app: AlarmKit's countdowns need its Live Activity.
+      - target: MorrowWidgets
     scheme: {}
     preBuildScripts:
       - name: Build the shared Kotlin framework
@@ -31,3 +35,15 @@ targets:
         ENABLE_USER_SCRIPT_SANDBOXING: NO
         FRAMEWORK_SEARCH_PATHS: ["$(inherited)", "$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"]
         OTHER_LDFLAGS: ["$(inherited)", "-framework", "Shared"]
+  # The timers' countdown on the Lock Screen and in the Dynamic Island. Swift only; it doesn't use the Kotlin framework.
+  MorrowWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: MorrowWidgets
+      - path: Common
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.morrow.widgets
+        INFOPLIST_FILE: MorrowWidgets/Info.plist
+        TARGETED_DEVICE_FAMILY: "1"

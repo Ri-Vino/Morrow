@@ -13,5 +13,11 @@ interface TimerScheduler {
      */
     fun schedule(timer: Timer)
 
+    /**
+     * Holds [timer], just paused or given a minute while paused, so it doesn't ring. By default the OS simply forgets
+     * it, and [schedule] hands it over again on resuming; iOS keeps it, paused, so the Lock Screen can show what's left.
+     */
+    fun pause(timer: Timer) = cancel(timer.id)
+
     fun cancel(timerId: Long)
 }
