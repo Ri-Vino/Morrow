@@ -21,12 +21,16 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.morrow.theme.MorrowTheme
+import app.morrow.theme.mix
 
 /** The design's on/off switch: 54 × 32, inside a 48 dp tall touch target. */
 @Composable
 fun MorrowToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit, contentDescription: String, modifier: Modifier = Modifier) {
     val colors = MorrowTheme.colors
     val track by animateColorAsState(if (checked) colors.accent else colors.line)
+    // On, an outline in the highlight colour so "on" still reads in the light themes. Off, a darker outline, since
+    // the bare track is too close to the cards behind it to see.
+    val outline by animateColorAsState(if (checked) colors.hi else mix(colors.line, colors.muted, 0.7f))
     val knob by animateColorAsState(if (checked) colors.onAccent else colors.knobOff)
     val knobOffset by animateDpAsState(if (checked) 22.dp else 0.dp, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
     Box(
@@ -40,8 +44,7 @@ fun MorrowToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit, contentDe
             Modifier
                 .size(54.dp, 32.dp)
                 .background(track, CircleShape)
-                // An outline in the highlight colour so "on" still reads in the light themes.
-                .then(if (checked) Modifier.border(2.dp, colors.hi, CircleShape) else Modifier),
+                .border(2.dp, outline, CircleShape),
         ) {
             Box(
                 Modifier

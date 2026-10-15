@@ -269,7 +269,9 @@ private fun SleepCardView(card: SleepCard, theme: ThemeKind, onTrySunrise: () ->
 private fun AlarmRowView(row: AlarmRow, actions: HomeActions) {
     val colors = MorrowTheme.colors
     val shape = RoundedCornerShape(24.dp)
-    val alpha by animateFloatAsState(if (row.enabled) 1f else 0.45f, tween(350))
+    // Only the big time fades for an alarm that's off, and only as far as large text stays readable (3:1). The
+    // smaller text keeps its colour; the switch says it's off.
+    val alpha by animateFloatAsState(if (row.enabled) 1f else 0.6f, tween(350))
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -285,11 +287,10 @@ private fun AlarmRowView(row: AlarmRow, actions: HomeActions) {
                 .clip(RoundedCornerShape(20.dp))
                 .pressable({ actions.onOpenAlarm(row.id) }, onClickLabel = "Edit alarm")
                 .semantics(mergeDescendants = true) {}
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .alpha(alpha),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.alpha(alpha), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 BasicText(row.time, style = MorrowTheme.type.display.copy(color = colors.text))
                 MorrowIcon(if (row.sunUp) Icons.Sun else Icons.Moon, colors.hi)
             }
@@ -303,7 +304,6 @@ private fun AlarmRowView(row: AlarmRow, actions: HomeActions) {
         }
         Row(
             modifier = Modifier
-                .alpha(alpha)
                 .background(colors.surface2, RoundedCornerShape(12.dp))
                 .padding(horizontal = 12.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,

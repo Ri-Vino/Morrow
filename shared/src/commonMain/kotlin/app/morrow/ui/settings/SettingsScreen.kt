@@ -371,6 +371,7 @@ private fun <T> SegmentedControl(
             val on = option == selected
             val fill by animateColorAsState(if (on) colors.accent else Color.Transparent)
             val content by animateColorAsState(if (on) colors.onAccent else colors.muted)
+            val outline by animateColorAsState(if (on) colors.hi else Color.Transparent)
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -378,6 +379,7 @@ private fun <T> SegmentedControl(
                     .selectable(on, role = Role.RadioButton) { onSelect(option) }
                     .then(if (description != null) Modifier.semantics { contentDescription = description(option) } else Modifier)
                     .background(fill, CircleShape)
+                    .border(2.dp, outline, CircleShape)
                     .padding(horizontal = 4.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center,
             ) {

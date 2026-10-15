@@ -93,10 +93,13 @@ private fun RowScope.TabItem(tab: Tab, index: Int, selected: Boolean, onClick: (
     val content = if (selected) colors.onAccent else colors.muted
     // Big text no longer fits beside the icon in a third of the bar, so it goes underneath.
     val stacked = LocalDensity.current.fontScale > 1.3f
+    val shape = RoundedCornerShape(26.dp)
     val itemModifier = Modifier
         .weight(1f)
         .heightIn(min = 52.dp)
-        .background(if (selected) colors.accent else colors.surface, RoundedCornerShape(26.dp))
+        .background(if (selected) colors.accent else colors.surface, shape)
+        // The fill alone is too faint against the bar in the light themes; the outline, as on the switches, marks it.
+        .then(if (selected) Modifier.border(2.dp, colors.hi, shape) else Modifier)
         .selectable(selected, role = Role.Tab, onClick = onClick)
         .semantics { collectionItemInfo = CollectionItemInfo(rowIndex = 0, rowSpan = 1, columnIndex = index, columnSpan = 1) }
         .padding(horizontal = 4.dp)
