@@ -37,7 +37,7 @@ class CityCardTest {
 
     private var clicks = 0
 
-    private val rain = CardWeather(Sky.RAIN, night = false, conditions = "12° Rain", highLow = "H 14°  L 8°", spoken = "12° and rain")
+    private val rain = CardWeather(Sky.RAIN, night = false, conditions = "12° Rain", spoken = "12° and rain")
 
     private fun show(isHome: Boolean = true, name: String = "London", fontScale: Float = 1f, weather: CardWeather? = null) {
         compose.setContent {
@@ -68,33 +68,32 @@ class CityCardTest {
     }
 
     @Test
-    fun withWeatherACardShowsTheTemperatureConditionAndHighAndLow() {
+    fun withWeatherACardShowsTheTemperatureAndCondition() {
         show(weather = rain)
 
         compose.onNodeWithText("12° Rain", useUnmergedTree = true).assertIsDisplayed()
-        compose.onNodeWithText("H 14°  L 8°", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithContentDescription("London, home city, 07:40, Today · your time, 12° and rain").assertExists()
         compose.onAllNodes(hasClickAction()).assertCountEquals(1)
     }
 
     @Test
-    fun theWeatherSitsAlongTheBottomUnderTheNameAndTheClock() {
+    fun theWeatherFollowsTheRelativeDayUnderTheNameWithTheClockBeside() {
         show(weather = rain)
 
+        val name = bounds("London")
         val relative = bounds("Today · your time")
         val conditions = bounds("12° Rain")
         val clock = bounds("07:40")
-        val highLow = bounds("H 14°  L 8°")
-        assertTrue(conditions.top >= relative.bottom, "The condition should be below the relative day")
-        assertTrue(highLow.top >= clock.bottom, "The high and low should be below the clock")
-        assertTrue(!overlap(conditions, highLow), "The condition runs into the high and low")
+        assertTrue(relative.top >= name.bottom, "The relative day should be under the name")
+        assertTrue(conditions.left >= relative.right, "The condition should follow the relative day")
+        assertTrue(clock.left >= conditions.right, "The clock should be to the right of the words")
     }
 
     @Test
     fun atDoubleTextSizeTheWeatherIsStillShownAndNothingOverlaps() {
         show(fontScale = 2f, weather = rain)
 
-        val texts = listOf("London", "Home", "Today · your time", "07:40", "12° Rain", "H 14°  L 8°")
+        val texts = listOf("London", "Today · your time", "07:40", "12° Rain")
         texts.forEach { compose.onNodeWithText(it, useUnmergedTree = true).assertIsDisplayed() }
         val rows = texts.map(::bounds)
         for (i in rows.indices) for (j in i + 1 until rows.size) {
@@ -108,21 +107,12 @@ class CityCardTest {
     private fun overlap(a: DpRect, b: DpRect) = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
 
     @Test
-    fun showsTheNameChipRelativeDayAndClock() {
+    fun showsTheNameRelativeDayAndClock() {
         show()
 
         compose.onNodeWithText("London", useUnmergedTree = true).assertIsDisplayed()
-        compose.onNodeWithText("Home", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText("Today · your time", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText("07:40", useUnmergedTree = true).assertIsDisplayed()
-    }
-
-    @Test
-    fun onlyTheHomeCityHasTheChip() {
-        show(isHome = false, name = "New York")
-
-        compose.onNodeWithText("New York", useUnmergedTree = true).assertIsDisplayed()
-        compose.onNodeWithText("Home", useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test
@@ -156,13 +146,12 @@ class CityCardTest {
         show(fontScale = 2f)
 
         val name = bounds("London")
-        val chip = bounds("Home")
         val relative = bounds("Today · your time")
         val clock = bounds("07:40")
-        listOf("London", "Home", "Today · your time", "07:40").forEach {
+        listOf("London", "Today · your time", "07:40").forEach {
             compose.onNodeWithText(it, useUnmergedTree = true).assertIsDisplayed()
         }
-        val rows = listOf(name, chip, relative, clock)
+        val rows = listOf(name, relative, clock)
         for (i in rows.indices) for (j in i + 1 until rows.size) {
             assertTrue(!overlap(rows[i], rows[j]), "Text $i overlaps text $j: ${rows[i]} and ${rows[j]}")
         }

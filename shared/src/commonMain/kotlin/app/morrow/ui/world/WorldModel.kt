@@ -21,8 +21,6 @@ import kotlin.time.Instant
 
 /** Everything the World tab shows, worked out from the saved cities, their weather and the time. */
 data class WorldModel(
-    /** "Your time 07:40 · London"; the screen sets it in capitals. */
-    val header: String,
     val cards: List<WorldCard>,
     /** Under the cards: who the weather is from and how old it is, or why there's none. Null until the weather loads. */
     val footer: String? = null,
@@ -49,8 +47,6 @@ data class CardWeather(
     val night: Boolean,
     /** "12° Rain". */
     val conditions: String,
-    /** "H 14°  L 8°", for the day it is in the city; null when the forecast doesn't have that day. */
-    val highLow: String?,
     /** "12° and rain", for screen readers. */
     val spoken: String,
 )
@@ -94,13 +90,7 @@ fun worldModel(
     weather: WeatherState? = null,
     units: Units = Units.CELSIUS,
 ): WorldModel {
-    val home = cities.firstOrNull { it.isHome }
-    val header = buildString {
-        append("Your time ").append(cityClock(now, phoneZone))
-        if (home != null) append(" · ").append(home.city.name)
-    }
     return WorldModel(
-        header = header,
         cards = cities.mapIndexed { index, saved ->
             val zone = zoneOf(saved.city, phoneZone)
             val minute = cityMinute(now, zone)
@@ -171,7 +161,6 @@ private fun cardWeather(forecast: Forecast, now: Instant, minute: Int, units: Un
         sky = conditions.sky,
         night = sunElevation(minute.toFloat()) < 0,
         conditions = "$temperature ${conditions.sky.displayName}",
-        highLow = forecast.dayAt(now)?.let { day -> "H ${degrees(day.high, units)}  L ${degrees(day.low, units)}" },
         spoken = "$temperature and ${conditions.sky.displayName.lowercase()}",
     )
 }

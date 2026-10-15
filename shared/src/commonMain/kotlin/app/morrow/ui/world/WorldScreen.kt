@@ -88,7 +88,7 @@ private fun WorldContent(model: WorldModel, actions: WorldActions, modifier: Mod
             .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 184.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Header(model.header, actions.onAddCity)
+        Header(actions.onAddCity)
         CityCards(model.cards, actions)
         model.footer?.let {
             BasicText(
@@ -101,20 +101,20 @@ private fun WorldContent(model: WorldModel, actions: WorldActions, modifier: Mod
 }
 
 @Composable
-private fun Header(label: String, onAddCity: () -> Unit) {
+private fun Header(onAddCity: () -> Unit) {
     val colors = MorrowTheme.colors
     Row(
         modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.Top,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            BasicText(label.uppercase(), style = MorrowTheme.type.label.copy(color = colors.muted))
-            BasicText("World", style = MorrowTheme.type.display.copy(color = colors.text), modifier = Modifier.semantics { heading() })
-        }
+        BasicText(
+            "World",
+            style = MorrowTheme.type.display.copy(color = colors.text),
+            modifier = Modifier.weight(1f).semantics { heading() },
+        )
         Box(
             modifier = Modifier
-                .padding(top = 4.dp)
                 .size(44.dp)
                 .pressable(onAddCity)
                 .background(colors.surface, CircleShape)

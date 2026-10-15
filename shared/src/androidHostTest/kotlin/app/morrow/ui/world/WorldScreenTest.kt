@@ -122,11 +122,10 @@ class WorldScreenTest {
     }
 
     @Test
-    fun withWeatherOnCardsShowTheTemperatureConditionAndHighAndLow() {
+    fun withWeatherOnCardsShowTheTemperatureAndCondition() {
         show(world.weather())
 
         compose.onNodeWithText("12° Rain", useUnmergedTree = true).assertIsDisplayed()
-        compose.onNodeWithText("H 14°  L 8°", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText("21° Partly cloudy", useUnmergedTree = true).assertExists()
         compose.onNodeWithContentDescription("$londonCard, 12° and rain").assertExists()
         compose.onNodeWithContentDescription("$newYorkCard, 11° and clear").assertExists()
@@ -138,7 +137,6 @@ class WorldScreenTest {
         show(world.weather(), Units.FAHRENHEIT)
 
         compose.onNodeWithText("54° Rain", useUnmergedTree = true).assertIsDisplayed()
-        compose.onNodeWithText("H 57°  L 46°", useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test
@@ -187,7 +185,6 @@ class WorldScreenTest {
     fun showsTheSavedCitiesInOrderWithTheirTimes() {
         show()
 
-        compose.onNodeWithText("YOUR TIME 07:40 · LONDON").assertIsDisplayed()
         compose.onNodeWithText("World").assertIsDisplayed()
         val tops = listOf(londonCard, tokyoCard, newYorkCard).map { compose.onNodeWithContentDescription(it).getBoundsInRoot().top }
         assertTrue(tops[0] < tops[1] && tops[1] < tops[2], "Cards should run London, Tokyo, New York, but their tops are $tops")
@@ -241,7 +238,7 @@ class WorldScreenTest {
     }
 
     @Test
-    fun makeHomeCityMovesTheChipAndTheHeader() {
+    fun makeHomeCityMovesHome() {
         show()
         compose.onNodeWithContentDescription(tokyoCard).performClick()
 
@@ -250,7 +247,6 @@ class WorldScreenTest {
         compose.waitForIdle()
         assertEquals("Tokyo", runBlocking { world.cities.home() }?.city?.name)
         compose.onNodeWithText("Make home city").assertDoesNotExist()
-        compose.onNodeWithText("YOUR TIME 07:40 · TOKYO").assertIsDisplayed()
         compose.onNodeWithContentDescription("Tokyo, home city, 16:40, Today · +9 h").assertExists()
         compose.onNodeWithContentDescription("London, 07:40, Today · your time").assertExists()
     }

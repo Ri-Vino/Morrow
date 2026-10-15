@@ -38,29 +38,6 @@ class WorldModelTest {
     private val saved = listOf(SavedCity(londonCity, isHome = true), SavedCity(tokyo, false), SavedCity(newYork, false))
 
     @Test
-    fun theHeaderNamesThePhonesTimeAndTheHomeCity() {
-        assertEquals("Your time 07:40 · London", worldModel(saved, now, london).header)
-    }
-
-    @Test
-    fun theHeaderFollowsTheHomeCityWhereverItIsInTheList() {
-        val model = worldModel(listOf(SavedCity(tokyo, false), SavedCity(newYork, isHome = true)), now, london)
-        assertEquals("Your time 07:40 · New York City", model.header)
-    }
-
-    @Test
-    fun theHeaderIsJustTheTimeWithNoHomeCity() {
-        assertEquals("Your time 07:40", worldModel(emptyList(), now, london).header)
-        assertEquals("Your time 07:40", worldModel(listOf(SavedCity(tokyo, false)), now, london).header)
-    }
-
-    @Test
-    fun theHeaderUsesThePhonesZoneNotTheHomeCitys() {
-        val phone = TimeZone.of("Asia/Tokyo")
-        assertEquals("Your time 16:40 · London", worldModel(saved, now, phone).header)
-    }
-
-    @Test
     fun cardsKeepTheSavedOrderWithEachCitysOwnTime() {
         val cards = worldModel(saved, now, london).cards
 
@@ -159,7 +136,6 @@ class WorldModelTest {
         val cards = worldModel(saved, now, london, weather()).cards
 
         assertEquals(listOf("12° Rain", "21° Partly cloudy", "11° Clear"), cards.map { it.weather?.conditions })
-        assertEquals(listOf("H 14°  L 8°", "H 23°  L 16°", "H 17°  L 9°"), cards.map { it.weather?.highLow })
         assertEquals(listOf(Sky.RAIN, Sky.PARTLY_CLOUDY, Sky.CLEAR), cards.map { it.weather?.sky })
         assertEquals("12° and rain", cards[0].weather?.spoken)
         assertEquals("21° and partly cloudy", cards[1].weather?.spoken)
@@ -183,7 +159,6 @@ class WorldModelTest {
         val card = worldModel(saved, small, london, state).cards.first()
         val sheet = citySheet(saved.first(), small, london, state)
 
-        assertEquals("H 10°  L 3°", card.weather?.highLow)
         assertEquals("High 10° · Low 3° · 20% chance of rain", sheet.day)
     }
 
@@ -191,7 +166,6 @@ class WorldModelTest {
     fun cardsCanShowFahrenheit() {
         val card = worldModel(saved, now, london, weather(), Units.FAHRENHEIT).cards.first()
         assertEquals("54° Rain", card.weather?.conditions)
-        assertEquals("H 57°  L 46°", card.weather?.highLow)
     }
 
     @Test
