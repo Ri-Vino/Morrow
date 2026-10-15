@@ -28,18 +28,18 @@ final class AlarmKitScheduler: NSObject, AlarmKitBridge {
 
     func schedule(id: Int64, label: String, hour: Int32, minute: Int32, isoDays: [KotlinInt], sound: String) {
         let days = isoDays.compactMap { Self.weekday($0.int32Value) }
-        let time = Alarm.Schedule.Relative.Time(hour: Int(hour), minute: Int(minute))
-        let schedule = Alarm.Schedule.relative(.init(time: time, repeats: days.isEmpty ? .never : .weekly(days)))
+        let time = AlarmKit.Alarm.Schedule.Relative.Time(hour: Int(hour), minute: Int(minute))
+        let schedule = AlarmKit.Alarm.Schedule.relative(.init(time: time, repeats: days.isEmpty ? .never : .weekly(days)))
         submit(id: id, alarmID: id, label: label, schedule: schedule, sound: sound)
     }
 
     /// One date of an alarm on another city's clock. Its "Start mission" button wakes `alarmId`, the alarm it belongs to.
     func scheduleOnce(id: Int64, alarmId: Int64, label: String, epochSeconds: Int64, sound: String) {
-        let schedule = Alarm.Schedule.fixed(Date(timeIntervalSince1970: TimeInterval(epochSeconds)))
+        let schedule = AlarmKit.Alarm.Schedule.fixed(Date(timeIntervalSince1970: TimeInterval(epochSeconds)))
         submit(id: id, alarmID: alarmId, label: label, schedule: schedule, sound: sound)
     }
 
-    private func submit(id: Int64, alarmID morrowAlarm: Int64, label: String, schedule: Alarm.Schedule, sound: String) {
+    private func submit(id: Int64, alarmID morrowAlarm: Int64, label: String, schedule: AlarmKit.Alarm.Schedule, sound: String) {
         let alert = AlarmPresentation.Alert(
             title: LocalizedStringResource(stringLiteral: label),
             stopButton: Self.stopButton,
@@ -149,7 +149,7 @@ final class AlarmKitScheduler: NSObject, AlarmKitBridge {
 
     func refusedIds() -> [KotlinLong] { refused.map { KotlinLong(value: $0) } }
 
-    private func ids(where wanted: (Alarm) -> Bool) -> [KotlinLong] {
+    private func ids(where wanted: (AlarmKit.Alarm) -> Bool) -> [KotlinLong] {
         ((try? manager.alarms) ?? []).filter(wanted).compactMap { Self.morrowID($0.id) }.map { KotlinLong(value: $0) }
     }
 

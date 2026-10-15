@@ -32,7 +32,12 @@ jobs:
       - name: Build the app for the simulator
         run: |
           set -o pipefail
-          xcodebuild build             -project iosApp/Morrow.xcodeproj             -scheme Morrow             -configuration Debug             -destination 'generic/platform=iOS Simulator'             CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log || {
+          xcodebuild build \
+            -project iosApp/Morrow.xcodeproj \
+            -scheme Morrow \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log || {
             grep -E '(error:|^e: )' build.log | sort -u | head -40 | while IFS= read -r line; do
               echo "::error::${line//$GITHUB_WORKSPACE\//}"
             done
