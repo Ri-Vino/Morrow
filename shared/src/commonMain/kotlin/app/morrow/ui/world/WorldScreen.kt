@@ -85,7 +85,7 @@ private fun WorldContent(model: WorldModel, actions: WorldActions, modifier: Mod
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
             .navigationBarsPadding()
-            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 184.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Header(actions.onAddCity)

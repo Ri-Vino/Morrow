@@ -89,7 +89,7 @@ fun HomeScreen(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: 
             Header(model, theme, minuteOfDay, actions, Modifier.onSizeChanged { headerHeight = with(density) { it.height.toDp() } })
             Column(
                 modifier = Modifier
-                    .padding(top = contentTop, start = 16.dp, end = 16.dp, bottom = 184.dp)
+                    .padding(top = contentTop, start = 16.dp, end = 16.dp, bottom = 96.dp)
                     .navigationBarsPadding(),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
@@ -124,7 +124,7 @@ fun HomeScreen(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: 
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
-                    .padding(end = 24.dp, bottom = 104.dp)
+                    .padding(end = 24.dp, bottom = 16.dp)
                     .shadow(14.dp, CircleShape, ambientColor = colors.shadow, spotColor = colors.shadow),
             )
         }

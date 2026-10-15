@@ -1,6 +1,11 @@
 package app.morrow.ui.tabs
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,7 +47,10 @@ enum class Tab(val label: String, val icon: String) {
 /** Keeps the chosen tab through rotation; by name, since not every platform can save an enum. */
 val TabSaver = Saver<Tab, String>(save = { it.name }, restore = { Tab.valueOf(it) })
 
-/** The three main screens with the bar floating over them; back from World or Timers returns to [Tab.ALARMS]. */
+/**
+ * The three main screens above the bar, which is docked to the bottom of the screen so nothing scrolls under it. Back
+ * from World or Timers returns to [Tab.ALARMS].
+ */
 @Composable
 fun TabHost(
     selected: Tab,
@@ -55,28 +63,32 @@ fun TabHost(
     alarms: @Composable () -> Unit,
 ) {
     PlatformBackHandler(enabled = selected != Tab.ALARMS, onBack = { onSelect(Tab.ALARMS) })
-    Box(modifier.fillMaxSize()) {
-        when (selected) {
-            Tab.ALARMS -> alarms()
-            Tab.WORLD -> world()
-            Tab.TIMERS -> timers()
+    Column(modifier.fillMaxSize().background(MorrowTheme.colors.bg)) {
+        // The bar takes the navigation bar's space, so the screen above it needn't leave room for it.
+        Box(Modifier.weight(1f).fillMaxWidth().then(if (barHidden) Modifier else Modifier.consumeWindowInsets(WindowInsets.navigationBars))) {
+            when (selected) {
+                Tab.ALARMS -> alarms()
+                Tab.WORLD -> world()
+                Tab.TIMERS -> timers()
+            }
         }
-        if (!barHidden) TabBar(selected, onSelect, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(24.dp))
+        if (!barHidden) TabBar(selected, onSelect)
     }
 }
 
-/** The floating bar that switches between the main screens. Place it 24 dp from the bottom and sides. */
+/** The bar that switches between the main screens, docked along the bottom edge and over the navigation bar. */
 @Composable
 fun TabBar(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier) {
     val colors = MorrowTheme.colors
-    val shape = RoundedCornerShape(32.dp)
+    val shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .shadow(14.dp, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
+            .shadow(16.dp, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
             .background(colors.surface, shape)
-            .border(1.dp, colors.line, shape)
-            .padding(6.dp)
+            .topEdge(colors.line)
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
             .heightIn(min = 52.dp)
             .semantics { collectionInfo = CollectionInfo(rowCount = 1, columnCount = Tab.entries.size) },
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -118,4 +130,10 @@ private fun RowScope.TabItem(tab: Tab, index: Int, selected: Boolean, onClick: (
 private fun TabContent(tab: Tab, content: Color) {
     MorrowIcon(tab.icon, content, size = 20.dp, strokeWidth = 2.2f)
     BasicText(tab.label, style = MorrowTheme.type.bodyStrong.copy(color = content), maxLines = 1)
+}
+
+/** A hairline along the top, where the bar meets the screen. */
+private fun Modifier.topEdge(color: Color) = drawBehind {
+    val corner = 28.dp.toPx()
+    drawLine(color, Offset(corner, 0f), Offset(size.width - corner, 0f), 1.dp.toPx())
 }

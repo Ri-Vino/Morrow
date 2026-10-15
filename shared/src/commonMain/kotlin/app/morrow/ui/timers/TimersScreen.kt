@@ -139,29 +139,12 @@ fun TimersScreen(model: TimersModel, actions: TimersActions, modifier: Modifier 
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
-                // Room to scroll the last card clear of the New timer button and the tab bar.
-                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 184.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Header(model.sub)
+            Header(model.sub, if (model.showNewTimer) actions.onNewTimer else null)
             model.setter?.let { TimerSetter(it, actions, onType = { typing = true }) }
             model.cards.forEach { card -> key(card.id) { TimerCardView(card, actions) } }
-        }
-        if (model.showNewTimer) {
-            PillButton(
-                text = "New timer",
-                onClick = actions.onNewTimer,
-                background = colors.accent,
-                content = colors.onAccent,
-                icon = Icons.Plus,
-                height = 56.dp,
-                padding = PaddingValues(start = 16.dp, end = 24.dp),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .navigationBarsPadding()
-                    .padding(end = 24.dp, bottom = 104.dp)
-                    .shadow(14.dp, CircleShape, ambientColor = colors.shadow, spotColor = colors.shadow),
-            )
         }
         val setter = model.setter
         if (typing && setter != null) {
@@ -177,19 +160,37 @@ fun TimersScreen(model: TimersModel, actions: TimersActions, modifier: Modifier 
     }
 }
 
+/** The title, what the timers are doing, and New timer beside them once timers are running and the setter is put away. */
 @Composable
-private fun Header(sub: String) {
+private fun Header(sub: String, onNewTimer: (() -> Unit)?) {
     val colors = MorrowTheme.colors
-    Column(Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        BasicText(
-            sub.uppercase(),
-            style = MorrowTheme.type.label.copy(color = colors.muted),
-            modifier = Modifier.semantics {
-                contentDescription = sub
-                liveRegion = LiveRegionMode.Polite
-            },
-        )
-        BasicText("Timers", style = MorrowTheme.type.display.copy(color = colors.text), modifier = Modifier.semantics { heading() })
+    Row(
+        Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            BasicText(
+                sub.uppercase(),
+                style = MorrowTheme.type.label.copy(color = colors.muted),
+                modifier = Modifier.semantics {
+                    contentDescription = sub
+                    liveRegion = LiveRegionMode.Polite
+                },
+            )
+            BasicText("Timers", style = MorrowTheme.type.display.copy(color = colors.text), modifier = Modifier.semantics { heading() })
+        }
+        if (onNewTimer != null) {
+            PillButton(
+                text = "New timer",
+                onClick = onNewTimer,
+                background = colors.accent,
+                content = colors.onAccent,
+                icon = Icons.Plus,
+                padding = PaddingValues(start = 12.dp, end = 16.dp),
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
+        }
     }
 }
 
