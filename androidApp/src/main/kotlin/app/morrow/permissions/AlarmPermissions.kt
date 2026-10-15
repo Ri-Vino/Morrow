@@ -26,6 +26,7 @@ class AlarmPermissions(private val context: Context) {
             context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
         AlarmPermission.FULL_SCREEN -> Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
             notificationManager.canUseFullScreenIntent()
+        AlarmPermission.OVER_APPS -> Settings.canDrawOverlays(context)
         // Only phones known to put background apps to sleep aggressively need this.
         AlarmPermission.BATTERY -> !hasAggressiveBatterySaver() ||
             context.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(context.packageName)
@@ -42,6 +43,7 @@ class AlarmPermissions(private val context: Context) {
                 .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
             AlarmPermission.EXACT_ALARMS -> Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, packageUri)
             AlarmPermission.FULL_SCREEN -> Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, packageUri)
+            AlarmPermission.OVER_APPS -> Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, packageUri)
             AlarmPermission.BATTERY -> Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
             AlarmPermission.LOCATION, AlarmPermission.ALARMS -> Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri)
         }

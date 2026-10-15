@@ -48,7 +48,7 @@ class SettingsModelTest {
     fun listsEveryPermissionWithItsState() {
         val model = settingsModel(null, ThemeKind.NOON, Difficulty.NORMAL, AndroidPermissions, missing = listOf(AlarmPermission.EXACT_ALARMS))
         assertEquals(AndroidPermissions, model.permissions.map { it.permission })
-        assertEquals(listOf(true, false, true, true, true), model.permissions.map { it.granted })
+        assertEquals(listOf(true, false, true, true, true, true), model.permissions.map { it.granted })
     }
 
     @Test

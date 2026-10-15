@@ -6,6 +6,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.graphics.PixelFormat
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -14,7 +15,10 @@ import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.provider.Settings
 import android.util.Log
+import android.view.View
+import android.view.WindowManager
 import app.morrow.data.AlarmSetup
 import app.morrow.domain.Alarm
 import app.morrow.domain.DefaultGames
@@ -67,6 +71,8 @@ class RingService : Service() {
     private var findingTimers = 0
     private var followingTimers: Job? = null
     private var readingNotes: Job? = null
+    private var overlay: View? = null
+    private val windowManager by lazy { getSystemService(WindowManager::class.java) }
     private val alarmSafetyStop = Runnable { stopAlarm(gamesDone = false) }
     private val timerSafetyStop = Runnable { timeOutTimers() }
 
@@ -100,6 +106,7 @@ class RingService : Service() {
         val placeholder = placeholder(alarmId)
         startInForeground(RingNotifications.ID, RingNotifications.build(this, placeholder))
         Ringing.set(placeholder)
+        showRingScreen()
 
         if (mode == Mode.TIMERS) {
             // The alarm takes over. The timers wait for its Morning screen, then ring again.
@@ -126,6 +133,38 @@ class RingService : Service() {
             Ringing.set(alarm)
             getSystemService(NotificationManager::class.java).notify(RingNotifications.ID, RingNotifications.build(this@RingService, alarm))
         }
+    }
+
+    /**
+     * The full-screen intent only fills the screen while the phone is locked or asleep; in use, Android shrinks it to a
+     * banner. With "Display over other apps" allowed, an invisible overlay lets the ring screen open over whatever is
+     * in use, as Android only lets an app with a visible window start a screen from the background.
+     */
+    private fun showRingScreen() {
+        if (!Settings.canDrawOverlays(this)) return
+        val window = overlay ?: View(this).also { view ->
+            try {
+                windowManager.addView(view, OverlayParams)
+            } catch (e: RuntimeException) {
+                Log.w(TAG, "Couldn't show the overlay; the notification's full-screen intent stands in", e)
+                return
+            }
+            overlay = view
+        }
+        // The overlay must be on screen before the screen opens, and it goes once the ring screen has.
+        window.post {
+            try {
+                startActivity(RingNotifications.ringScreenIntent(this))
+            } catch (e: RuntimeException) {
+                Log.w(TAG, "Couldn't open the ring screen", e)
+            }
+            handler.postDelayed(::removeOverlay, OVERLAY_HOLD.inWholeMilliseconds)
+        }
+    }
+
+    private fun removeOverlay() {
+        overlay?.let { runCatching { windowManager.removeView(it) } }
+        overlay = null
     }
 
     /** Games done, or the alarm's safety stop. */
@@ -300,6 +339,7 @@ class RingService : Service() {
     private fun release() {
         try {
             handler.removeCallbacksAndMessages(null)
+            removeOverlay()
             quiet()
         } finally {
             wakeLock?.let { if (it.isHeld) it.release() }
@@ -320,6 +360,18 @@ class RingService : Service() {
         private const val EXTRA_ALARM_ID = "alarm_id"
         private const val NO_ALARM = -1L
         val RING_LIMIT = 10.minutes
+
+        /** How long the overlay stays after asking for the ring screen. */
+        private val OVERLAY_HOLD = 2.seconds
+
+        /** One transparent pixel that can't be touched or focused. */
+        private val OverlayParams = WindowManager.LayoutParams(
+            1,
+            1,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+            PixelFormat.TRANSLUCENT,
+        )
 
         fun start(context: Context, alarmId: Long) {
             context.startForegroundService(Intent(context, RingService::class.java).putExtra(EXTRA_ALARM_ID, alarmId))

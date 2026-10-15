@@ -8,6 +8,9 @@ enum class AlarmPermission(val required: Boolean, val title: String) {
     EXACT_ALARMS(required = true, title = "Exact alarms"),
     FULL_SCREEN(required = true, title = "Full-screen alarm"),
 
+    /** Android's "Display over other apps", which lets the ring screen open over an app in use rather than as a banner. */
+    OVER_APPS(required = false, title = "Show over other apps"),
+
     /** Only matters on phones that put background apps to sleep aggressively. */
     BATTERY(required = false, title = "Unrestricted battery"),
 
@@ -23,6 +26,7 @@ val AndroidPermissions = listOf(
     AlarmPermission.NOTIFICATIONS,
     AlarmPermission.EXACT_ALARMS,
     AlarmPermission.FULL_SCREEN,
+    AlarmPermission.OVER_APPS,
     AlarmPermission.BATTERY,
     AlarmPermission.LOCATION,
 )

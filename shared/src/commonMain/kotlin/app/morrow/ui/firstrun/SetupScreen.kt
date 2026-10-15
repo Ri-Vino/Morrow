@@ -174,7 +174,7 @@ internal val AlarmPermission.icon: String
     get() = when (this) {
         AlarmPermission.NOTIFICATIONS -> Icons.Bell
         AlarmPermission.EXACT_ALARMS -> Icons.Clock
-        AlarmPermission.FULL_SCREEN -> Icons.FullScreen
+        AlarmPermission.FULL_SCREEN, AlarmPermission.OVER_APPS -> Icons.FullScreen
         AlarmPermission.BATTERY -> Icons.Battery
         AlarmPermission.LOCATION -> Icons.Pin
         AlarmPermission.ALARMS -> Icons.Bell

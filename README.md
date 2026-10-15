@@ -224,6 +224,7 @@ Each script explains its inputs at the top of the file.
 | --- | --- |
 | Exact alarms (`USE_EXACT_ALARM`, `SCHEDULE_EXACT_ALARM` on Android 12) | Ring alarms and timers at the exact minute |
 | Notifications and full-screen intent | Show the ringing screen over the lock screen |
+| Display over other apps (optional) | Open the ringing screen full screen while the phone is in use, rather than as a banner |
 | Run at startup (`RECEIVE_BOOT_COMPLETED`) | Reschedule alarms after a restart |
 | Foreground service (system exempted) | Play the alarm while it's ringing |
 | Vibrate, wake lock | Vibrate and keep the screen on while ringing |

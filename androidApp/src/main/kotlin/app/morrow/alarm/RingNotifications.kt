@@ -22,8 +22,7 @@ internal object RingNotifications {
         val ringScreen = PendingIntent.getActivity(
             context,
             0,
-            Intent(context, RingActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION),
+            ringScreenIntent(context),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         return Notification.Builder(context, CHANNEL)
@@ -37,6 +36,10 @@ internal object RingNotifications {
             .setFullScreenIntent(ringScreen, true)
             .build()
     }
+
+    fun ringScreenIntent(context: Context): Intent =
+        Intent(context, RingActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
 
     /** The phone's time the alarm rang at, which for an alarm on another city's clock isn't the time it was set for. */
     private fun ringingTime(alarm: Alarm): String {
