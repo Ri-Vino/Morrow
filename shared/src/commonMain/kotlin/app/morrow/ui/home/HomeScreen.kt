@@ -141,7 +141,7 @@ private fun Header(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actio
         modifier = modifier.fillMaxWidth().statusBarsPadding().padding(start = 24.dp, end = 24.dp, top = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // With large text the theme chip and settings button wrap below the date rather than squeezing it.
+        // With large text the settings button wraps below the date rather than squeezing it.
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -153,15 +153,6 @@ private fun Header(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actio
                 style = MorrowTheme.type.label.copy(color = inkMuted),
                 modifier = Modifier.padding(end = 8.dp),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Row(
-                modifier = Modifier.heightIn(min = 32.dp).background(colors.bg.copy(alpha = 0.7f), CircleShape).padding(horizontal = 12.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                MorrowIcon(Icons.forTheme(theme), colors.text, size = 15.dp, strokeWidth = 2.2f)
-                BasicText(theme.displayName, style = MorrowTheme.type.label.copy(color = colors.text, letterSpacing = MorrowTheme.type.caption.letterSpacing))
-            }
             Box(
                 modifier = Modifier
                     .size(44.dp)
@@ -170,7 +161,6 @@ private fun Header(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actio
                 contentAlignment = Alignment.Center,
             ) {
                 MorrowIcon(Icons.Settings, colors.text, contentDescription = "Settings")
-            }
             }
         }
         BasicText(
