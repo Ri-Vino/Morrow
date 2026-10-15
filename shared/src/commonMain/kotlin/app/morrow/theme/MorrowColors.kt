@@ -23,10 +23,14 @@ data class MorrowColors(
     val houseTint: Color,
 )
 
-fun ThemeKind.colors(): MorrowColors = when (this) {
-    ThemeKind.MORNING -> Morning
-    ThemeKind.NOON -> Noon
-    ThemeKind.AFTERNOON -> Afternoon
+/**
+ * The theme's colours. [dim] is for a phone in dark mode: the day themes keep their colour on dark surfaces, and
+ * Night, already dark, stays the same.
+ */
+fun ThemeKind.colors(dim: Boolean = false): MorrowColors = when (this) {
+    ThemeKind.MORNING -> if (dim) DimMorning else Morning
+    ThemeKind.NOON -> if (dim) DimNoon else Noon
+    ThemeKind.AFTERNOON -> if (dim) DimAfternoon else Afternoon
     ThemeKind.NIGHT -> Night
 }
 
@@ -100,4 +104,62 @@ private val Night = MorrowColors(
     shadow = Color(10, 5, 3, alpha = 115),
     hillTint = Color(0xFF1F1411),
     houseTint = Color(0xFF1F1411),
+)
+
+// The dim day themes: each keeps its accent and hue on surfaces as dark as Night's. Morning stays cool slate, Noon
+// olive gold and Afternoon terracotta, so they never pass for Night. The hills and cottage step down from the sky
+// towards the dark ground.
+
+private val DimMorning = MorrowColors(
+    bg = Color(0xFF0F1A24),
+    surface = Color(0xFF172633),
+    surface2 = Color(0xFF203344),
+    line = Color(0xFF2C4357),
+    text = Color(0xFFE9F3FC),
+    muted = Color(0xFFA8C0D5),
+    accent = Color(0xFF5AA9E6),
+    onAccent = Color(0xFF0D2338),
+    hi = Color(0xFF8FCBF7),
+    warn = Color(0xFFFF8A75),
+    onWarn = Color(0xFF2B1712),
+    knobOff = Color(0xFFD3E2EE),
+    shadow = Color(2, 8, 14, alpha = 115),
+    hillTint = Color(0xFF3A5952),
+    houseTint = Color(0xFF243745),
+)
+
+private val DimNoon = MorrowColors(
+    bg = Color(0xFF1B1810),
+    surface = Color(0xFF262218),
+    surface2 = Color(0xFF332D20),
+    line = Color(0xFF443C2B),
+    text = Color(0xFFFFF5E1),
+    muted = Color(0xFFD7C8A6),
+    accent = Color(0xFFF2B33D),
+    onAccent = Color(0xFF2E2214),
+    hi = Color(0xFFFFD37C),
+    warn = Color(0xFFFF8A75),
+    onWarn = Color(0xFF2B1712),
+    knobOff = Color(0xFFEADCC0),
+    shadow = Color(8, 6, 2, alpha = 115),
+    hillTint = Color(0xFF705831),
+    houseTint = Color(0xFF4E3920),
+)
+
+private val DimAfternoon = MorrowColors(
+    bg = Color(0xFF24140F),
+    surface = Color(0xFF311C15),
+    surface2 = Color(0xFF40261C),
+    line = Color(0xFF523226),
+    text = Color(0xFFFFEDE0),
+    muted = Color(0xFFE2BBA6),
+    accent = Color(0xFFEE8556),
+    onAccent = Color(0xFF2A120A),
+    hi = Color(0xFFFFB894),
+    warn = Color(0xFFFF8A75),
+    onWarn = Color(0xFF2B1712),
+    knobOff = Color(0xFFEFD5C6),
+    shadow = Color(10, 4, 2, alpha = 115),
+    hillTint = Color(0xFF653623),
+    houseTint = Color(0xFF4B2518),
 )
