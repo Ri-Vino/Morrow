@@ -188,7 +188,7 @@ open Morrow.xcodeproj
 
 Pick your team under Signing & Capabilities, then build and run the **Morrow** scheme. A build phase compiles the shared Kotlin framework through Gradle, so the first build takes a while.
 
-The iOS app can't be built on Windows or Linux. The [iOS workflow](.github/workflows/ios.yml) builds it on a GitHub-hosted Mac on every push.
+The iOS app can't be built on Windows or Linux. The [iOS workflow](.github/workflows/ios.yml) builds it on a GitHub-hosted Mac; start it from the Actions tab.
 
 ---
 

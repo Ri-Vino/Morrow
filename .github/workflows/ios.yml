@@ -2,9 +2,8 @@
 # needs testing on an iPhone.
 name: iOS
 
+# Manual only for now (Actions > iOS > Run workflow) while the iOS build is being fixed.
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 
 jobs:
