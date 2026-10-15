@@ -168,8 +168,6 @@ fun MorrowApp(
                             LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
                             SettingsRoute(
                                 settings = services.settings,
-                                pinnedTheme = services.themeClock.pinnedTheme,
-                                theme = theme,
                                 permissions = services.permissions,
                                 cities = services.cities,
                                 here = services.weather.here,

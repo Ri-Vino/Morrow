@@ -12,12 +12,10 @@ import app.morrow.platform.PermissionGate
 import app.morrow.platform.Speaker
 import app.morrow.platform.SpeechPurpose
 import app.morrow.platform.VoiceInfo
-import app.morrow.theme.ThemeKind
 import app.morrow.ui.PlatformBackHandler
 import app.morrow.weather.HerePlace
 import app.morrow.weather.WeatherPlaceMode
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -29,8 +27,6 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsRoute(
     settings: MorrowSettings,
-    pinnedTheme: StateFlow<ThemeKind?>,
-    theme: ThemeKind,
     permissions: PermissionGate,
     cities: CityRepository,
     here: Flow<HerePlace?>,
@@ -42,7 +38,6 @@ fun SettingsRoute(
     onBack: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val pinned by pinnedTheme.collectAsStateWithLifecycle()
     val missing by permissions.missing.collectAsStateWithLifecycle()
     val missions by settings.missionSetup.collectAsStateWithLifecycle(initialValue = null)
     val alarm by settings.alarmSetup.collectAsStateWithLifecycle(initialValue = null)
@@ -65,15 +60,12 @@ fun SettingsRoute(
     val readsAloud = readAloud ?: return
     val voice = savedVoice ?: return
     SettingsScreen(
-        model = settingsModel(pinned, theme, difficulty, permissions.asked, missing),
+        model = settingsModel(difficulty, permissions.asked, missing),
         choices = SettingsChoices(difficulty, sound.sound, sound.ramp),
         weather = weatherSection(enabled, mode, herePlace, homeName, shownUnits, readsAloud),
         voice = voiceSection(voice.id, voices),
         actions = SettingsActions(
             onBack = onBack,
-            // Turning "follow the clock" off keeps the theme showing now.
-            onFollowClock = { follow -> scope.launch { settings.setPinnedTheme(if (follow) null else theme) } },
-            onPinTheme = { scope.launch { settings.setPinnedTheme(it) } },
             onDifficulty = { scope.launch { settings.setDifficulty(it) } },
             onSound = { scope.launch { settings.setSound(it) } },
             onRamp = { scope.launch { settings.setRamp(it) } },

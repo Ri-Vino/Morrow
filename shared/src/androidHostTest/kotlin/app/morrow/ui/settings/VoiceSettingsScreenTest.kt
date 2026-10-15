@@ -73,8 +73,6 @@ class VoiceSettingsScreenTest {
                 MorrowTheme(ThemeKind.MORNING) {
                     SettingsRoute(
                         settings = settings,
-                        pinnedTheme = MutableStateFlow(null),
-                        theme = ThemeKind.MORNING,
                         permissions = permissions,
                         cities = cities,
                         here = MutableStateFlow(null),

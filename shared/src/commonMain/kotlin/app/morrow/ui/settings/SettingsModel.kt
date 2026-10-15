@@ -9,10 +9,6 @@ import app.morrow.weather.Units
 import app.morrow.weather.WeatherPlaceMode
 
 data class SettingsModel(
-    val followClock: Boolean,
-    val followDescription: String,
-    /** The theme showing now: the pinned one, or the clock's. */
-    val shownTheme: ThemeKind,
     /** What the chosen difficulty means for a round. */
     val difficultyLevel: String,
     val difficultyDescription: String,
@@ -22,17 +18,11 @@ data class SettingsModel(
 data class PermissionStatus(val permission: AlarmPermission, val granted: Boolean)
 
 fun settingsModel(
-    pinned: ThemeKind?,
-    byClock: ThemeKind,
     difficulty: Difficulty,
     asked: List<AlarmPermission>,
     missing: List<AlarmPermission>,
 ): SettingsModel {
-    val shown = pinned ?: byClock
     return SettingsModel(
-        followClock = pinned == null,
-        followDescription = if (pinned == null) "Now showing ${shown.displayName}" else "Pinned to ${shown.displayName}",
-        shownTheme = shown,
         difficultyLevel = when (difficulty) {
             Difficulty.GENTLE -> "Gentler rounds: small sums, short sentences, soft shakes."
             Difficulty.NORMAL -> "Everyday rounds: two-digit sums and short sentences."

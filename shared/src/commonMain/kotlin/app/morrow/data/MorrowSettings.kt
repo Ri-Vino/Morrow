@@ -11,7 +11,6 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import app.morrow.domain.Difficulty
 import app.morrow.domain.VolumeRamp
 import app.morrow.domain.WakeSound
-import app.morrow.theme.ThemeKind
 import app.morrow.weather.Coordinates
 import app.morrow.weather.Units
 import app.morrow.weather.WeatherPlaceMode
@@ -52,13 +51,6 @@ class MorrowSettings internal constructor(private val store: DataStore<Preferenc
 
     suspend fun setRamp(ramp: VolumeRamp) {
         store.edit { it[RampKey] = ramp.name }
-    }
-
-    /** A theme to keep whatever the time, or null to follow the clock. */
-    val pinnedTheme: Flow<ThemeKind?> = store.data.map { prefs -> prefs[PinnedTheme]?.let { name -> ThemeKind.entries.firstOrNull { it.name == name } } }
-
-    suspend fun setPinnedTheme(theme: ThemeKind?) {
-        store.edit { if (theme == null) it.remove(PinnedTheme) else it[PinnedTheme] = theme.name }
     }
 
     suspend fun setDifficulty(difficulty: Difficulty) {
@@ -175,7 +167,6 @@ class MorrowSettings internal constructor(private val store: DataStore<Preferenc
         val DifficultyKey = stringPreferencesKey("difficulty")
         val SoundKey = stringPreferencesKey("sound")
         val RampKey = stringPreferencesKey("volume_ramp")
-        val PinnedTheme = stringPreferencesKey("pinned_theme")
         val KettleCode = stringPreferencesKey("kettle_code")
     }
 }

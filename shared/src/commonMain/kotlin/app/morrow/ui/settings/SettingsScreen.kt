@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -47,7 +46,6 @@ import app.morrow.domain.VolumeRamp
 import app.morrow.domain.WakeSound
 import app.morrow.platform.AlarmPermission
 import app.morrow.theme.MorrowTheme
-import app.morrow.theme.ThemeKind
 import app.morrow.theme.colors
 import app.morrow.ui.components.BottomSheet
 import app.morrow.ui.components.Icons
@@ -55,7 +53,6 @@ import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.components.MorrowToggle
 import app.morrow.ui.components.PillButton
 import app.morrow.ui.components.SecondaryButton
-import app.morrow.ui.components.TileRows
 import app.morrow.ui.components.pressable
 import app.morrow.ui.firstrun.icon
 import app.morrow.weather.Units
@@ -68,8 +65,6 @@ class SettingsChoices(val difficulty: Difficulty, val sound: WakeSound, val ramp
 
 class SettingsActions(
     val onBack: () -> Unit,
-    val onFollowClock: (Boolean) -> Unit,
-    val onPinTheme: (ThemeKind) -> Unit,
     val onDifficulty: (Difficulty) -> Unit,
     val onSound: (WakeSound) -> Unit,
     val onRamp: (VolumeRamp) -> Unit,
@@ -143,12 +138,6 @@ private fun SettingsContent(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).navigationBarsPadding().padding(start = 24.dp, end = 24.dp, bottom = 48.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            Section("Theme") {
-                ToggleRow("Follow the clock", model.followDescription, model.followClock, actions.onFollowClock)
-                TileRows(ThemeKind.entries, Modifier.selectableGroup()) { kind ->
-                    ThemeTile(kind, selected = kind == model.shownTheme) { actions.onPinTheme(kind) }
-                }
-            }
             if (weather != null) Section("Weather") { WeatherSettings(weather, actions) }
             if (voice != null) Section("Voice") { VoiceSettings(voice, actions.onHearSample, onPickVoice) }
             Section("Mission difficulty") {
@@ -353,40 +342,6 @@ private fun VoicePickerSheet(voice: VoiceSection, onPick: (String?) -> Unit, onC
             }
         }
         voice.emptyNote?.let { Note(it) }
-    }
-}
-
-@Composable
-private fun RowScope.ThemeTile(kind: ThemeKind, selected: Boolean, onClick: () -> Unit) {
-    val colors = MorrowTheme.colors
-    val swatch = kind.colors()
-    val shape = RoundedCornerShape(20.dp)
-    val border by animateColorAsState(if (selected) colors.hi else colors.surface)
-    Column(
-        modifier = Modifier
-            .weight(1f)
-            .heightIn(min = 80.dp)
-            .selectable(selected, role = Role.RadioButton, onClick = onClick)
-            .semantics { contentDescription = kind.displayName }
-            .background(if (selected) colors.surface2 else colors.surface, shape)
-            .border(2.dp, border, shape)
-            .padding(vertical = 12.dp, horizontal = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
-    ) {
-        Box(
-            Modifier
-                .size(24.dp)
-                .border(1.dp, swatch.line, CircleShape)
-                .padding(1.dp)
-                .background(swatch.bg, CircleShape)
-                .padding(4.dp)
-                .background(swatch.accent, CircleShape),
-        )
-        BasicText(
-            kind.shortName,
-            style = MorrowTheme.type.bodyStrong.copy(color = if (selected) colors.text else colors.muted, textAlign = TextAlign.Center),
-        )
     }
 }
 

@@ -87,10 +87,10 @@ fun DebugScreen(permissions: PermissionGate, onBack: () -> Unit) {
                 BasicText("Scene ${hhmm(sceneMinute / 60, sceneMinute % 60)} · ${theme.displayName}", style = text)
             }
             Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                DebugButton("Auto", selected = pinned == null) { scope.launch { app.settings.setPinnedTheme(null) } }
+                DebugButton("Auto", selected = pinned == null) { themeClock.pin(null) }
                 for (kind in ThemeKind.entries) {
                     DebugButton(kind.name.lowercase().replaceFirstChar(Char::uppercase), selected = pinned == kind) {
-                        scope.launch { app.settings.setPinnedTheme(kind) }
+                        themeClock.pin(kind)
                     }
                 }
             }

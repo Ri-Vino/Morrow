@@ -5,7 +5,6 @@ import app.morrow.platform.AlarmPermission
 import app.morrow.platform.AndroidPermissions
 import app.morrow.platform.IosPermissions
 import app.morrow.platform.VoiceInfo
-import app.morrow.theme.ThemeKind
 import app.morrow.weather.Coordinates
 import app.morrow.weather.HerePlace
 import app.morrow.weather.HereSource
@@ -20,24 +19,8 @@ import kotlin.test.assertTrue
 class SettingsModelTest {
 
     @Test
-    fun followingTheClockShowsTheClocksTheme() {
-        val model = settingsModel(pinned = null, byClock = ThemeKind.NOON, Difficulty.NORMAL, AndroidPermissions, emptyList())
-        assertTrue(model.followClock)
-        assertEquals("Now showing High noon", model.followDescription)
-        assertEquals(ThemeKind.NOON, model.shownTheme)
-    }
-
-    @Test
-    fun aPinnedThemeWins() {
-        val model = settingsModel(pinned = ThemeKind.NIGHT, byClock = ThemeKind.NOON, Difficulty.NORMAL, AndroidPermissions, emptyList())
-        assertFalse(model.followClock)
-        assertEquals("Pinned to Moonlit night", model.followDescription)
-        assertEquals(ThemeKind.NIGHT, model.shownTheme)
-    }
-
-    @Test
     fun difficultySaysHowHardEachRoundIs() {
-        fun model(difficulty: Difficulty) = settingsModel(null, ThemeKind.NOON, difficulty, AndroidPermissions, emptyList())
+        fun model(difficulty: Difficulty) = settingsModel(difficulty, AndroidPermissions, emptyList())
         assertEquals("Gentler rounds: small sums, short sentences, soft shakes.", model(Difficulty.GENTLE).difficultyLevel)
         assertEquals("Everyday rounds: two-digit sums and short sentences.", model(Difficulty.NORMAL).difficultyLevel)
         assertEquals("Tougher rounds: bigger sums, longer sentences, firm shakes.", model(Difficulty.TOUGH).difficultyLevel)
@@ -46,20 +29,20 @@ class SettingsModelTest {
 
     @Test
     fun listsEveryPermissionWithItsState() {
-        val model = settingsModel(null, ThemeKind.NOON, Difficulty.NORMAL, AndroidPermissions, missing = listOf(AlarmPermission.EXACT_ALARMS))
+        val model = settingsModel(Difficulty.NORMAL, AndroidPermissions, missing = listOf(AlarmPermission.EXACT_ALARMS))
         assertEquals(AndroidPermissions, model.permissions.map { it.permission })
         assertEquals(listOf(true, false, true, true, true, true), model.permissions.map { it.granted })
     }
 
     @Test
     fun locationIsListedOnAndroid() {
-        val model = settingsModel(null, ThemeKind.NOON, Difficulty.NORMAL, AndroidPermissions, missing = listOf(AlarmPermission.LOCATION))
+        val model = settingsModel(Difficulty.NORMAL, AndroidPermissions, missing = listOf(AlarmPermission.LOCATION))
         assertEquals(PermissionStatus(AlarmPermission.LOCATION, granted = false), model.permissions.last())
     }
 
     @Test
     fun listsOnlyThePlatformsPermissions() {
-        val model = settingsModel(null, ThemeKind.NOON, Difficulty.NORMAL, IosPermissions, missing = listOf(AlarmPermission.LOCATION))
+        val model = settingsModel(Difficulty.NORMAL, IosPermissions, missing = listOf(AlarmPermission.LOCATION))
         assertEquals(
             listOf(PermissionStatus(AlarmPermission.ALARMS, granted = true), PermissionStatus(AlarmPermission.LOCATION, granted = false)),
             model.permissions,

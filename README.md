@@ -65,7 +65,7 @@ Difficulty can be set to **Gentle**, **Normal** or **Tough**.
 - Timers keep ringing on time with the screen off, and are recovered after a restart.
 
 ### Pip and the themes
-- Four time-of-day themes that switch on their own, or pin the one you like in Settings:
+- Four time-of-day themes that switch on their own as the day goes by:
 
 | Theme | Hours | Pip |
 | --- | --- | --- |

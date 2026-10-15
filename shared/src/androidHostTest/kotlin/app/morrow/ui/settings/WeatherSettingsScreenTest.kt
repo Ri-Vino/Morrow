@@ -71,8 +71,6 @@ class WeatherSettingsScreenTest {
             MorrowTheme(ThemeKind.MORNING) {
                 SettingsRoute(
                     settings = settings,
-                    pinnedTheme = MutableStateFlow(null),
-                    theme = ThemeKind.MORNING,
                     permissions = permissions,
                     cities = cities,
                     here = here,

@@ -118,7 +118,6 @@ object IosApp {
         // At launch, trust that each alarm reached AlarmKit when it was saved.
         inSync = alarmKit.authorized
 
-        settings.pinnedTheme.onEach(themeClock::pin).launchIn(scope)
         settings.voiceId.onEach(speaker::setVoice).launchIn(scope)
         // Catches a timer stopped on its alert while Morrow is open.
         alarmKit.watch { syncTimers() }

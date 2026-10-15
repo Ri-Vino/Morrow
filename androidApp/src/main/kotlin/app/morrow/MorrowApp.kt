@@ -61,7 +61,6 @@ class MorrowApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        appScope.launch { settings.pinnedTheme.collect(themeClock::pin) }
         appScope.launch { settings.voiceId.collect { speaker.setVoice(it) } }
         appScope.launch { cities.ensureSeeded() }
     }
