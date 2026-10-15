@@ -5,15 +5,17 @@ import androidx.compose.ui.graphics.luminance
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Every pair that carries text must meet WCAG AA (4.5:1) in every theme. */
+/** Every pair that carries text must meet WCAG AA (4.5:1) in every theme, light and dim. */
 class ThemeColorsTest {
+
+    private val palettes = ThemeKind.entries.flatMap { kind -> listOf(false, true).map { dim -> "$kind${if (dim) " dim" else ""}" to kind.colors(dim) } }
 
     @Test
     fun textPairsMeetContrast() {
-        for (kind in ThemeKind.entries) {
-            val c = kind.colors()
+        for ((kind, c) in palettes) {
             val banner = mix(c.surface, c.warn, 0.12f)
             val pairs = mapOf(
                 "text on bg" to (c.text to c.bg),
@@ -34,6 +36,31 @@ class ThemeColorsTest {
                 val ratio = contrast(pair.first, pair.second)
                 assertTrue(ratio >= 4.5f, "$kind $name is ${ratio}:1")
             }
+        }
+    }
+
+    /** Controls must stand out from what's behind them by 3:1: the off switch's outline everywhere, and in the dim themes the accent fill that marks a selection. */
+    @Test
+    fun controlEdgesMeetContrast() {
+        for ((kind, c) in palettes) {
+            val offOutline = mix(c.line, c.muted, 0.7f)
+            for ((name, back) in mapOf("bg" to c.bg, "surface" to c.surface)) {
+                val ratio = contrast(offOutline, back)
+                assertTrue(ratio >= 3f, "$kind off switch outline on $name is ${ratio}:1")
+            }
+        }
+        for (kind in ThemeKind.entries) {
+            val c = kind.colors(dim = true)
+            val ratio = contrast(c.accent, c.surface)
+            assertTrue(ratio >= 3f, "$kind dim accent on surface is ${ratio}:1")
+        }
+    }
+
+    @Test
+    fun nightHasNoDimVersion() {
+        assertEquals(ThemeKind.NIGHT.colors(), ThemeKind.NIGHT.colors(dim = true))
+        for (kind in ThemeKind.entries - ThemeKind.NIGHT) {
+            assertTrue(kind.colors(dim = true).bg.luminance() < 0.02f, "$kind dim background should be dark")
         }
     }
 

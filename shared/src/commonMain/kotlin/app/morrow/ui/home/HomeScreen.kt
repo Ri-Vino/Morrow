@@ -134,7 +134,7 @@ fun HomeScreen(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: 
 @Composable
 private fun Header(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: HomeActions, modifier: Modifier = Modifier) {
     val colors = MorrowTheme.colors
-    val scene = skySceneState(minuteOfDay, theme, model.weather?.sky)
+    val scene = skySceneState(minuteOfDay, theme, model.weather?.sky, MorrowTheme.dim)
     val ink by animateColorAsState(scene.ink, tween(1200))
     val inkMuted by animateColorAsState(scene.inkMuted, tween(1200))
     Column(

@@ -33,13 +33,19 @@ data class SkySceneState(
     val weather: WeatherLook? = null,
 )
 
-fun skySceneState(minuteOfDay: Float, theme: ThemeKind, weather: Sky? = null): SkySceneState {
+/** [dim] is the phone's dark mode: a day sky is toned down a little towards the dark ground, as photos are. */
+fun skySceneState(minuteOfDay: Float, theme: ThemeKind, weather: Sky? = null, dim: Boolean = false): SkySceneState {
     val elevation = sunElevation(minuteOfDay).toFloat()
     val sunUp = elevation >= 0f
-    val sky = SkyCurve.at(minuteOfDay).let { if (weather != null) skyTint(it, weather, sunUp) else it }
-    val look = weather?.let { weatherLook(it, sky, sunUp) }
-    val tints = theme.colors()
     val night = theme == ThemeKind.NIGHT
+    val dimmed = dim && !night
+    val tints = theme.colors(dimmed)
+    val sky = SkyCurve.at(minuteOfDay)
+        .let { if (weather != null) skyTint(it, weather, sunUp) else it }
+        .let { if (dimmed) mix(it, tints.bg, DIM_SKY) else it }
+    val look = weather?.let { weatherLook(it, sky, sunUp) }
+    // Dark ink over a bright sky comes from the light palette, since a dim palette's text is light.
+    val inkTints = theme.colors()
     val lightSky = sky.isLightSky()
     // Stars glimmer through thin cloud but hardly at all through a full cover.
     val overcast = (look?.cloudAlpha ?: 0f) > 0.95f
@@ -54,11 +60,13 @@ fun skySceneState(minuteOfDay: Float, theme: ThemeKind, weather: Sky? = null): S
         windowLit = if (night) 1f else 0.12f,
         doorLit = if (night) 0.35f else 0f,
         smokeAlpha = if (night || theme == ThemeKind.MORNING) 0.4f else 0f,
-        ink = if (lightSky) tints.text else Illustration.starlight,
-        inkMuted = if (lightSky) tints.muted else Illustration.starlightMuted,
+        ink = if (lightSky) inkTints.text else Illustration.starlight,
+        inkMuted = if (lightSky) inkTints.muted else Illustration.starlightMuted,
         weather = look,
     )
 }
+
+private const val DIM_SKY = 0.2f
 
 /** Pip at noon wears shades only under a [brightSky]; otherwise its eyes are open, as in the morning. */
 private fun pipFor(theme: ThemeKind, sunUp: Boolean, brightSky: Boolean): PipLook = when {

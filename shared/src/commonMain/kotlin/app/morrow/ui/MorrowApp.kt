@@ -156,7 +156,7 @@ fun MorrowApp(
                         }
                         preview != null -> RingPreviewRoute(services, preview, onSystemBarsChange, onExit = { previewing = null })
                         inSettings && pickingHome -> {
-                            LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
+                            ThemeSystemBars(theme, onSystemBarsChange)
                             AddCityRoute(
                                 services.citySearch, services.cities,
                                 onBack = { pickingHome = false },
@@ -165,7 +165,7 @@ fun MorrowApp(
                             )
                         }
                         inSettings -> {
-                            LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
+                            ThemeSystemBars(theme, onSystemBarsChange)
                             SettingsRoute(
                                 settings = services.settings,
                                 permissions = services.permissions,
@@ -180,11 +180,11 @@ fun MorrowApp(
                             )
                         }
                         addingCity -> {
-                            LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
+                            ThemeSystemBars(theme, onSystemBarsChange)
                             AddCityRoute(services.citySearch, services.cities, onBack = { addingCity = false }, onPicked = services.weather::refreshCitySoon)
                         }
                         target == null -> {
-                            if (tab != Tab.ALARMS) LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
+                            if (tab != Tab.ALARMS) ThemeSystemBars(theme, onSystemBarsChange)
                             var worldSheetOpen by remember { mutableStateOf(false) }
                             val world = @Composable {
                                 LaunchedEffect(Unit) { services.weather.refreshSoon(RefreshReason.WORLD) }
@@ -246,7 +246,7 @@ private fun FirstRun(services: MorrowServices, theme: ThemeKind, onSystemBarsCha
     val scope = rememberCoroutineScope()
     val missing by services.permissions.missing.collectAsStateWithLifecycle()
     var setup by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
+    ThemeSystemBars(theme, onSystemBarsChange)
     if (!setup) {
         WelcomeScreen(onContinue = { setup = true })
     } else {
@@ -281,7 +281,7 @@ private fun Home(
     val zone = TimeZone.currentSystemDefault()
     val minute = now.toLocalDateTime(zone).let { it.hour * 60 + it.minute }.toFloat()
     val weather = homeWeather(forecasts, now, zone, units)
-    val lightIcons = !skySceneState(minute, theme, weather?.sky).sky.isLightSky()
+    val lightIcons = !skySceneState(minute, theme, weather?.sky, MorrowTheme.dim).sky.isLightSky()
     LaunchedEffect(lightIcons) { onSystemBarsChange(lightIcons) }
 
     val loaded = alarms ?: return
@@ -317,7 +317,7 @@ private fun EditRoute(
     LaunchedEffect(target) {
         if (draft == null) draft = target.toLongOrNull()?.let { services.repository.get(it) } ?: newAlarmFor(target)
     }
-    LaunchedEffect(theme) { onSystemBarsChange(theme == ThemeKind.NIGHT) }
+    ThemeSystemBars(theme, onSystemBarsChange)
     PlatformBackHandler(onBack = onDone)
     val now by remember { minuteTicks() }.collectAsStateWithLifecycle(initialValue = Clock.System.now())
     val phoneZone = TimeZone.currentSystemDefault()
@@ -596,4 +596,11 @@ internal fun minuteTicks(clock: Clock = Clock.System): Flow<Instant> = flow {
         emit(now)
         delay(60_000 - now.toEpochMilliseconds() % 60_000)
     }
+}
+
+/** Light status bar icons over Night and the dim day themes, dark ones over the light themes. */
+@Composable
+private fun ThemeSystemBars(theme: ThemeKind, onSystemBarsChange: (lightIcons: Boolean) -> Unit) {
+    val dark = theme == ThemeKind.NIGHT || MorrowTheme.dim
+    LaunchedEffect(dark) { onSystemBarsChange(dark) }
 }

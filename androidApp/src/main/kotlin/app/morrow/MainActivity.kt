@@ -12,6 +12,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,7 +67,7 @@ class MainActivity : ComponentActivity() {
                 if (tools) {
                     val theme by app.themeClock.theme.collectAsState()
                     MorrowTheme(theme) { DebugScreen(permissions, onBack = { tools = false }) }
-                    matchSystemBars(lightIcons = theme == ThemeKind.NIGHT)
+                    matchSystemBars(lightIcons = theme == ThemeKind.NIGHT || isSystemInDarkTheme())
                 } else {
                     MorrowApp(
                         services = services,

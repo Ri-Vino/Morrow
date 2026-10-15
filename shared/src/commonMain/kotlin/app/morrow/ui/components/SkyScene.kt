@@ -38,7 +38,7 @@ private const val SCENE_HEIGHT = 330f
  */
 @Composable
 fun SkyScene(minuteOfDay: Float, theme: ThemeKind, modifier: Modifier = Modifier, weather: Sky? = null) {
-    val target = skySceneState(minuteOfDay, theme, weather)
+    val target = skySceneState(minuteOfDay, theme, weather, MorrowTheme.dim)
     val slow = tween<Color>(durationMillis = 1200)
     val sky by animateColorAsState(target.sky, slow)
     val hillBack by animateColorAsState(target.hillBack, slow)

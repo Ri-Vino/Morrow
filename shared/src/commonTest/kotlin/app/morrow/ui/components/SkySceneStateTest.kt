@@ -146,4 +146,23 @@ class SkySceneStateTest {
         assertEquals(ThemeKind.AFTERNOON.colors().text, clear.ink)
         assertEquals(Illustration.starlight, storm.ink)
     }
+
+    @Test
+    fun inDarkModeTheDaySkyTonesDownTowardsTheDimGroundAndKeepsDarkInk() {
+        val minute = 12 * 60 + 30f
+        val s = skySceneState(minute, ThemeKind.NOON, dim = true)
+        val tints = ThemeKind.NOON.colors(dim = true)
+        val sky = mix(SkyCurve.at(minute), tints.bg, 0.2f)
+        assertEquals(sky, s.sky)
+        assertEquals(mix(sky, tints.hillTint, 0.38f), s.hillBack)
+        assertEquals(mix(sky, tints.houseTint, 0.8f), s.house)
+        assertEquals(ThemeKind.NOON.colors().text, s.ink)
+        assertEquals(ThemeKind.NOON.colors().muted, s.inkMuted)
+    }
+
+    @Test
+    fun darkModeLeavesTheNightSceneAlone() {
+        val minute = 21 * 60 + 40f
+        assertEquals(skySceneState(minute, ThemeKind.NIGHT), skySceneState(minute, ThemeKind.NIGHT, dim = true))
+    }
 }
