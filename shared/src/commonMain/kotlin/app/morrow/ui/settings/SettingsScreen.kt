@@ -156,12 +156,13 @@ private fun SettingsContent(
                 Note(model.difficultyLevel)
                 Note(model.difficultyDescription)
             }
-            Section("Alarm sound") {
+            Section("Default alarm sound") {
                 Card {
                     WakeSound.entries.forEachIndexed { i, sound ->
                         RadioRow(sound.displayName, selected = sound == choices.sound, divider = i > 0) { actions.onSound(sound) }
                     }
                 }
+                Note("Alarms ring with this unless you pick a sound for one when you edit it.")
             }
             Section("Volume ramp") {
                 SegmentedControl(VolumeRamp.entries, choices.ramp, VolumeRamp::displayName, actions.onRamp)

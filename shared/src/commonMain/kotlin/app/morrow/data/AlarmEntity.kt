@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import app.morrow.domain.Alarm
 import app.morrow.domain.DefaultGames
+import app.morrow.domain.WakeSound
 import app.morrow.domain.decodeGames
 import app.morrow.domain.encodeGames
 import kotlinx.datetime.DayOfWeek
@@ -24,6 +25,8 @@ data class AlarmEntity(
     /** An IANA zone id, or null to follow the phone's clock. */
     @ColumnInfo(name = "time_zone") val timeZone: String? = null,
     @ColumnInfo(name = "zone_label") val zoneLabel: String? = null,
+    /** A [WakeSound]'s name, or null for the one chosen in Settings. */
+    val sound: String? = null,
 )
 
 internal fun Alarm.toEntity() = AlarmEntity(
@@ -36,6 +39,7 @@ internal fun Alarm.toEntity() = AlarmEntity(
     enabled = enabled,
     timeZone = timeZone,
     zoneLabel = zoneLabel,
+    sound = sound?.name,
 )
 
 internal fun AlarmEntity.toAlarm() = Alarm(
@@ -48,4 +52,6 @@ internal fun AlarmEntity.toAlarm() = Alarm(
     enabled = enabled,
     timeZone = timeZone,
     zoneLabel = zoneLabel,
+    // A sound this version doesn't know rings with the default.
+    sound = WakeSound.entries.firstOrNull { it.name == sound },
 )

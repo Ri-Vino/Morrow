@@ -119,10 +119,11 @@ class RingService : Service() {
             startVibration()
             handler.postDelayed(alarmSafetyStop, RING_LIMIT.inWholeMilliseconds)
             scope.launch {
-                // If the settings can't be read quickly, ring with the defaults rather than not at all.
+                // If the settings or the alarm can't be read quickly, ring with the defaults rather than not at all.
                 val setup = runCatching { withTimeoutOrNull(1.seconds) { morrow.settings.alarmSetup.first() } }.getOrNull()
                     ?: AlarmSetup.Default
-                if (mode == Mode.ALARM) sound.play(setup.sound, setup.ramp.duration)
+                val own = runCatching { withTimeoutOrNull(1.seconds) { morrow.repository.get(alarmId)?.sound } }.getOrNull()
+                if (mode == Mode.ALARM) sound.play(own ?: setup.sound, setup.ramp.duration)
             }
         }
 

@@ -13,7 +13,7 @@ import kotlinx.coroutines.IO
 
 @Database(
     entities = [AlarmEntity::class, SavedCityEntity::class, WeatherCacheEntity::class, CitySearchCacheEntity::class, TimerEntity::class],
-    version = 6,
+    version = 7,
 )
 @ConstructedBy(MorrowDatabaseConstructor::class)
 abstract class MorrowDatabase : RoomDatabase() {
@@ -40,7 +40,7 @@ fun buildMorrowDatabase(builder: RoomDatabase.Builder<MorrowDatabase>): MorrowDa
     builder
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(GamesMigration, CitiesMigration, ZonesMigration, WeatherMigration, TimersMigration)
+        .addMigrations(GamesMigration, CitiesMigration, ZonesMigration, WeatherMigration, TimersMigration, SoundsMigration)
         .build()
 
 /** An alarm's one mission becomes its first and only game, with that game's usual rounds. */
@@ -111,5 +111,12 @@ internal object TimersMigration : Migration(5, 6) {
             "CREATE TABLE IF NOT EXISTS `timers` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `duration_ms` INTEGER NOT NULL, " +
                 "`ends_at` INTEGER, `remaining_ms` INTEGER, `note` TEXT NOT NULL, `created_at` INTEGER NOT NULL)",
         )
+    }
+}
+
+/** Every alarm keeps ringing with the sound chosen in Settings until it's given its own. */
+internal object SoundsMigration : Migration(6, 7) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE `alarms` ADD COLUMN `sound` TEXT")
     }
 }

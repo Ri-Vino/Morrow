@@ -75,6 +75,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.morrow.domain.Alarm
 import app.morrow.domain.MissionType
+import app.morrow.domain.WakeSound
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
 import app.morrow.ui.PlatformBackHandler
@@ -94,6 +95,9 @@ class EditActions(
     val onDelete: () -> Unit,
     val onPreview: () -> Unit,
     val onSave: () -> Unit,
+    /** Plays a choice from the Alarm sound sheet, null for the one chosen in Settings, until [onStopSound]. */
+    val onHearSound: (WakeSound?) -> Unit = {},
+    val onStopSound: () -> Unit = {},
 )
 
 /** What the "Ring by the time in…" sheet offers: [choices] for the draft, and [find] for cities matching a search. */
@@ -109,13 +113,15 @@ fun EditScreen(
 ) {
     var addingGame by rememberSaveable { mutableStateOf(false) }
     var pickingZone by rememberSaveable { mutableStateOf(false) }
+    var pickingSound by rememberSaveable { mutableStateOf(false) }
     Box(modifier.fillMaxSize()) {
         // Behind a sheet, the form is hidden from TalkBack as well as dimmed.
         EditForm(
             draft, model, actions,
             onAddGame = { addingGame = true },
             onPickZone = { pickingZone = true },
-            Modifier.semantics { if (addingGame || pickingZone) hideFromAccessibility() },
+            onPickSound = { pickingSound = true },
+            Modifier.semantics { if (addingGame || pickingZone || pickingSound) hideFromAccessibility() },
         )
         if (addingGame) {
             AddGameSheet(
@@ -125,6 +131,19 @@ fun EditScreen(
                     actions.onChange(draft.withGame(type))
                 },
                 onClose = { addingGame = false },
+            )
+        }
+        if (pickingSound) {
+            SoundSheet(
+                model.soundChoices,
+                onPick = { choice ->
+                    actions.onChange(draft.copy(sound = choice.sound))
+                    actions.onHearSound(choice.sound)
+                },
+                onClose = {
+                    pickingSound = false
+                    actions.onStopSound()
+                },
             )
         }
         if (pickingZone) {
@@ -147,6 +166,7 @@ private fun EditForm(
     actions: EditActions,
     onAddGame: () -> Unit,
     onPickZone: () -> Unit,
+    onPickSound: () -> Unit,
     modifier: Modifier,
 ) {
     val colors = MorrowTheme.colors
@@ -169,6 +189,7 @@ private fun EditForm(
             )
             ZoneRowView(model.zone, onPickZone)
             Section("Repeat") { DayChips(draft.days) { actions.onChange(draft.copy(days = it)) } }
+            Section("Sound") { SoundRowView(model.sound, onPickSound) }
             Section("Wake-up games", aside = "Played in this order") {
                 GameList(draft, model.games, actions.onChange)
                 EstimateRow(model, onAddGame)
@@ -464,6 +485,73 @@ private fun ZoneRowView(zone: ZoneRow, onClick: () -> Unit) {
 }
 
 /** The phone's time and the saved cities on other clocks, then a search for any city. */
+@Composable
+private fun SoundRowView(sound: SoundRow, onClick: () -> Unit) {
+    val colors = MorrowTheme.colors
+    val type = MorrowTheme.type
+    val shape = RoundedCornerShape(20.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 64.dp)
+            .clip(shape)
+            .background(colors.surface)
+            .border(1.dp, colors.line, shape)
+            .pressable(onClick, onClickLabel = "Choose the alarm sound")
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            Modifier.size(40.dp).background(if (sound.own) colors.accent else colors.surface2, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            MorrowIcon(Icons.Music, if (sound.own) colors.onAccent else colors.hi)
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            BasicText(sound.title, style = type.button.copy(color = colors.text))
+            BasicText(sound.subtitle, style = type.body.copy(color = colors.muted))
+        }
+        MorrowIcon(Icons.Forward, colors.muted, strokeWidth = 2.2f)
+    }
+}
+
+/** Default and every sound; picking one plays it, and the sound stops when the sheet closes. */
+@Composable
+private fun SoundSheet(choices: List<SoundChoice>, onPick: (SoundChoice) -> Unit, onClose: () -> Unit) {
+    val colors = MorrowTheme.colors
+    val type = MorrowTheme.type
+    val shape = RoundedCornerShape(24.dp)
+    Sheet("Alarm sound", onClose) {
+        BasicText("Alarm sound", style = type.title.copy(color = colors.text), modifier = Modifier.semantics { heading() })
+        BasicText("Tap one to hear it.", style = type.body.copy(color = colors.muted))
+        Column(Modifier.fillMaxWidth().clip(shape).background(colors.surface).border(1.dp, colors.line, shape).selectableGroup()) {
+            choices.forEachIndexed { i, choice ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 60.dp)
+                        .then(if (i > 0) Modifier.topDivider(colors.line) else Modifier)
+                        .selectable(choice.selected, role = Role.RadioButton) { onPick(choice) }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    val ring = if (choice.selected) colors.hi else colors.muted
+                    Box(Modifier.size(24.dp).border(2.dp, ring, CircleShape), contentAlignment = Alignment.Center) {
+                        if (choice.selected) Box(Modifier.size(12.dp).background(colors.hi, CircleShape))
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        BasicText(choice.name, style = type.button.copy(color = colors.text))
+                        BasicText(choice.subtitle, style = type.body.copy(color = colors.muted))
+                    }
+                }
+            }
+        }
+        PrimaryButton("Done", onClose)
+    }
+}
+
 @Composable
 private fun ZoneSheet(zones: ZoneSheetData, onPick: (ZoneChoice) -> Unit, onClose: () -> Unit) {
     val colors = MorrowTheme.colors

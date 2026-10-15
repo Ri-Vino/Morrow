@@ -3,6 +3,7 @@ package app.morrow.ui.edit
 import app.morrow.domain.Alarm
 import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
+import app.morrow.domain.WakeSound
 import app.morrow.domain.clockZone
 import app.morrow.domain.nextOccurrence
 import app.morrow.domain.ownZone
@@ -38,6 +39,9 @@ data class EditModel(
     val daypart: String,
     val untilText: String,
     val zone: ZoneRow,
+    val sound: SoundRow,
+    /** The Alarm sound sheet: Default first, then every sound. */
+    val soundChoices: List<SoundChoice>,
     /** The wake-up games in play order. */
     val games: List<GameRow>,
     val estimate: Estimate,
@@ -66,6 +70,12 @@ data class GameRow(
 /** The Time zone row: whose clock the alarm keeps. */
 data class ZoneRow(val title: String, val subtitle: String, val zoned: Boolean)
 
+/** The alarm's sound, [own] when it has one rather than the one chosen in Settings. */
+data class SoundRow(val title: String, val subtitle: String, val own: Boolean)
+
+/** A choice in the Alarm sound sheet. Picking it sets the alarm's [sound], null for the one chosen in Settings. */
+data class SoundChoice(val sound: WakeSound?, val name: String, val subtitle: String, val selected: Boolean)
+
 /** A choice in the "Ring by the time in…" sheet. Picking it sets the alarm's [timeZone] and [city], both null for the phone's. */
 data class ZoneChoice(
     val timeZone: String?,
@@ -83,7 +93,8 @@ data class GameChoice(val type: MissionType, val name: String, val description: 
 data class Estimate(val text: String, val tooLong: Boolean)
 
 /** [now] and [phoneZone] are the phone's; an alarm on another city's clock is shown by that clock. */
-fun editModel(draft: Alarm, now: Instant, phoneZone: TimeZone): EditModel {
+/** [defaultSound] is the one chosen in Settings, which alarms without their own ring with. */
+fun editModel(draft: Alarm, now: Instant, phoneZone: TimeZone, defaultSound: WakeSound = WakeSound.BIRDSONG): EditModel {
     val alarmMinute = draft.hour * 60 + draft.minute
     val nowMinute = cityMinute(now, phoneZone)
     val city = draft.zoneName()
@@ -104,6 +115,10 @@ fun editModel(draft: Alarm, now: Instant, phoneZone: TimeZone): EditModel {
         } else {
             ZoneRow("$city time", "Follows $city’s clock, summer time included", zoned = true)
         },
+        sound = draft.sound?.let { SoundRow(it.displayName, "Just for this alarm", own = true) }
+            ?: SoundRow(defaultSound.displayName, "Default, as chosen in Settings", own = false),
+        soundChoices = listOf(SoundChoice(null, "Default", "${defaultSound.displayName}, as chosen in Settings", draft.sound == null)) +
+            WakeSound.entries.map { SoundChoice(it, it.displayName, it.description, draft.sound == it) },
         games = games.mapIndexed { i, step ->
             val max = step.type.rules.maxRounds
             GameRow(
@@ -279,3 +294,10 @@ fun Alarm.nudged(byMinutes: Int): Alarm {
 }
 
 fun Alarm.at(minuteOfDay: Int): Alarm = copy(hour = minuteOfDay / 60, minute = minuteOfDay % 60)
+
+private val WakeSound.description: String
+    get() = when (this) {
+        WakeSound.BIRDSONG -> "Birds waking up with you"
+        WakeSound.WIND_CHIMES -> "Chimes on a soft breeze"
+        WakeSound.SOFT_PIANO -> "A slow, gentle tune"
+    }

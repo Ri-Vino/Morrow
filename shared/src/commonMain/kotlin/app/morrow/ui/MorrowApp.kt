@@ -27,6 +27,7 @@ import app.morrow.data.MorrowSettings
 import app.morrow.domain.Alarm
 import app.morrow.domain.DefaultGames
 import app.morrow.domain.MissionType
+import app.morrow.domain.WakeSound
 import app.morrow.domain.decodeGames
 import app.morrow.domain.encodeGames
 import app.morrow.domain.nextAlarm
@@ -90,6 +91,7 @@ import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 class MorrowServices(
@@ -324,7 +326,10 @@ private fun EditRoute(
     val savedCities by services.cities.cities.collectAsStateWithLifecycle(initialValue = emptyList())
     val zoneCity by produceState<City?>(null, phoneZone) { value = services.catalog.cityForZone(phoneZone.id) }
     val setup by services.settings.missionSetup.collectAsStateWithLifecycle(initialValue = null)
+    val alarmSetup by services.settings.alarmSetup.collectAsStateWithLifecycle(initialValue = AlarmSetup.Default)
     var pickingCode by rememberSaveable { mutableStateOf(false) }
+    // A sound being heard in the Alarm sound sheet stops when Edit closes or the app goes to the background.
+    LifecycleStartEffect(Unit) { onStopOrDispose { services.alarmSound.stop() } }
 
     val current = draft ?: return
     val missions = setup ?: return
@@ -342,7 +347,7 @@ private fun EditRoute(
     }
     EditScreen(
         draft = current,
-        model = editModel(current, now, phoneZone),
+        model = editModel(current, now, phoneZone, alarmSetup.sound),
         zones = ZoneSheetData(
             choices = zoneChoices(current, savedCities.map { it.city }, now, phoneZone, phoneCityName(savedCities, phoneZone, zoneCity)),
             find = { query -> searchChoices(services.catalog.search(query, limit = 8), Clock.System.now(), phoneZone) },
@@ -362,6 +367,11 @@ private fun EditRoute(
                 }
             },
             onPreview = { onPreview(current) },
+            onHearSound = { sound ->
+                services.alarmSound.stop()
+                services.alarmSound.play(sound ?: alarmSetup.sound, SOUND_SAMPLE_RAMP)
+            },
+            onStopSound = services.alarmSound::stop,
             onSave = {
                 scope.launch {
                     services.coordinator.save(current.copy(enabled = true))
@@ -383,7 +393,7 @@ private fun RingPreviewRoute(services: MorrowServices, alarm: Alarm, onSystemBar
     PlatformBackHandler(onBack = onExit)
     val sound by services.settings.alarmSetup.collectAsStateWithLifecycle(initialValue = AlarmSetup.Default)
     DisposableEffect(soundOn, sound) {
-        if (soundOn) services.alarmSound.play(sound.sound, sound.ramp.duration)
+        if (soundOn) services.alarmSound.play(alarm.sound ?: sound.sound, sound.ramp.duration)
         onDispose { services.alarmSound.stop() }
     }
     // Leaving the app, or a real alarm taking over the screen, ends the sound for good.
@@ -430,19 +440,25 @@ private enum class PreviewStage { RINGING, MISSION, MORNING }
 private fun WakeRoute(services: MorrowServices, alarmId: Long, onSystemBarsChange: (Boolean) -> Unit, onDone: () -> Unit) {
     val scope = rememberCoroutineScope()
     var games by rememberSaveable(alarmId) { mutableStateOf<String?>(null) }
+    // The alarm's own sound's name, empty for the one chosen in Settings.
+    var ownSound by rememberSaveable(alarmId) { mutableStateOf("") }
     var wokeAt by rememberSaveable(alarmId) { mutableStateOf<Long?>(null) }
     LaunchedEffect(alarmId) {
         if (games != null) return@LaunchedEffect
         // Yesterday's "one small thing" lasts until the next alarm, which is this one.
         services.settings.clearIntention()
         services.coordinator.onRang(alarmId)
-        games = encodeGames(services.repository.get(alarmId)?.games ?: DefaultGames)
+        val alarm = services.repository.get(alarmId)
+        ownSound = alarm?.sound?.name.orEmpty()
+        games = encodeGames(alarm?.games ?: DefaultGames)
     }
     val ringing = wokeAt == null
     val setup by services.settings.alarmSetup.collectAsStateWithLifecycle(initialValue = null)
-    DisposableEffect(ringing, setup) {
+    DisposableEffect(ringing, setup, games) {
         val sound = setup
-        if (ringing && sound != null) services.alarmSound.play(sound.sound, sound.ramp.duration)
+        if (ringing && sound != null && games != null) {
+            services.alarmSound.play(WakeSound.entries.firstOrNull { it.name == ownSound } ?: sound.sound, sound.ramp.duration)
+        }
         onDispose { services.alarmSound.stop() }
     }
     LaunchedEffect(ringing) { onSystemBarsChange(ringing) }
@@ -546,13 +562,16 @@ private fun newAlarm(timeZone: String? = null, city: String? = null) = Alarm(
     zoneLabel = city.takeIf { timeZone != null },
 )
 
+/** A sound heard in the Alarm sound sheet comes up quickly, but not at full volume at once. */
+private val SOUND_SAMPLE_RAMP = 2.seconds
+
 /** Keeps an unsaved draft through rotation and process death. */
 private val AlarmSaver = Saver<Alarm?, List<Any>>(
     save = { alarm ->
         alarm?.let {
             listOf(
                 it.id, it.hour, it.minute, it.label, it.days.joinToString(",") { day -> day.name }, encodeGames(it.games), it.enabled,
-                it.timeZone.orEmpty(), it.zoneLabel.orEmpty(),
+                it.timeZone.orEmpty(), it.zoneLabel.orEmpty(), it.sound?.name.orEmpty(),
             )
         }
     },
@@ -567,6 +586,7 @@ private val AlarmSaver = Saver<Alarm?, List<Any>>(
             enabled = saved[6] as Boolean,
             timeZone = (saved.getOrNull(7) as String?)?.ifEmpty { null },
             zoneLabel = (saved.getOrNull(8) as String?)?.ifEmpty { null },
+            sound = WakeSound.entries.firstOrNull { it.name == saved.getOrNull(9) },
         )
     },
 )

@@ -16,6 +16,8 @@ data class Alarm(
     val timeZone: String? = null,
     /** The city the zone was picked from, such as "New York". */
     val zoneLabel: String? = null,
+    /** This alarm's own sound; null rings with the one chosen in Settings. */
+    val sound: WakeSound? = null,
 ) {
     init {
         require(hour in 0..23) { "hour must be 0..23, was $hour" }

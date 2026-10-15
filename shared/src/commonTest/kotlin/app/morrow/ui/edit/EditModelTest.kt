@@ -10,6 +10,7 @@ import app.morrow.domain.MissionType.SHAKE
 import app.morrow.domain.MissionType.SUMS
 import app.morrow.domain.MissionType.TYPE
 import app.morrow.domain.MissionType.UNSCRAMBLE
+import app.morrow.domain.WakeSound
 import app.morrow.places.City
 import app.morrow.places.SavedCity
 import kotlinx.datetime.LocalDateTime
@@ -321,5 +322,22 @@ class EditModelTest {
         assertEquals("London", phoneCityName(listOf(tokyo, london1), london, zoneCity = null))
         assertEquals("Westminster", phoneCityName(listOf(tokyo), london, zoneCity = city("Westminster", "Europe/London")))
         assertEquals("Europe/London", phoneCityName(emptyList(), london, zoneCity = null))
+    }
+
+    @Test
+    fun anAlarmWithoutItsOwnSoundShowsTheDefault() {
+        val model = app.morrow.ui.edit.editModel(alarm(7, 0), at("2026-10-05T22:00"), london, WakeSound.SOFT_PIANO)
+        assertEquals(SoundRow("Soft piano", "Default, as chosen in Settings", own = false), model.sound)
+        assertEquals(listOf(null, WakeSound.BIRDSONG, WakeSound.WIND_CHIMES, WakeSound.SOFT_PIANO), model.soundChoices.map { it.sound })
+        assertEquals(SoundChoice(null, "Default", "Soft piano, as chosen in Settings", selected = true), model.soundChoices.first())
+        assertEquals(listOf(true, false, false, false), model.soundChoices.map { it.selected })
+    }
+
+    @Test
+    fun anAlarmWithItsOwnSoundShowsIt() {
+        val draft = alarm(7, 0).copy(sound = WakeSound.WIND_CHIMES)
+        val model = app.morrow.ui.edit.editModel(draft, at("2026-10-05T22:00"), london, WakeSound.SOFT_PIANO)
+        assertEquals(SoundRow("Wind chimes", "Just for this alarm", own = true), model.sound)
+        assertEquals(listOf(false, false, true, false), model.soundChoices.map { it.selected })
     }
 }
