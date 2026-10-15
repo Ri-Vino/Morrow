@@ -9,6 +9,8 @@ settings:
     SWIFT_VERSION: "5.0"
     MARKETING_VERSION: 0.1.0
     CURRENT_PROJECT_VERSION: 1
+    # The shared framework is built for Apple silicon simulators only (iosSimulatorArm64).
+    EXCLUDED_ARCHS[sdk=iphonesimulator*]: x86_64
 targets:
   Morrow:
     type: application
