@@ -11,7 +11,7 @@ import kotlin.time.Duration.Companion.seconds
 
 class TimerEntryTest {
 
-    private fun typed(vararg keys: String) = keys.fold(TimerEntry()) { entry, key -> entry.type(key) }
+    private fun typed(vararg keys: String) = TimerEntry.of(keys.joinToString(""))
 
     private fun TimerEntry.readout() = "$hoursText:$minutesText:$secondsText"
 
@@ -26,7 +26,7 @@ class TimerEntryTest {
     }
 
     @Test
-    fun digitsShiftInFromTheRight() {
+    fun digitsFillFromTheRight() {
         assertEquals("00:00:01", typed("1").readout())
         assertEquals("00:00:15", typed("1", "5").readout())
         assertEquals("00:01:50", typed("1", "5", "0").readout())
@@ -45,43 +45,6 @@ class TimerEntryTest {
         assertEquals(listOf(false, true, true), reached(typed("5", "0", "0")))
         assertEquals(listOf(false, true, true), reached(typed("1", "2", "3", "4")))
         assertEquals(listOf(true, true, true), reached(typed("1", "2", "3", "4", "5")))
-    }
-
-    @Test
-    fun leadingZerosAddNothing() {
-        assertEquals("", typed("0").digits)
-        assertEquals("", typed("00").digits)
-        assertEquals("", typed("0", "0", "0").digits)
-        assertEquals("100", typed("1", "00").digits)
-        assertEquals("1000", typed("1", "0", "0", "0").digits)
-        assertEquals("500", typed("0", "5", "00").digits)
-    }
-
-    @Test
-    fun aSeventhDigitIsIgnored() {
-        val full = typed("1", "2", "3", "4", "5", "6")
-
-        assertEquals("123456", full.type("7").digits)
-        assertEquals("123456", full.type("0").digits)
-        assertEquals("123456", full.type("00").digits)
-    }
-
-    @Test
-    fun doubleZeroIsTakenWholeOrNotAtAll() {
-        val five = typed("1", "2", "3", "4", "5")
-
-        assertEquals("12345", five.type("00").digits)
-        assertEquals("123450", five.type("0").digits)
-        assertEquals("123400", typed("1", "2", "3", "4").type("00").digits)
-    }
-
-    @Test
-    fun deleteTakesOffTheLastDigit() {
-        assertEquals("100", typed("1", "0", "0", "0").deleteLast().digits)
-        assertEquals("1", typed("1", "5").deleteLast().digits)
-        assertEquals("", typed("1").deleteLast().digits)
-        assertEquals("", TimerEntry().deleteLast().digits)
-        assertEquals("00:00:10", typed("1", "0", "0").deleteLast().readout())
     }
 
     @Test
@@ -138,11 +101,39 @@ class TimerEntryTest {
     }
 
     @Test
-    fun typingGoesOnFromAChip() {
+    fun aChipShowsItsLength() {
         val tenMinutes = QuickTimers.first { it.name == "10 min" }.entry
 
         assertEquals("1000", tenMinutes.digits)
         assertEquals("00:10:00", tenMinutes.readout())
-        assertEquals(1.hours, tenMinutes.type("0").duration)
+    }
+
+    @Test
+    fun aLengthBecomesItsDigits() {
+        assertEquals("1500", TimerEntry.of(15.minutes).digits)
+        assertEquals("10203", TimerEntry.of(1.hours + 2.minutes + 3.seconds).digits)
+        assertEquals("", TimerEntry.of(Duration.ZERO).digits)
+        assertEquals("995959", TimerEntry.of(200.hours).digits)
+    }
+
+    @Test
+    fun theTypeItSheetTakesHoursMinutesAndSeconds() {
+        assertEquals(1.hours + 2.minutes + 3.seconds, TimerEntry.typed("1", "02", "03")?.duration)
+        assertEquals(15.minutes, TimerEntry.typed("", "15", "")?.duration)
+        assertEquals(Duration.ZERO, TimerEntry.typed("", "", "")?.duration)
+        assertEquals(null, TimerEntry.typed("", "60", ""))
+        assertEquals(null, TimerEntry.typed("", "", "75"))
+    }
+
+    @Test
+    fun windingPipRoundTheDialSetsMinutesAndALapIsAnHour() {
+        assertEquals(15, windDial(0, 0.25f))
+        assertEquals(30, windDial(15, 0.5f))
+        // Carrying on past the top winds on an hour, and going back past it unwinds one.
+        assertEquals(62, windDial(58, 2 / 60f))
+        assertEquals(58, windDial(62, 58 / 60f))
+        // It won't go below nothing, or past twelve hours.
+        assertEquals(0, windDial(0, 59 / 60f))
+        assertEquals(MAX_DIAL_MINUTES, windDial(MAX_DIAL_MINUTES, 1 / 60f))
     }
 }

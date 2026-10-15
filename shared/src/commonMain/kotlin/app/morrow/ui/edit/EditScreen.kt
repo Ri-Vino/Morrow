@@ -29,7 +29,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -48,7 +47,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
@@ -71,10 +69,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -91,6 +86,7 @@ import app.morrow.ui.components.PillButton
 import app.morrow.ui.components.PrimaryButton
 import app.morrow.ui.components.SecondaryButton
 import app.morrow.ui.components.SkyDial
+import app.morrow.ui.components.DigitsField
 import app.morrow.ui.components.pressable
 import app.morrow.ui.components.repeatingPressable
 import kotlinx.datetime.DayOfWeek
@@ -320,7 +316,7 @@ private fun TimeSheet(hour: Int, minute: Int, onSet: (Int) -> Unit, onClose: () 
             horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TimeField(
+            DigitsField(
                 value = hours,
                 label = "Hours",
                 onValue = {
@@ -332,7 +328,7 @@ private fun TimeSheet(hour: Int, minute: Int, onSet: (Int) -> Unit, onClose: () 
                 modifier = Modifier.focusRequester(hoursFocus),
             )
             BasicText(":", style = type.displayLarge.copy(color = colors.muted))
-            TimeField(
+            DigitsField(
                 value = minutes,
                 label = "Minutes",
                 onValue = { minutes = it },
@@ -357,46 +353,6 @@ private fun TimeSheet(hour: Int, minute: Int, onSet: (Int) -> Unit, onClose: () 
             height = 56.dp,
         )
     }
-}
-
-@Composable
-private fun TimeField(
-    value: String,
-    label: String,
-    onValue: (String) -> Unit,
-    imeAction: ImeAction,
-    onIme: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val colors = MorrowTheme.colors
-    val shape = RoundedCornerShape(20.dp)
-    var focused by remember { mutableStateOf(false) }
-    // Focusing a field selects what's in it, so typing replaces it.
-    var field by remember { mutableStateOf(TextFieldValue(value)) }
-    if (field.text != value) field = TextFieldValue(value, TextRange(value.length))
-    BasicTextField(
-        value = field,
-        onValueChange = { changed ->
-            val digits = changed.text.filter(Char::isDigit).take(2)
-            field = changed.copy(text = digits, selection = if (digits == changed.text) changed.selection else TextRange(digits.length))
-            if (digits != value) onValue(digits)
-        },
-        singleLine = true,
-        textStyle = MorrowTheme.type.displayLarge.copy(color = colors.text, textAlign = TextAlign.Center, fontFeatureSettings = "tnum"),
-        cursorBrush = SolidColor(colors.hi),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = imeAction),
-        keyboardActions = KeyboardActions(onAny = { onIme() }),
-        modifier = modifier
-            .width(120.dp)
-            .background(colors.surface, shape)
-            .border(2.dp, if (focused) colors.hi else colors.line, shape)
-            .onFocusChanged { state ->
-                if (state.isFocused && !focused) field = field.copy(selection = TextRange(0, field.text.length))
-                focused = state.isFocused
-            }
-            .padding(vertical = 8.dp)
-            .semantics { contentDescription = label },
-    )
 }
 
 @Composable

@@ -1,24 +1,18 @@
 package app.morrow.ui.timers
 
 import app.morrow.timers.totalText
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The digits typed into the timer setter. They shift in from the right into hh:mm:ss, so 1, 5, 0, 0 reads 00:15:00 and
- * ten minutes is 1, 0, 0, 0. A leading zero adds nothing, and a seventh digit is ignored.
+ * The setter's length as up to six digits, hh:mm:ss filled from the right, so 1, 5, 0, 0 is 00:15:00 and ten minutes is
+ * 1, 0, 0, 0. It's what the setter keeps through rotation.
  */
 data class TimerEntry(val digits: String = "") {
-
-    /** The entry after [typed] (a digit, or "00") is added on the right. It stays as it is if that would be too many digits. */
-    fun type(typed: String): TimerEntry {
-        val next = (digits + typed).trimStart('0')
-        return if (next.length <= MAX_DIGITS) TimerEntry(next) else this
-    }
-
-    fun deleteLast(): TimerEntry = TimerEntry(digits.dropLast(1))
 
     private val padded: String get() = digits.padStart(MAX_DIGITS, '0')
 
@@ -45,8 +39,39 @@ data class TimerEntry(val digits: String = "") {
 
         /** The entry [saved] digits make, ignoring anything that isn't a digit and any that wouldn't fit. */
         fun of(saved: String): TimerEntry = TimerEntry(saved.filter { it in '0'..'9' }.trimStart('0').take(MAX_DIGITS))
+
+        /** The entry for [length], to the second, up to 99:59:59. */
+        fun of(length: Duration): TimerEntry {
+            val seconds = length.inWholeSeconds.coerceIn(0, MAX_SECONDS)
+            val parts = listOf(seconds / 3600, seconds / 60 % 60, seconds % 60)
+            return of(parts.joinToString("") { it.toString().padStart(2, '0') })
+        }
+
+        /** The entry typed as [hours], [minutes] and [seconds] in the Type it sheet, empty parts as 0; null past 99:59:59. */
+        fun typed(hours: String, minutes: String, seconds: String): TimerEntry? {
+            val parts = listOf(hours, minutes, seconds).map { if (it.isEmpty()) 0 else it.toIntOrNull() ?: return null }
+            if (parts[1] > 59 || parts[2] > 59) return null
+            return of(parts[0].hours + parts[1].minutes + parts[2].seconds)
+        }
+
+        private const val MAX_SECONDS = 99 * 3600L + 59 * 60 + 59
     }
 }
+
+/**
+ * The timer dial's whole minutes once Pip has been dragged to [fraction] of a turn from the top, starting from
+ * [minutes]. A turn is an hour. It takes whichever turn is nearest, so carrying on past the top winds on an hour, and
+ * going back past it unwinds one; it stops at 0 and at [MAX_DIAL_MINUTES].
+ */
+fun windDial(minutes: Int, fraction: Float): Int {
+    val hour = minutes - minutes.mod(60)
+    val minute = (fraction * 60).roundToInt().mod(60)
+    val nearest = listOf(hour + minute - 60, hour + minute, hour + minute + 60).minBy { abs(it - minutes) }
+    return nearest.coerceIn(0, MAX_DIAL_MINUTES)
+}
+
+/** Twelve hours, wound on the dial a lap at a time; typing goes further. */
+const val MAX_DIAL_MINUTES = 12 * 60
 
 /** A quick chip's name and the digits it sets, written as the canvas has them: "1000" is ten minutes. */
 data class QuickTimer(val name: String, val entry: TimerEntry)

@@ -60,7 +60,8 @@ Difficulty can be set to **Gentle**, **Normal** or **Tough**.
 - **City search:** a bundled list of world cities, with smaller places found online.
 
 ### Timers
-- Run several timers at once, each with an optional note.
+- Wind Pip round a dial to set a timer, an hour a lap, or pick a quick length or type it.
+- Run several timers at once, each with an optional note. Each one shows Pip setting in a little sky as it runs down.
 - When a timer ends, Pip reads its note aloud.
 - Timers keep ringing on time with the screen off, and are recovered after a restart.
 

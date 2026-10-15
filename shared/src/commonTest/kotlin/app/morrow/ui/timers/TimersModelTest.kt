@@ -37,8 +37,6 @@ class TimerSkyTest {
 
         assertNear(720f, sky.minuteOfDay)
         assertEquals(SkyCurve.at(720f), sky.sky)
-        assertNear(26f, sky.sunX)
-        assertNear(20f, sky.sunY)
         assertNear(0f, sky.starAlpha)
         assertFalse(sky.sleepy)
     }
@@ -49,8 +47,6 @@ class TimerSkyTest {
 
         assertNear(940f, sky.minuteOfDay)
         assertEquals(SkyCurve.at(940f), sky.sky)
-        assertNear(179f, sky.sunX)
-        assertNear(31f, sky.sunY)
         assertNear(0f, sky.starAlpha)
     }
 
@@ -60,8 +56,6 @@ class TimerSkyTest {
 
         assertNear(1160f, sky.minuteOfDay)
         assertEquals(SkyCurve.at(19 * 60 + 20f), sky.sky)
-        assertNear(332f, sky.sunX)
-        assertNear(64f, sky.sunY)
         assertNear(0.75f, sky.starAlpha)
         assertTrue(sky.sleepy)
     }
@@ -170,7 +164,7 @@ class TimersModelTest {
     }
 
     @Test
-    fun theStripFollowsHowFarTheTimerHasRun() {
+    fun theWindowFollowsHowFarTheTimerHasRun() {
         val card = card(pasta, now = noon + 5.minutes)
 
         assertEquals(timerSky(0.5f), card.sky)
@@ -178,7 +172,7 @@ class TimersModelTest {
     }
 
     @Test
-    fun aPausedTimersStripStaysWhereItStopped() {
+    fun aPausedTimersWindowStaysWhereItStopped() {
         // 14 minutes 30 seconds of 45 have run.
         assertEquals(timerSky((14.5 / 45).toFloat()), card(paused, now = noon + 3.minutes).sky)
         assertEquals(timerSky((14.5 / 45).toFloat()), card(paused, now = noon + 3.hours).sky)

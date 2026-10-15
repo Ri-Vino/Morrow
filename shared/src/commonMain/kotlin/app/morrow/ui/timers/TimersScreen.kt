@@ -86,9 +86,7 @@ fun TimersRoute(
     TimersScreen(
         model = timersModel(all, ringing.mapTo(HashSet()) { it.id }, waiting.mapTo(HashSet()) { it.id }, now, zone, draft),
         actions = TimersActions(
-            onDigit = { draft = draft.copy(entry = draft.entry.type(it)) },
-            onDeleteDigit = { draft = draft.copy(entry = draft.entry.deleteLast()) },
-            onQuick = { draft = draft.copy(entry = it) },
+            onEntry = { draft = draft.copy(entry = it) },
             onNote = { draft = draft.copy(note = it) },
             onStart = {
                 val entry = draft.entry
@@ -116,10 +114,8 @@ fun TimersRoute(
 }
 
 class TimersActions(
-    /** A digit or "00" from the keypad. */
-    val onDigit: (String) -> Unit,
-    val onDeleteDigit: () -> Unit,
-    val onQuick: (TimerEntry) -> Unit,
+    /** A new length from the dial, a quick chip or the Type it sheet. */
+    val onEntry: (TimerEntry) -> Unit,
     val onNote: (String) -> Unit,
     val onStart: () -> Unit,
     val onCancel: () -> Unit,
@@ -134,6 +130,7 @@ class TimersActions(
 @Composable
 fun TimersScreen(model: TimersModel, actions: TimersActions, modifier: Modifier = Modifier) {
     val colors = MorrowTheme.colors
+    var typing by rememberSaveable { mutableStateOf(false) }
     Box(modifier.fillMaxSize().background(colors.bg)) {
         Column(
             modifier = Modifier
@@ -147,7 +144,7 @@ fun TimersScreen(model: TimersModel, actions: TimersActions, modifier: Modifier 
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Header(model.sub)
-            model.setter?.let { TimerSetter(it, actions) }
+            model.setter?.let { TimerSetter(it, actions, onType = { typing = true }) }
             model.cards.forEach { card -> key(card.id) { TimerCardView(card, actions) } }
         }
         if (model.showNewTimer) {
@@ -164,6 +161,17 @@ fun TimersScreen(model: TimersModel, actions: TimersActions, modifier: Modifier 
                     .navigationBarsPadding()
                     .padding(end = 24.dp, bottom = 104.dp)
                     .shadow(14.dp, CircleShape, ambientColor = colors.shadow, spotColor = colors.shadow),
+            )
+        }
+        val setter = model.setter
+        if (typing && setter != null) {
+            TimerTypeSheet(
+                setter.entry,
+                onSet = {
+                    typing = false
+                    actions.onEntry(it)
+                },
+                onClose = { typing = false },
             )
         }
     }
@@ -197,21 +205,20 @@ private fun TimerCardView(card: TimerCard, actions: TimersActions) {
             .background(colors.surface)
             .border(1.dp, colors.line, shape),
     ) {
-        TimerSkyStrip(card.sky, Modifier.fillMaxWidth().aspectRatio(STRIP_WIDTH / STRIP_HEIGHT))
-        val padding = Modifier.padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 16.dp)
-        if (largeText()) {
-            // The time and its buttons won't sit side by side at big text sizes, so the buttons go underneath.
-            Column(padding, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                CardText(card)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    CardButtons(card, actions)
-                }
-            }
-        } else {
-            Row(padding, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                CardText(card, Modifier.weight(1f))
-                CardButtons(card, actions)
-            }
+        Row(
+            Modifier.padding(start = 12.dp, end = 16.dp, top = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TimerWindow(card.sky, card.state, Modifier.size(if (largeText()) 72.dp else 92.dp))
+            CardText(card, Modifier.weight(1f))
+        }
+        Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CardButtons(card, actions)
         }
     }
 }

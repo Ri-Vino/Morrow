@@ -35,27 +35,21 @@ enum class TimerState {
     ENDED,
 }
 
-/**
- * The sky strip on a timer card, in the design's 358 × 72 units. As the timer runs down the sun sinks from midday to
- * dusk, and Pip dozes off as it sets.
- */
+/** The sky in a timer card's window. As the timer runs down the sky goes from midday to dusk, and Pip dozes off as he sets. */
 data class TimerSky(
     /** How far the timer has run, 0 to 1. */
     val progress: Float,
-    /** The time of day the strip shows: 12:00 when the timer starts, 19:20 as it ends. */
+    /** The time of day the window shows: 12:00 when the timer starts, 19:20 as it ends. */
     val minuteOfDay: Float,
     val sky: Color,
     val hillBack: Color,
     val hillFront: Color,
-    /** Pip's centre. */
-    val sunX: Float,
-    val sunY: Float,
     val starAlpha: Float,
     /** Pip's eyes close for the last part of the sky. */
     val sleepy: Boolean,
 )
 
-/** The strip for a timer that has run [progress] of its length. */
+/** The window for a timer that has run [progress] of its length. */
 fun timerSky(progress: Float): TimerSky {
     val f = progress.coerceIn(0f, 1f)
     val minute = SKY_START_MINUTE + f * SKY_SPAN_MINUTES
@@ -66,14 +60,12 @@ fun timerSky(progress: Float): TimerSky {
         sky = sky,
         hillBack = mix(sky, Illustration.ground, 0.35f),
         hillFront = mix(sky, Illustration.ground, 0.55f),
-        sunX = SUN_LEFT + f * SUN_SPAN,
-        sunY = SUN_TOP + f * f * SUN_DROP,
         starAlpha = ((f - STARS_FROM) * 3f).coerceIn(0f, MAX_STAR_ALPHA),
         sleepy = f >= SLEEPY_FROM,
     )
 }
 
-/** One timer's card: the sky strip, the time left or that time is up, the note and total, and its buttons. */
+/** One timer's card: the sky window, the time left or that time is up, the note and total, and its buttons. */
 data class TimerCard(
     val id: Long,
     val state: TimerState,
@@ -191,13 +183,9 @@ internal const val TIME_IS_UP = "Time’s up"
 
 private const val SHORT_CLOCK_LENGTH = 5
 
-// The design's strip: noon to 19:20 over the whole timer, the sun crossing x 26 to 332 and dropping 44 from y 20.
+// Noon to 19:20 over the whole timer.
 private const val SKY_START_MINUTE = 12 * 60f
 private const val SKY_SPAN_MINUTES = 440f
-private const val SUN_LEFT = 26f
-private const val SUN_SPAN = 306f
-private const val SUN_TOP = 20f
-private const val SUN_DROP = 44f
 private const val STARS_FROM = 0.75f
 private const val MAX_STAR_ALPHA = 0.8f
 private const val SLEEPY_FROM = 0.85f
