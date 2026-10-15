@@ -2,8 +2,9 @@
 # needs testing on an iPhone.
 name: iOS
 
-# Manual only for now (Actions > iOS > Run workflow) while the iOS build is being fixed.
 on:
+  push:
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -27,11 +28,13 @@ jobs:
           brew install xcodegen
           cd iosApp && xcodegen generate
 
+      # Compile errors also go up as annotations, which show on the run's page without opening the log.
       - name: Build the app for the simulator
-        run: >
-          xcodebuild build
-          -project iosApp/Morrow.xcodeproj
-          -scheme Morrow
-          -configuration Debug
-          -destination 'generic/platform=iOS Simulator'
-          CODE_SIGNING_ALLOWED=NO
+        run: |
+          set -o pipefail
+          xcodebuild build             -project iosApp/Morrow.xcodeproj             -scheme Morrow             -configuration Debug             -destination 'generic/platform=iOS Simulator'             CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log || {
+            grep -E '(error:|^e: )' build.log | sort -u | head -40 | while IFS= read -r line; do
+              echo "::error::${line//$GITHUB_WORKSPACE\//}"
+            done
+            exit 1
+          }
