@@ -340,4 +340,15 @@ class EditModelTest {
         assertEquals(SoundRow("Wind chimes", "Just for this alarm", own = true), model.sound)
         assertEquals(listOf(false, false, true, false), model.soundChoices.map { it.selected })
     }
+
+    @Test
+    fun typedTimesMustBeRealTimes() {
+        assertEquals(6 * 60 + 45, typedTime("06", "45"))
+        assertEquals(7 * 60, typedTime("7", ""))
+        assertEquals(23 * 60 + 59, typedTime("23", "59"))
+        assertEquals(0, typedTime("00", "00"))
+        assertEquals(null, typedTime("", "30"))
+        assertEquals(null, typedTime("24", "00"))
+        assertEquals(null, typedTime("12", "60"))
+    }
 }

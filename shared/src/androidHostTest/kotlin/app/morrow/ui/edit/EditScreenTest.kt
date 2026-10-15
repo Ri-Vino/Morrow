@@ -20,6 +20,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import app.morrow.domain.Alarm
 import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
@@ -80,6 +81,19 @@ class EditScreenTest {
                 )
             }
         }
+    }
+
+    @Test
+    fun tappingTheTimeLetsItBeTyped() {
+        show(alarm(hour = 7, minute = 0))
+
+        compose.onNodeWithText("07:00").performClick()
+        compose.onNodeWithContentDescription("Hours").performTextReplacement("6")
+        compose.onNodeWithContentDescription("Minutes").performTextReplacement("4x5")
+        compose.onNodeWithText("Set time").performClick()
+
+        assertEquals(6 to 45, draft.hour to draft.minute)
+        compose.onNodeWithText("06:45").assertExists()
     }
 
     @Test

@@ -295,6 +295,13 @@ fun Alarm.nudged(byMinutes: Int): Alarm {
 
 fun Alarm.at(minuteOfDay: Int): Alarm = copy(hour = minuteOfDay / 60, minute = minuteOfDay % 60)
 
+/** The minute of the day typed into the Set the time sheet, or null until it's a real time. Empty minutes are :00. */
+fun typedTime(hours: String, minutes: String): Int? {
+    val hour = hours.toIntOrNull()?.takeIf { it in 0..23 } ?: return null
+    val minute = if (minutes.isEmpty()) 0 else minutes.toIntOrNull()?.takeIf { it in 0..59 } ?: return null
+    return hour * 60 + minute
+}
+
 private val WakeSound.description: String
     get() = when (this) {
         WakeSound.BIRDSONG -> "Birds waking up with you"

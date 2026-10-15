@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -47,6 +48,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
@@ -69,7 +71,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -87,6 +92,7 @@ import app.morrow.ui.components.PrimaryButton
 import app.morrow.ui.components.SecondaryButton
 import app.morrow.ui.components.SkyDial
 import app.morrow.ui.components.pressable
+import app.morrow.ui.components.repeatingPressable
 import kotlinx.datetime.DayOfWeek
 
 class EditActions(
@@ -114,6 +120,7 @@ fun EditScreen(
     var addingGame by rememberSaveable { mutableStateOf(false) }
     var pickingZone by rememberSaveable { mutableStateOf(false) }
     var pickingSound by rememberSaveable { mutableStateOf(false) }
+    var typingTime by rememberSaveable { mutableStateOf(false) }
     Box(modifier.fillMaxSize()) {
         // Behind a sheet, the form is hidden from TalkBack as well as dimmed.
         EditForm(
@@ -121,8 +128,20 @@ fun EditScreen(
             onAddGame = { addingGame = true },
             onPickZone = { pickingZone = true },
             onPickSound = { pickingSound = true },
-            Modifier.semantics { if (addingGame || pickingZone || pickingSound) hideFromAccessibility() },
+            onTypeTime = { typingTime = true },
+            Modifier.semantics { if (addingGame || pickingZone || pickingSound || typingTime) hideFromAccessibility() },
         )
+        if (typingTime) {
+            TimeSheet(
+                draft.hour,
+                draft.minute,
+                onSet = { minuteOfDay ->
+                    typingTime = false
+                    actions.onChange(draft.at(minuteOfDay))
+                },
+                onClose = { typingTime = false },
+            )
+        }
         if (addingGame) {
             AddGameSheet(
                 model.gameChoices,
@@ -167,6 +186,7 @@ private fun EditForm(
     onAddGame: () -> Unit,
     onPickZone: () -> Unit,
     onPickSound: () -> Unit,
+    onTypeTime: () -> Unit,
     modifier: Modifier,
 ) {
     val colors = MorrowTheme.colors
@@ -181,7 +201,7 @@ private fun EditForm(
                 onMinuteChange = { actions.onChange(draft.at(it)) },
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
-            TimeRow(model, onNudge = { actions.onChange(draft.nudged(it)) })
+            TimeRow(model, onNudge = { actions.onChange(draft.nudged(it)) }, onTypeTime = onTypeTime)
             BasicText(
                 model.untilText,
                 style = MorrowTheme.type.body.copy(color = colors.muted, textAlign = TextAlign.Center),
@@ -230,24 +250,153 @@ private fun Header(model: EditModel, actions: EditActions) {
     }
 }
 
+/** The time between − and +, which repeat while held. Tapping the time opens the Set the time sheet. */
 @Composable
-private fun TimeRow(model: EditModel, onNudge: (Int) -> Unit) {
+private fun TimeRow(model: EditModel, onNudge: (Int) -> Unit, onTypeTime: () -> Unit) {
     val colors = MorrowTheme.colors
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
     ) {
-        RoundIconButton(Icons.Minus, "Five minutes earlier", { onNudge(-DIAL_STEP_MINUTES) }, strokeWidth = 2.6f)
+        RepeatingIconButton(Icons.Minus, "Five minutes earlier") { onNudge(-DIAL_STEP_MINUTES) }
         Column(
-            modifier = Modifier.width(176.dp).semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
+            modifier = Modifier
+                .width(176.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .pressable(onTypeTime, onClickLabel = "Type the time")
+                .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }
+                .padding(vertical = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             BasicText(model.daypart.uppercase(), style = MorrowTheme.type.label.copy(color = colors.hi))
             BasicText(model.time, style = MorrowTheme.type.displayLarge.copy(color = colors.text, fontFeatureSettings = "tnum"))
+            // A dashed line under the time says it can be tapped.
+            Box(
+                Modifier.width(120.dp).height(2.dp).drawBehind {
+                    val dash = 6.dp.toPx()
+                    var x = 0f
+                    while (x < size.width) {
+                        drawLine(colors.line, Offset(x, size.height / 2), Offset(minOf(x + dash, size.width), size.height / 2), size.height)
+                        x += dash * 2
+                    }
+                },
+            )
         }
-        RoundIconButton(Icons.Plus, "Five minutes later", { onNudge(DIAL_STEP_MINUTES) }, strokeWidth = 2.6f)
+        RepeatingIconButton(Icons.Plus, "Five minutes later") { onNudge(DIAL_STEP_MINUTES) }
     }
+}
+
+@Composable
+private fun RepeatingIconButton(icon: String, description: String, onPress: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .repeatingPressable(onPress, onClickLabel = description)
+            .background(MorrowTheme.colors.surface, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        MorrowIcon(icon, MorrowTheme.colors.text, size = 22.dp, strokeWidth = 2.6f, contentDescription = description)
+    }
+}
+
+/** Hours and minutes typed on the number keyboard; two hour digits move on to the minutes. */
+@Composable
+private fun TimeSheet(hour: Int, minute: Int, onSet: (Int) -> Unit, onClose: () -> Unit) {
+    val colors = MorrowTheme.colors
+    val type = MorrowTheme.type
+    var hours by rememberSaveable { mutableStateOf(hour.toString().padStart(2, '0')) }
+    var minutes by rememberSaveable { mutableStateOf(minute.toString().padStart(2, '0')) }
+    val hoursFocus = remember { FocusRequester() }
+    val minutesFocus = remember { FocusRequester() }
+    val typed = typedTime(hours, minutes)
+    val set = { typed?.let(onSet) }
+    LaunchedEffect(Unit) { hoursFocus.requestFocus() }
+    Sheet("Set the time", onClose) {
+        BasicText("Set the time", style = type.title.copy(color = colors.text), modifier = Modifier.semantics { heading() })
+        BasicText("24-hour clock, for example 06:45.", style = type.body.copy(color = colors.muted))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TimeField(
+                value = hours,
+                label = "Hours",
+                onValue = {
+                    hours = it
+                    if (it.length == 2) minutesFocus.requestFocus()
+                },
+                imeAction = ImeAction.Next,
+                onIme = { minutesFocus.requestFocus() },
+                modifier = Modifier.focusRequester(hoursFocus),
+            )
+            BasicText(":", style = type.displayLarge.copy(color = colors.muted))
+            TimeField(
+                value = minutes,
+                label = "Minutes",
+                onValue = { minutes = it },
+                imeAction = ImeAction.Done,
+                onIme = { set() },
+                modifier = Modifier.focusRequester(minutesFocus),
+            )
+        }
+        if (typed == null) {
+            BasicText(
+                "Hours go from 00 to 23, and minutes from 00 to 59.",
+                style = type.body.copy(color = colors.warn, textAlign = TextAlign.Center),
+                modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+        PillButton(
+            text = "Set time",
+            onClick = { set() },
+            background = if (typed != null) colors.accent else colors.surface2,
+            content = if (typed != null) colors.onAccent else colors.muted,
+            modifier = Modifier.fillMaxWidth().semantics { if (typed == null) disabled() },
+            height = 56.dp,
+        )
+    }
+}
+
+@Composable
+private fun TimeField(
+    value: String,
+    label: String,
+    onValue: (String) -> Unit,
+    imeAction: ImeAction,
+    onIme: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = MorrowTheme.colors
+    val shape = RoundedCornerShape(20.dp)
+    var focused by remember { mutableStateOf(false) }
+    // Focusing a field selects what's in it, so typing replaces it.
+    var field by remember { mutableStateOf(TextFieldValue(value)) }
+    if (field.text != value) field = TextFieldValue(value, TextRange(value.length))
+    BasicTextField(
+        value = field,
+        onValueChange = { changed ->
+            val digits = changed.text.filter(Char::isDigit).take(2)
+            field = changed.copy(text = digits, selection = if (digits == changed.text) changed.selection else TextRange(digits.length))
+            if (digits != value) onValue(digits)
+        },
+        singleLine = true,
+        textStyle = MorrowTheme.type.displayLarge.copy(color = colors.text, textAlign = TextAlign.Center, fontFeatureSettings = "tnum"),
+        cursorBrush = SolidColor(colors.hi),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = imeAction),
+        keyboardActions = KeyboardActions(onAny = { onIme() }),
+        modifier = modifier
+            .width(120.dp)
+            .background(colors.surface, shape)
+            .border(2.dp, if (focused) colors.hi else colors.line, shape)
+            .onFocusChanged { state ->
+                if (state.isFocused && !focused) field = field.copy(selection = TextRange(0, field.text.length))
+                focused = state.isFocused
+            }
+            .padding(vertical = 8.dp)
+            .semantics { contentDescription = label },
+    )
 }
 
 @Composable

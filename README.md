@@ -30,7 +30,7 @@ Morrow is built with Kotlin Multiplatform and Compose Multiplatform. Android is 
 ## Features
 
 ### Alarms
-- **Sky dial:** set the time by dragging the sun around a 24-hour ring, or use the ±5 minute buttons.
+- **Setting the time:** drag the sun around a 24-hour sky dial, tap the time to type it, or tap or hold the − and + buttons to move it in 5-minute steps.
 - **Repeat days:** one-off or weekly alarms, with labels.
 - **Alarms by another city's clock:** set a 09:00 New York alarm from London and it rings at 09:00 New York time, even when the two cities change their clocks on different dates.
 - **Sleep estimate:** Home and Edit show how much sleep you'll get if you go to bed now.
