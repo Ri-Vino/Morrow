@@ -4,23 +4,23 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -41,6 +41,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -48,45 +50,45 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.CustomAccessibilityAction
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.customActions
-import androidx.compose.ui.semantics.disabled
-import androidx.compose.ui.semantics.hideFromAccessibility
-import androidx.compose.ui.semantics.paneTitle
-import androidx.compose.ui.zIndex
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import app.morrow.domain.Alarm
 import app.morrow.domain.MissionType
 import app.morrow.domain.WakeSound
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
 import app.morrow.ui.PlatformBackHandler
+import app.morrow.ui.components.EntryReadout
 import app.morrow.ui.components.Icons
-import app.morrow.ui.components.largeText
+import app.morrow.ui.components.Keypad
 import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.components.PillButton
 import app.morrow.ui.components.PrimaryButton
+import app.morrow.ui.components.ReadoutPart
 import app.morrow.ui.components.SecondaryButton
 import app.morrow.ui.components.SkyDial
-import app.morrow.ui.components.DigitsField
+import app.morrow.ui.components.largeText
 import app.morrow.ui.components.pressable
 import app.morrow.ui.components.repeatingPressable
 import kotlinx.datetime.DayOfWeek
@@ -296,57 +298,37 @@ private fun RepeatingIconButton(icon: String, description: String, onPress: () -
     }
 }
 
-/** Hours and minutes typed on the number keyboard; two hour digits move on to the minutes. */
+/** The time typed on the sheet's own keypad, hours then minutes; tapping either part types into just that one. */
 @Composable
 private fun TimeSheet(hour: Int, minute: Int, onSet: (Int) -> Unit, onClose: () -> Unit) {
     val colors = MorrowTheme.colors
     val type = MorrowTheme.type
-    var hours by rememberSaveable { mutableStateOf(hour.toString().padStart(2, '0')) }
-    var minutes by rememberSaveable { mutableStateOf(minute.toString().padStart(2, '0')) }
-    val hoursFocus = remember { FocusRequester() }
-    val minutesFocus = remember { FocusRequester() }
-    val typed = typedTime(hours, minutes)
-    val set = { typed?.let(onSet) }
-    LaunchedEffect(Unit) { hoursFocus.requestFocus() }
+    var entry by rememberSaveable(stateSaver = TimeEntry.Saver) { mutableStateOf(TimeEntry.at(hour * 60 + minute)) }
+    val typed = entry.minuteOfDay
     Sheet("Set the time", onClose) {
         BasicText("Set the time", style = type.title.copy(color = colors.text), modifier = Modifier.semantics { heading() })
-        BasicText("24-hour clock, for example 06:45.", style = type.body.copy(color = colors.muted))
-        Row(
+        EntryReadout(
+            parts = listOf(
+                ReadoutPart(entry.hours.padStart(2, '0'), 2 - entry.hours.length, "Hours"),
+                ReadoutPart(entry.minutes.padStart(2, '0'), 2 - entry.minutes.length, "Minutes"),
+            ),
+            separator = ":",
+            active = entry.part.ordinal,
+            onPick = { entry = entry.pick(TimePart.entries[it]) },
+        )
+        BasicText(
+            "24-hour clock. Tap the hours or minutes to change just those.",
+            style = type.body.copy(color = colors.muted, textAlign = TextAlign.Center),
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            DigitsField(
-                value = hours,
-                label = "Hours",
-                onValue = {
-                    hours = it
-                    if (it.length == 2) minutesFocus.requestFocus()
-                },
-                imeAction = ImeAction.Next,
-                onIme = { minutesFocus.requestFocus() },
-                modifier = Modifier.focusRequester(hoursFocus),
-            )
-            BasicText(":", style = type.displayLarge.copy(color = colors.muted))
-            DigitsField(
-                value = minutes,
-                label = "Minutes",
-                onValue = { minutes = it },
-                imeAction = ImeAction.Done,
-                onIme = { set() },
-                modifier = Modifier.focusRequester(minutesFocus),
-            )
-        }
-        if (typed == null) {
-            BasicText(
-                "Hours go from 00 to 23, and minutes from 00 to 59.",
-                style = type.body.copy(color = colors.warn, textAlign = TextAlign.Center),
-                modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
-            )
+        )
+        Keypad(onDigit = { entry = entry.type(it) }, enabled = entry::canType) {
+            Gap()
+            Digit("0") { entry = entry.type(0) }
+            Key("Delete digit", { entry = entry.delete() }) { MorrowIcon(Icons.DeleteDigit, colors.muted, size = 28.dp) }
         }
         PillButton(
             text = "Set time",
-            onClick = { set() },
+            onClick = { typed?.let(onSet) },
             background = if (typed != null) colors.accent else colors.surface2,
             content = if (typed != null) colors.onAccent else colors.muted,
             modifier = Modifier.fillMaxWidth().semantics { if (typed == null) disabled() },

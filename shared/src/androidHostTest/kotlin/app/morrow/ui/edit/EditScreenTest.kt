@@ -20,7 +20,6 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.test.performTextReplacement
 import app.morrow.domain.Alarm
 import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
@@ -88,13 +87,26 @@ class EditScreenTest {
         show(alarm(hour = 7, minute = 0))
 
         compose.onNodeWithText("07:00").performClick()
-        compose.onNodeWithContentDescription("Hours").performTextReplacement("6")
-        compose.onNodeWithContentDescription("Minutes").performTextReplacement("4x5")
+        listOf("6", "4", "5").forEach { key(it) }
         compose.onNodeWithText("Set time").performClick()
 
         assertEquals(6 to 45, draft.hour to draft.minute)
         compose.onNodeWithText("06:45").assertExists()
     }
+
+    @Test
+    fun theMinutesCanBeTypedOnTheirOwn() {
+        show(alarm(hour = 7, minute = 0))
+
+        compose.onNodeWithText("07:00").performClick()
+        compose.onNodeWithContentDescription("Minutes, 00").performClick()
+        listOf("3", "0").forEach { key(it) }
+        compose.onNodeWithText("Set time").performClick()
+
+        assertEquals(7 to 30, draft.hour to draft.minute)
+    }
+
+    private fun key(digit: String) = compose.onNode(hasText(digit) and hasClickAction()).performClick()
 
     @Test
     fun plusAndMinusMoveTheTimeByFiveMinutes() {

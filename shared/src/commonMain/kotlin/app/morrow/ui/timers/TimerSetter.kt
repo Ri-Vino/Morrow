@@ -19,17 +19,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -37,18 +30,26 @@ import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.morrow.theme.MorrowTheme
 import app.morrow.ui.components.BottomSheet
-import app.morrow.ui.components.DigitsField
+import app.morrow.ui.components.EntryReadout
+import app.morrow.ui.components.Icons
+import app.morrow.ui.components.Keypad
+import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.components.PillButton
+import app.morrow.ui.components.ReadoutPart
 import app.morrow.ui.components.largeText
 
 /**
@@ -111,60 +112,54 @@ private fun QuickChips(entry: TimerEntry, onPick: (TimerEntry) -> Unit) {
     }
 }
 
-/** Hours, minutes and seconds on the number keyboard; two digits move on to the next part. */
+/**
+ * The length typed on the sheet's own keypad, filling in from the right: 1, 5, 0, 0 is 15 minutes. It opens on the
+ * dial's length, which the first key typed replaces.
+ */
 @Composable
 internal fun TimerTypeSheet(entry: TimerEntry, onSet: (TimerEntry) -> Unit, onClose: () -> Unit) {
     val colors = MorrowTheme.colors
     val type = MorrowTheme.type
-    var hours by rememberSaveable { mutableStateOf(entry.hoursText) }
-    var minutes by rememberSaveable { mutableStateOf(entry.minutesText) }
-    var seconds by rememberSaveable { mutableStateOf(entry.secondsText) }
-    val focus = remember { List(3) { FocusRequester() } }
-    val typed = TimerEntry.typed(hours, minutes, seconds)
-    val set = { typed?.takeIf { it.canStart }?.let(onSet) }
-    LaunchedEffect(Unit) { focus[1].requestFocus() }
-    BottomSheet("Type the length", onClose) {
-        BasicText("Type the length", style = type.title.copy(color = colors.text), modifier = Modifier.semantics { heading() })
-        Row(
+    var digits by rememberSaveable { mutableStateOf(entry.digits) }
+    var fresh by rememberSaveable { mutableStateOf(true) }
+    val typed = TimerEntry(digits)
+    val key = { digit: Int ->
+        digits = (if (fresh) TimerEntry() else TimerEntry(digits)).typed(digit).digits
+        fresh = false
+    }
+    BottomSheet("Set the length", onClose) {
+        BasicText("Set the length", style = type.title.copy(color = colors.text), modifier = Modifier.semantics { heading() })
+        EntryReadout(
+            parts = listOf(
+                ReadoutPart(typed.hoursText, typed.waiting.coerceIn(0, 2), "Hours", "h"),
+                ReadoutPart(typed.minutesText, (typed.waiting - 2).coerceIn(0, 2), "Minutes", "m"),
+                ReadoutPart(typed.secondsText, (typed.waiting - 4).coerceIn(0, 2), "Seconds", "s"),
+            ),
+            modifier = Modifier.clearAndSetSemantics {
+                contentDescription = typed.label
+                liveRegion = LiveRegionMode.Polite
+            },
+        )
+        BasicText(
+            "Digits fill in from the right: 1, 5, 0, 0 is 15 minutes.",
+            style = type.body.copy(color = colors.muted, textAlign = TextAlign.Center),
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val parts = listOf(
-                Triple("Hours", hours) { it: String -> hours = it },
-                Triple("Minutes", minutes) { it: String -> minutes = it },
-                Triple("Seconds", seconds) { it: String -> seconds = it },
-            )
-            parts.forEachIndexed { i, (label, value, change) ->
-                if (i > 0) BasicText(":", style = type.display.copy(color = colors.muted))
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    DigitsField(
-                        value = value,
-                        label = label,
-                        onValue = {
-                            change(it)
-                            if (it.length == 2 && i < 2) focus[i + 1].requestFocus()
-                        },
-                        imeAction = if (i < 2) ImeAction.Next else ImeAction.Done,
-                        onIme = { if (i < 2) focus[i + 1].requestFocus() else set() },
-                        modifier = Modifier.focusRequester(focus[i]),
-                        width = 88.dp,
-                    )
-                    BasicText(label.lowercase(), style = type.caption.copy(color = colors.muted))
-                }
+        )
+        Keypad(onDigit = key) {
+            Digit("00") {
+                key(0)
+                key(0)
             }
+            Digit("0") { key(0) }
+            Key("Delete digit", {
+                digits = TimerEntry(digits).deleted().digits
+                fresh = false
+            }) { MorrowIcon(Icons.DeleteDigit, colors.muted, size = 28.dp) }
         }
-        if (typed == null) {
-            BasicText(
-                "Minutes and seconds go up to 59.",
-                style = type.body.copy(color = colors.warn, textAlign = TextAlign.Center),
-                modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
-            )
-        }
-        val ready = typed?.canStart == true
+        val ready = typed.canStart
         PillButton(
             text = "Set length",
-            onClick = { set() },
+            onClick = { if (ready) onSet(typed) },
             background = if (ready) colors.accent else colors.surface2,
             content = if (ready) colors.onAccent else colors.muted,
             modifier = Modifier.fillMaxWidth().semantics { if (!ready) disabled() },

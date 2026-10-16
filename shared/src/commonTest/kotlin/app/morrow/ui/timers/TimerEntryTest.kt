@@ -117,12 +117,21 @@ class TimerEntryTest {
     }
 
     @Test
-    fun theTypeItSheetTakesHoursMinutesAndSeconds() {
-        assertEquals(1.hours + 2.minutes + 3.seconds, TimerEntry.typed("1", "02", "03")?.duration)
-        assertEquals(15.minutes, TimerEntry.typed("", "15", "")?.duration)
-        assertEquals(Duration.ZERO, TimerEntry.typed("", "", "")?.duration)
-        assertEquals(null, TimerEntry.typed("", "60", ""))
-        assertEquals(null, TimerEntry.typed("", "", "75"))
+    fun theKeypadTypesDigitsInFromTheRight() {
+        val keys = listOf(1, 5, 0, 0).fold(TimerEntry()) { entry, digit -> entry.typed(digit) }
+        assertEquals("00:15:00", keys.readout())
+        assertEquals(2, keys.waiting)
+        // Zeros before anything else count for nothing, and a seventh digit doesn't fit.
+        assertEquals(TimerEntry(), TimerEntry().typed(0).typed(0))
+        assertEquals("123456", TimerEntry("123456").typed(7).digits)
+        assertEquals(6, TimerEntry().waiting)
+    }
+
+    @Test
+    fun deletingTakesOffTheLastDigitTyped() {
+        assertEquals("00:01:50", TimerEntry("1500").deleted().readout())
+        assertEquals(TimerEntry(), TimerEntry("5").deleted())
+        assertEquals(TimerEntry(), TimerEntry().deleted())
     }
 
     @Test

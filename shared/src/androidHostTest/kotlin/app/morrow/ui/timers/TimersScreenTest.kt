@@ -25,7 +25,6 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
 import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.Density
 import app.morrow.alarms.FakeClock
@@ -106,12 +105,10 @@ class TimersScreenTest {
 
     private fun tapDescribed(description: String) = compose.onNodeWithContentDescription(description).tap()
 
-    /** Types the length into the sheet that tapping the dial's time opens; empty parts stay as the dial had them. */
-    private fun typeLength(hours: String? = null, minutes: String? = null, seconds: String? = null) {
+    /** Types [digits] on the keypad of the sheet that tapping the dial's time opens, as hhmmss filled from the right. */
+    private fun typeLength(digits: String) {
         compose.onNode(hasClickLabel("Type the length")).tap()
-        hours?.let { compose.onNodeWithContentDescription("Hours").performTextReplacement(it) }
-        minutes?.let { compose.onNodeWithContentDescription("Minutes").performTextReplacement(it) }
-        seconds?.let { compose.onNodeWithContentDescription("Seconds").performTextReplacement(it) }
+        digits.forEach { key(it.toString()).performClick() }
         key("Set length").performClick()
     }
 
@@ -125,21 +122,32 @@ class TimersScreenTest {
         show()
         compose.onNodeWithContentDescription("No time set yet").assertIsDisplayed()
 
-        typeLength(minutes = "15")
+        typeLength("1500")
         compose.onNodeWithContentDescription("Timer for 15 min").assertExists()
 
-        typeLength(hours = "1", minutes = "02", seconds = "03")
+        // The sheet opens on the dial's length, and the first key replaces it.
+        typeLength("10203")
         compose.onNodeWithContentDescription("Timer for 1 h 2 min").assertExists()
     }
 
     @Test
-    fun minutesOverFiftyNineCantBeSet() {
+    fun minutesOverFiftyNineAddUp() {
         show()
 
-        typeLength(minutes = "75")
+        typeLength("7500")
 
-        compose.onNodeWithText("Minutes and seconds go up to 59.").assertExists()
-        compose.onNodeWithContentDescription("Minutes").assertExists()
+        compose.onNodeWithContentDescription("Timer for 1 h 15 min").assertExists()
+    }
+
+    @Test
+    fun theKeypadShowsTheLengthAsItsTypedAndDeletes() {
+        show()
+        compose.onNode(hasClickLabel("Type the length")).tap()
+
+        listOf("1", "5", "00").forEach { key(it).performClick() }
+        compose.onNodeWithContentDescription("Timer for 15 min", useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription("Delete digit").performClick()
+        compose.onNodeWithContentDescription("Timer for 2 min", useUnmergedTree = true).assertExists()
     }
 
     @OptIn(ExperimentalTestApi::class)
@@ -181,7 +189,7 @@ class TimersScreenTest {
     @Test
     fun startingSetsATimerForTheTypedLengthWithItsNote() {
         show()
-        typeLength(minutes = "10")
+        typeLength("1000")
         compose.onNodeWithContentDescription(NOTE_LABEL).tap().performTextInput("Take the pasta off the hob")
 
         key("Start timer").tap()
@@ -196,7 +204,7 @@ class TimersScreenTest {
     @Test
     fun onceStartedTheSetterGivesWayToTheTimersCardAndTheNewTimerButton() {
         show()
-        typeLength(minutes = "10")
+        typeLength("1000")
 
         key("Start timer").tap()
 
@@ -231,7 +239,7 @@ class TimersScreenTest {
     fun withoutExactAlarmsStartOpensThePermissionAndKeepsWhatWasTyped() {
         scheduler.allowed = false
         show()
-        typeLength(minutes = "10")
+        typeLength("1000")
 
         key("Start timer").tap()
 
@@ -245,7 +253,7 @@ class TimersScreenTest {
     fun theDraftSurvivesRotation() {
         val restoration = StateRestorationTester(compose)
         restoration.setContent { TimersTab() }
-        typeLength(minutes = "10")
+        typeLength("1000")
         compose.onNodeWithContentDescription(NOTE_LABEL).tap().performTextInput("Tea")
 
         restoration.emulateSavedInstanceStateRestore()
@@ -365,7 +373,7 @@ class TimersScreenTest {
         compose.onNodeWithText("New timer").assertDoesNotExist()
         compose.onNodeWithText("Pasta · 10 min").assertExists()
 
-        typeLength(minutes = "05")
+        typeLength("500")
         key("Cancel").tap()
 
         compose.onNodeWithContentDescription("No time set yet").assertDoesNotExist()

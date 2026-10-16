@@ -20,6 +20,9 @@ data class TimerEntry(val digits: String = "") {
     val minutesText: String get() = padded.substring(2, 4)
     val secondsText: String get() = padded.substring(4, 6)
 
+    /** How many of the six digits shown are still zeros waiting to be typed over, which show muted. */
+    val waiting: Int get() = MAX_DIGITS - digits.length
+
     /** Whether each part has been reached by the typing yet; until then it shows muted zeros. */
     val hoursTyped: Boolean get() = digits.length >= 5
     val minutesTyped: Boolean get() = digits.length >= 3
@@ -34,6 +37,16 @@ data class TimerEntry(val digits: String = "") {
     /** What screen readers say for the digits. */
     val label: String get() = if (canStart) "Timer for ${totalText(duration)}" else "No time set yet"
 
+    /**
+     * [digit] typed after the others, which each move a place to the left. A leading 0 counts for nothing, and a
+     * seventh digit is ignored.
+     */
+    fun typed(digit: Int): TimerEntry =
+        if (digits.length >= MAX_DIGITS) this else TimerEntry((digits + digit).trimStart('0'))
+
+    /** The last digit typed, taken off again. */
+    fun deleted(): TimerEntry = TimerEntry(digits.dropLast(1))
+
     companion object {
         const val MAX_DIGITS = 6
 
@@ -45,13 +58,6 @@ data class TimerEntry(val digits: String = "") {
             val seconds = length.inWholeSeconds.coerceIn(0, MAX_SECONDS)
             val parts = listOf(seconds / 3600, seconds / 60 % 60, seconds % 60)
             return of(parts.joinToString("") { it.toString().padStart(2, '0') })
-        }
-
-        /** The entry typed as [hours], [minutes] and [seconds] in the Type it sheet, empty parts as 0; null past 99:59:59. */
-        fun typed(hours: String, minutes: String, seconds: String): TimerEntry? {
-            val parts = listOf(hours, minutes, seconds).map { if (it.isEmpty()) 0 else it.toIntOrNull() ?: return null }
-            if (parts[1] > 59 || parts[2] > 59) return null
-            return of(parts[0].hours + parts[1].minutes + parts[2].seconds)
         }
 
         private const val MAX_SECONDS = 99 * 3600L + 59 * 60 + 59
