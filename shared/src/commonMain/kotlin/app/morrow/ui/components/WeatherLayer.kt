@@ -15,7 +15,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import app.morrow.theme.Illustration
-import app.morrow.theme.isLightSky
 import app.morrow.theme.mix
 import app.morrow.weather.Sky
 
@@ -59,8 +58,8 @@ data class WeatherLook(
     val lightning: Boolean,
 )
 
-/** The layer for [weather] over [sky], which [skyTint] has already coloured, or null for a clear sky, which has none. */
-fun weatherLook(weather: Sky, sky: Color, isDay: Boolean): WeatherLook? {
+/** The layer for [weather], or null for a clear sky, which has none. Rain is dark over a [lightSky] and pale otherwise. */
+fun weatherLook(weather: Sky, lightSky: Boolean, isDay: Boolean): WeatherLook? {
     val cloudAlpha = when (weather) {
         Sky.CLEAR -> return null
         Sky.FOG -> 0.35f
@@ -75,7 +74,7 @@ fun weatherLook(weather: Sky, sky: Color, isDay: Boolean): WeatherLook? {
             else -> if (isDay) Illustration.cloudDay else Illustration.cloudNight
         },
         drops = weather == Sky.RAIN || weather == Sky.DRIZZLE || weather == Sky.STORM,
-        dropColor = if (sky.isLightSky()) Illustration.rainOnLight else Illustration.rainOnDark,
+        dropColor = if (lightSky) Illustration.rainOnLight else Illustration.rainOnDark,
         snow = weather == Sky.SNOW,
         fog = weather == Sky.FOG,
         fogColor = if (isDay) Illustration.fogDay else Illustration.fogNight,

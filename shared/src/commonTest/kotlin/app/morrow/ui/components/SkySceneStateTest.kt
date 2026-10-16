@@ -4,10 +4,12 @@ import app.morrow.theme.Illustration
 import app.morrow.theme.SkyCurve
 import app.morrow.theme.ThemeKind
 import app.morrow.theme.colors
+import app.morrow.theme.contrastRatio
 import app.morrow.theme.mix
 import app.morrow.weather.Sky
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -107,7 +109,7 @@ class SkySceneStateTest {
         assertEquals(mix(sky, tints.hillTint, 0.38f), s.hillBack)
         assertEquals(mix(sky, tints.hillTint, 0.64f), s.hillMid)
         assertEquals(mix(sky, tints.houseTint, 0.8f), s.house)
-        assertEquals(weatherLook(Sky.RAIN, sky, isDay = true), s.weather)
+        assertEquals(weatherLook(Sky.RAIN, s.lightSky, isDay = true), s.weather)
     }
 
     @Test
@@ -140,9 +142,9 @@ class SkySceneStateTest {
 
     @Test
     fun textInkFollowsTheTintedSky() {
-        // A storm darkens the golden afternoon enough for starlight ink.
-        val clear = weather(16, 45, null)
-        val storm = weather(16, 45, Sky.STORM)
+        // A storm darkens the sunset enough for starlight ink.
+        val clear = weather(18, 30, null)
+        val storm = weather(18, 30, Sky.STORM)
         assertEquals(ThemeKind.AFTERNOON.colors().text, clear.ink)
         assertEquals(Illustration.starlight, storm.ink)
     }
@@ -157,7 +159,42 @@ class SkySceneStateTest {
         assertEquals(mix(sky, tints.hillTint, 0.38f), s.hillBack)
         assertEquals(mix(sky, tints.houseTint, 0.8f), s.house)
         assertEquals(ThemeKind.NOON.colors().text, s.ink)
-        assertEquals(ThemeKind.NOON.colors().muted, s.inkMuted)
+        // The dimmer sky is too close to the muted ink, which deepens towards the full ink to stay readable.
+        assertNotEquals(ThemeKind.NOON.colors().muted, s.inkMuted)
+        assertTrue(contrastRatio(s.inkMuted, sky) >= 4.5f)
+    }
+
+    @Test
+    fun wordsOverTheSkyStayReadableFromDawnToDusk() {
+        for (dim in listOf(false, true)) {
+            for (minute in 5 * 60..19 * 60 step 2) {
+                val s = skySceneState(minute.toFloat(), ThemeKind.at(minute), dim = dim)
+                val behind = if (s.backing.alpha == 0f) s.sky else mix(s.sky, s.backing.copy(alpha = 1f), s.backing.alpha)
+                val at = "${minute / 60}:${(minute % 60).toString().padStart(2, '0')}${if (dim) " dim" else ""}"
+                // The greeting is large text, but the weather line beside it is small and shares its ink.
+                assertTrue(contrastRatio(s.ink, behind) >= 3f, "greeting at $at")
+                assertTrue(contrastRatio(s.ink, behind) >= 4.5f, "weather line at $at")
+                assertTrue(contrastRatio(s.inkMuted, behind) >= 4.5f, "date at $at")
+            }
+        }
+    }
+
+    @Test
+    fun theBackingOnlyShowsAroundSunriseAndSunset() {
+        for ((hour, minute) in listOf(7 to 40, 12 to 30, 16 to 45, 21 to 40, 1 to 20)) {
+            assertEquals(0f, scene(hour, minute).backing.alpha, "$hour:$minute")
+        }
+        assertTrue(scene(6, 16).backing.alpha > 0f)
+        assertTrue(scene(18, 40).backing.alpha > 0f)
+    }
+
+    @Test
+    fun rainFollowsTheInk() {
+        for (minute in 0 until 24 * 60 step 2) {
+            val s = skySceneState(minute.toFloat(), ThemeKind.at(minute), Sky.RAIN)
+            assertEquals(if (s.lightSky) ThemeKind.at(minute).colors().text else Illustration.starlight, s.ink, "$minute")
+            assertEquals(if (s.lightSky) Illustration.rainOnLight else Illustration.rainOnDark, s.weather?.dropColor, "$minute")
+        }
     }
 
     @Test

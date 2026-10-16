@@ -38,8 +38,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -137,8 +140,20 @@ private fun Header(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actio
     val scene = skySceneState(minuteOfDay, theme, model.weather?.sky, MorrowTheme.dim)
     val ink by animateColorAsState(scene.ink, tween(1200))
     val inkMuted by animateColorAsState(scene.inkMuted, tween(1200))
+    val backing by animateColorAsState(scene.backing, tween(1200))
     Column(
-        modifier = modifier.fillMaxWidth().statusBarsPadding().padding(start = 24.dp, end = 24.dp, top = 12.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .drawBehind {
+                // Even under every word, then fading out below them so the wash has no edge.
+                if (backing.alpha > 0f) {
+                    val height = size.height + BACKING_FADE.toPx()
+                    val brush = Brush.verticalGradient(0f to backing, size.height / height to backing, 1f to backing.copy(alpha = 0f), endY = height)
+                    drawRect(brush, size = Size(size.width, height))
+                }
+            }
+            .statusBarsPadding()
+            .padding(start = 24.dp, end = 24.dp, top = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         // With large text the settings button wraps below the date rather than squeezing it.
@@ -178,6 +193,8 @@ private fun Header(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actio
         }
     }
 }
+
+private val BACKING_FADE = 48.dp
 
 /** "12° · Rain in London" under the greeting, in the sky's ink; it opens World. Nudged left so its icon lines up with the greeting. */
 @Composable

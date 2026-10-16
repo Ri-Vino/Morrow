@@ -52,7 +52,7 @@ class WeatherLayerTest {
 
     @Test
     fun aClearSkyHasNothingToDraw() {
-        assertNull(weatherLook(Sky.CLEAR, noon, isDay = true))
+        assertNull(weatherLook(Sky.CLEAR, lightSky = true, isDay = true))
     }
 
     @Test
@@ -90,8 +90,8 @@ class WeatherLayerTest {
 
     @Test
     fun rainIsDarkOnALightSkyAndPaleOnADarkOne() {
-        assertEquals(Illustration.rainOnLight, weatherLook(Sky.RAIN, Color(0xFFE8EDF2), isDay = true)?.dropColor)
-        assertEquals(Illustration.rainOnDark, weatherLook(Sky.RAIN, Color(0xFF2C2934), isDay = false)?.dropColor)
+        assertEquals(Illustration.rainOnLight, weatherLook(Sky.RAIN, lightSky = true, isDay = true)?.dropColor)
+        assertEquals(Illustration.rainOnDark, weatherLook(Sky.RAIN, lightSky = false, isDay = false)?.dropColor)
     }
 
     @Test
@@ -132,5 +132,5 @@ class WeatherLayerTest {
         assertFalse(WeatherShapes.Card.clouds.any { it.underPip })
     }
 
-    private fun look(weather: Sky, isDay: Boolean = true) = weatherLook(weather, if (isDay) noon else midnight, isDay)!!
+    private fun look(weather: Sky, isDay: Boolean = true) = weatherLook(weather, lightSky = isDay, isDay)!!
 }

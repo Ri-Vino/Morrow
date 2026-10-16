@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import app.morrow.theme.Illustration
 import app.morrow.theme.SkyCurve
+import app.morrow.theme.isLightSky
 import app.morrow.theme.mix
 import app.morrow.theme.sunElevation
 import app.morrow.weather.Sky
@@ -63,7 +64,7 @@ fun cityScene(minuteOfDay: Int, weather: Sky? = null): CitySceneState {
         shades = minute in 11 * 60 until 15 * 60,
         hillBack = if (snowy) mix(sky, Illustration.snowHillBack, 0.5f) else mix(sky, Illustration.ground, 0.3f),
         hillFront = if (snowy) mix(sky, Illustration.snowHillFront, 0.78f) else mix(sky, Illustration.ground, 0.5f),
-        weather = weather?.let { weatherLook(it, sky, sunUp) },
+        weather = weather?.let { weatherLook(it, sky.isLightSky(), sunUp) },
     )
 }
 

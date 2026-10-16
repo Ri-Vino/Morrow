@@ -2,6 +2,7 @@ package app.morrow.ui.components
 
 import app.morrow.theme.Illustration
 import app.morrow.theme.SkyCurve
+import app.morrow.theme.isLightSky
 import app.morrow.theme.mix
 import app.morrow.weather.Sky
 import kotlin.test.Test
@@ -153,8 +154,8 @@ class CitySceneTest {
     fun theLayerIsDrawnForTheTintedSky() {
         assertNull(cityScene(12 * 60, Sky.CLEAR).weather)
         val rain = cityScene(23 * 60, Sky.RAIN)
-        assertEquals(weatherLook(Sky.RAIN, rain.sky, isDay = false), rain.weather)
+        assertEquals(weatherLook(Sky.RAIN, rain.sky.isLightSky(), isDay = false), rain.weather)
         val partly = cityScene(10 * 60, Sky.PARTLY_CLOUDY)
-        assertEquals(weatherLook(Sky.PARTLY_CLOUDY, partly.sky, isDay = true), partly.weather)
+        assertEquals(weatherLook(Sky.PARTLY_CLOUDY, partly.sky.isLightSky(), isDay = true), partly.weather)
     }
 }

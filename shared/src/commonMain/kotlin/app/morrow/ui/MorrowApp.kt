@@ -45,7 +45,6 @@ import app.morrow.platform.SpeechPurpose
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeClock
 import app.morrow.theme.ThemeKind
-import app.morrow.theme.isLightSky
 import app.morrow.timers.TimerCoordinator
 import app.morrow.ui.edit.EditActions
 import app.morrow.ui.edit.EditScreen
@@ -281,7 +280,7 @@ private fun Home(
     val zone = TimeZone.currentSystemDefault()
     val minute = now.toLocalDateTime(zone).let { it.hour * 60 + it.minute }.toFloat()
     val weather = homeWeather(forecasts, now, zone, units)
-    val lightIcons = !skySceneState(minute, theme, weather?.sky, MorrowTheme.dim).sky.isLightSky()
+    val lightIcons = !skySceneState(minute, theme, weather?.sky, MorrowTheme.dim).lightSky
     LaunchedEffect(lightIcons) { onSystemBarsChange(lightIcons) }
 
     val loaded = alarms ?: return

@@ -5,7 +5,7 @@ import app.morrow.theme.Illustration
 import app.morrow.theme.SkyCurve
 import app.morrow.theme.ThemeKind
 import app.morrow.theme.colors
-import app.morrow.theme.isLightSky
+import app.morrow.theme.contrastRatio
 import app.morrow.theme.mix
 import app.morrow.theme.sunElevation
 import app.morrow.weather.Sky
@@ -26,9 +26,16 @@ data class SkySceneState(
     val windowLit: Float,
     val doorLit: Float,
     val smokeAlpha: Float,
-    /** Text colours for words drawn over the sky. */
+    /** Dark ink reads better over this sky than starlight. The status-bar icons and rain follow it too. */
+    val lightSky: Boolean,
+    /** Text colours for words drawn over the sky, each at least [TEXT_CONTRAST] against the sky through [backing]. */
     val ink: Color,
     val inkMuted: Color,
+    /**
+     * A wash laid under those words. Clear for most of the day: it fades in only around sunrise and sunset, when the sky
+     * is too mid-toned for either ink to read on its own.
+     */
+    val backing: Color,
     /** What's drawn over the sky and Pip, or null for nothing. Pip stays in view, peeking over a cloud. */
     val weather: WeatherLook? = null,
 )
@@ -43,10 +50,18 @@ fun skySceneState(minuteOfDay: Float, theme: ThemeKind, weather: Sky? = null, di
     val sky = SkyCurve.at(minuteOfDay)
         .let { if (weather != null) skyTint(it, weather, sunUp) else it }
         .let { if (dimmed) mix(it, tints.bg, DIM_SKY) else it }
-    val look = weather?.let { weatherLook(it, sky, sunUp) }
-    // Dark ink over a bright sky comes from the light palette, since a dim palette's text is light.
+    // Dark ink over a bright sky comes from the light palette, since a dim palette's text is light. Night's text is
+    // starlight itself, so a night sky never counts as light.
     val inkTints = theme.colors()
-    val lightSky = sky.isLightSky()
+    val lightSky = contrastRatio(sky, inkTints.text) > contrastRatio(sky, Illustration.starlight)
+    val ink = if (lightSky) inkTints.text else Illustration.starlight
+    val wash = if (lightSky) inkTints.bg else theme.colors(dim = true).bg
+    val washAlpha = leastStep { contrastRatio(ink, mix(sky, wash, it)) >= TEXT_CONTRAST }
+    val behindText = if (washAlpha == 0f) sky else mix(sky, wash, washAlpha)
+    // The muted ink deepens towards the full ink only as far as it must to stay readable.
+    val muted = if (lightSky) inkTints.muted else Illustration.starlightMuted
+    val deepen = leastStep { contrastRatio(mix(muted, ink, it), behindText) >= TEXT_CONTRAST }
+    val look = weather?.let { weatherLook(it, lightSky, sunUp) }
     // Stars glimmer through thin cloud but hardly at all through a full cover.
     val overcast = (look?.cloudAlpha ?: 0f) > 0.95f
     return SkySceneState(
@@ -60,13 +75,24 @@ fun skySceneState(minuteOfDay: Float, theme: ThemeKind, weather: Sky? = null, di
         windowLit = if (night) 1f else 0.12f,
         doorLit = if (night) 0.35f else 0f,
         smokeAlpha = if (night || theme == ThemeKind.MORNING) 0.4f else 0f,
-        ink = if (lightSky) inkTints.text else Illustration.starlight,
-        inkMuted = if (lightSky) inkTints.muted else Illustration.starlightMuted,
+        lightSky = lightSky,
+        ink = ink,
+        inkMuted = if (deepen == 0f) muted else mix(muted, ink, deepen),
+        backing = wash.copy(alpha = washAlpha),
         weather = look,
     )
 }
 
+/** The contrast every word over the sky keeps: the date and weather line are small text. */
+const val TEXT_CONTRAST = 4.5f
+
 private const val DIM_SKY = 0.2f
+
+/** The least of 0, 1/255 … 1 for which [ok] holds; steps of 1/255 so an alpha survives being stored in a colour. */
+private inline fun leastStep(ok: (Float) -> Boolean): Float =
+    (0..STEPS).firstOrNull { ok(it / STEPS.toFloat()) }?.let { it / STEPS.toFloat() } ?: 1f
+
+private const val STEPS = 255
 
 /** Pip at noon wears shades only under a [brightSky]; otherwise its eyes are open, as in the morning. */
 private fun pipFor(theme: ThemeKind, sunUp: Boolean, brightSky: Boolean): PipLook = when {

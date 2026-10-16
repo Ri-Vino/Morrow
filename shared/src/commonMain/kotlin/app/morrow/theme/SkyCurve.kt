@@ -35,7 +35,7 @@ object SkyCurve {
     }
 }
 
-/** Scene text switches from light to dark ink once the sky is this bright. */
+/** A city card's rain turns dark once its sky is this bright. Home picks its ink by contrast instead. */
 fun Color.isLightSky(): Boolean = luminance() > 0.3f
 
 /** -1 at midnight, 0 at 06:00 and 18:00, 1 at noon. */
