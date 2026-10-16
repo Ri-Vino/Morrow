@@ -58,10 +58,10 @@ class WorldModelTest {
     }
 
     @Test
-    fun theFirstCardCantMoveUpAndTheLastCantMoveDown() {
+    fun homeStaysOnTopAndTheOthersMoveBelowIt() {
         val cards = worldModel(saved, now, london).cards
-        assertEquals(listOf(false, true, true), cards.map { it.canMoveUp })
-        assertEquals(listOf(true, true, false), cards.map { it.canMoveDown })
+        assertEquals(listOf(false, false, true), cards.map { it.canMoveUp })
+        assertEquals(listOf(false, true, false), cards.map { it.canMoveDown })
 
         val only = worldModel(listOf(SavedCity(londonCity, true)), now, london).cards.single()
         assertFalse(only.canMoveUp)

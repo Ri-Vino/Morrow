@@ -1,5 +1,9 @@
 package app.morrow.ui.world
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -20,11 +24,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -32,6 +38,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -52,6 +61,7 @@ import app.morrow.ui.components.PrimaryButton
 import app.morrow.ui.components.largeText
 import app.morrow.ui.components.pressable
 import app.morrow.ui.components.weatherIcon
+import kotlinx.coroutines.launch
 
 class WorldActions(
     val onAddCity: () -> Unit,
@@ -127,47 +137,64 @@ private fun Header(onAddCity: () -> Unit) {
 }
 
 /**
- * The cities in the user's order. Each can be moved by a long press and drag, or by TalkBack's "Move up" and "Move down".
- * While a card is held, the order shown follows the finger straight away and each swap is saved as it happens.
+ * The cities, home first. Any other city can be held and dragged among the cities below home, or moved by TalkBack's
+ * "Move up" and "Move down". The held card lifts and follows the finger while the others slide out of its way, and the
+ * new order is saved when it's let go.
  */
 @Composable
 private fun CityCards(cards: List<WorldCard>, actions: WorldActions) {
     val haptics = LocalHapticFeedback.current
     val latest by rememberUpdatedState(cards)
     val latestActions by rememberUpdatedState(actions)
-    var dragging by remember { mutableStateOf<Long?>(null) }
+    var held by remember { mutableStateOf<Long?>(null) }
+    // The card gliding into place after it's let go, which stays over the others until it lands.
+    var landing by remember { mutableStateOf<Long?>(null) }
+    // The order the finger has made, kept from the pick-up until the saved order catches up with it.
     var order by remember { mutableStateOf<List<Long>?>(null) }
     var offset by remember { mutableFloatStateOf(0f) }
-
-    // While dragging, show the order the finger has made, provided it still names the same cities.
-    val shown = order?.takeIf { it.sorted() == cards.map { card -> card.id }.sorted() }
-        ?.let { ids -> ids.map { id -> cards.first { it.id == id } } }
-        ?: cards
-
-    // Swaps with a neighbour once the card has been dragged over half its height.
-    val drag = { dy: Float, step: Float ->
-        val id = dragging
-        val ids = order
-        if (id != null && ids != null) {
-            offset += dy
-            val index = ids.indexOf(id)
-            val by = when {
-                offset > step / 2f && index < ids.lastIndex -> 1
-                offset < -step / 2f && index > 0 -> -1
-                else -> 0
-            }
-            if (by != 0) {
-                order = ids.toMutableList().apply { add(index + by, removeAt(index)) }
-                offset -= by * step
-                latestActions.onMove(id, by)
-            }
-        }
-    }
+    // Where each card was last laid out in the column, and where the drag counts it as being, which runs a frame ahead.
+    val laid = remember { mutableMapOf<Long, Float>() }
+    val places = remember { mutableMapOf<Long, Place>() }
     val gap = with(LocalDensity.current) { 12.dp.toPx() }
+
+    val ids = cards.map { it.id }
+    LaunchedEffect(ids) { if (held == null) order = null }
+    val shown = order?.takeIf { it.toSet() == ids.toSet() }?.map { id -> cards.first { it.id == id } } ?: cards
+
+    // Swaps with a neighbour once the held card's middle passes the neighbour's, never going above home.
+    val drag = drag@{ dy: Float ->
+        val id = held ?: return@drag
+        val now = order ?: return@drag
+        val me = places[id] ?: return@drag
+        offset += dy
+        val index = now.indexOf(id)
+        val middle = me.top + offset + me.height / 2
+        val belowId = now.getOrNull(index + 1)
+        val aboveId = now.getOrNull(index - 1)?.takeIf { up -> latest.none { it.id == up && it.isHome } }
+        val below = belowId?.let { places[it] }
+        val above = aboveId?.let { places[it] }
+        val (by, other) = when {
+            below != null && middle > below.middle -> 1 to belowId
+            above != null && middle < above.middle -> -1 to aboveId
+            else -> return@drag
+        }
+        order = now.toMutableList().apply { add(index + by, removeAt(index)) }
+        // Counts the new places in straight away, so the card stays under the finger and the swap can't undo itself
+        // before the column is laid out again.
+        val them = places.getValue(other)
+        val (myTop, theirTop) = if (by > 0) (me.top + them.height + gap) to me.top else them.top to (them.top + me.height + gap)
+        offset -= myTop - me.top
+        places[id] = me.copy(top = myTop)
+        places[other] = them.copy(top = theirTop)
+        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+    }
 
     shown.forEach { card ->
         key(card.id) {
-            val held = dragging == card.id
+            val isHeld = held == card.id
+            val scope = rememberCoroutineScope()
+            val slide = remember { Animatable(0f) }
+            val lift by animateFloatAsState(if (isHeld) 1.03f else 1f)
             CityCard(
                 name = card.name,
                 isHome = card.isHome,
@@ -175,12 +202,31 @@ private fun CityCards(cards: List<WorldCard>, actions: WorldActions) {
                 clock = card.clock,
                 minuteOfDay = card.minute,
                 weather = card.weather,
-                onClick = { actions.onOpenCity(card.id) },
+                lifted = isHeld,
+                // Letting go of a held card isn't a tap.
+                onClick = { if (held != card.id) actions.onOpenCity(card.id) },
                 modifier = Modifier
-                    .zIndex(if (held) 1f else 0f)
+                    .zIndex(if (isHeld || landing == card.id) 1f else 0f)
+                    .onPlaced { coordinates ->
+                        val top = coordinates.positionInParent().y
+                        if (held == card.id) places[card.id]?.let { offset -= top - it.top }
+                        places[card.id] = Place(top, coordinates.size.height.toFloat())
+                        val before = laid.put(card.id, top)
+                        if (before != null && before != top && held != card.id) {
+                            // Slides from where it was into its new place.
+                            scope.launch {
+                                slide.snapTo(slide.value + before - top)
+                                slide.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+                            }
+                        }
+                    }
+                    // Gives the position above its own place in the column, without the drag or slide drawn below.
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                    }
                     .graphicsLayer {
-                        translationY = if (held) offset else 0f
-                        val lift = if (held) 1.02f else 1f
+                        translationY = if (held == card.id) offset else slide.value
                         scaleX = lift
                         scaleY = lift
                     }
@@ -190,25 +236,56 @@ private fun CityCards(cards: List<WorldCard>, actions: WorldActions) {
                             if (card.canMoveDown) CustomAccessibilityAction("Move down") { actions.onMove(card.id, 1); true } else null,
                         )
                     }
-                    .pointerInput(card.id) {
-                        detectDragGesturesAfterLongPress(
-                            onDragStart = {
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                dragging = card.id
-                                order = latest.map { it.id }
-                                offset = 0f
-                            },
-                            onDrag = { pointer, amount ->
-                                pointer.consume()
-                                drag(amount.y, size.height + gap)
-                            },
-                            onDragEnd = { dragging = null; order = null },
-                            onDragCancel = { dragging = null; order = null },
-                        )
-                    },
+                    .then(
+                        if (card.isHome) {
+                            Modifier
+                        } else {
+                            Modifier.pointerInput(card.id) {
+                                var from = 0
+                                val drop: () -> Unit = {
+                                    val final = order
+                                    if (final != null) {
+                                        val by = final.indexOf(card.id) - from
+                                        if (by != 0) latestActions.onMove(card.id, by)
+                                    }
+                                    // Glides the rest of the way into its place, starting from where the finger left it.
+                                    landing = card.id
+                                    scope.launch {
+                                        slide.snapTo(offset)
+                                        held = null
+                                        offset = 0f
+                                        slide.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
+                                        if (landing == card.id) landing = null
+                                    }
+                                }
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = {
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        val saved = latest.map { it.id }
+                                        val start = order?.takeIf { it.toSet() == saved.toSet() } ?: saved
+                                        order = start
+                                        from = start.indexOf(card.id)
+                                        offset = slide.value
+                                        held = card.id
+                                    },
+                                    onDrag = { pointer, amount ->
+                                        pointer.consume()
+                                        drag(amount.y)
+                                    },
+                                    onDragEnd = drop,
+                                    onDragCancel = drop,
+                                )
+                            }
+                        },
+                    ),
             )
         }
     }
+}
+
+/** A card's top and height in the column. */
+private data class Place(val top: Float, val height: Float) {
+    val middle: Float get() = top + height / 2
 }
 
 @Composable

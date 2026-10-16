@@ -82,7 +82,10 @@ data class SheetHour(
     val spoken: String,
 )
 
-/** [weather] is null while it loads; with weather off, or none recent enough for a city, its card shows the time only. */
+/**
+ * [cities] come home first, as the repository keeps them. [weather] is null while it loads; with weather off, or none
+ * recent enough for a city, its card shows the time only.
+ */
 fun worldModel(
     cities: List<SavedCity>,
     now: Instant,
@@ -90,6 +93,8 @@ fun worldModel(
     weather: WeatherState? = null,
     units: Units = Units.CELSIUS,
 ): WorldModel {
+    // Home stays at the top, so the cities below it move among themselves.
+    val firstMovable = if (cities.firstOrNull()?.isHome == true) 1 else 0
     return WorldModel(
         cards = cities.mapIndexed { index, saved ->
             val zone = zoneOf(saved.city, phoneZone)
@@ -101,8 +106,8 @@ fun worldModel(
                 clock = cityClock(now, zone),
                 relative = relativeDay(now, zone, phoneZone),
                 minute = minute,
-                canMoveUp = index > 0,
-                canMoveDown = index < cities.lastIndex,
+                canMoveUp = !saved.isHome && index > firstMovable,
+                canMoveDown = !saved.isHome && index < cities.lastIndex,
                 weather = shownForecast(weather, saved, now)?.let { cardWeather(it, now, minute, units) },
             )
         },

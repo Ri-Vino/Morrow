@@ -2,6 +2,7 @@ package app.morrow.places
 
 import app.cash.turbine.test
 import app.morrow.data.FakeSavedCityDao
+import app.morrow.data.toEntity
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -93,7 +94,8 @@ class CityRepositoryTest {
         repository.ensureSeeded()
         repository.add(newYork)
         repository.makeHome(newYork.id)
-        assertEquals(listOf(false, true), repository.cities.first().map { it.isHome })
+        // The new home goes to the top.
+        assertEquals(listOf(SavedCity(newYork, true), SavedCity(london, false)), repository.cities.first())
         assertEquals(newYork, repository.home()?.city)
 
         // The old home can go now.
@@ -106,7 +108,7 @@ class CityRepositoryTest {
     }
 
     @Test
-    fun moveReordersAndStopsAtTheEnds() = runTest {
+    fun moveReordersBelowHomeAndStopsAtTheEnds() = runTest {
         repository.ensureSeeded()
         repository.add(newYork)
         repository.add(tokyo)
@@ -114,14 +116,32 @@ class CityRepositoryTest {
 
         repository.move(tokyo.id, -1)
         assertEquals(listOf(london, tokyo, newYork, tromso), repository.cities.first().map { it.city })
+        // Nothing goes above home, and home itself stays put.
+        repository.move(tokyo.id, -5)
         repository.move(london.id, 2)
-        assertEquals(listOf(tokyo, newYork, london, tromso), repository.cities.first().map { it.city })
+        assertEquals(listOf(london, tokyo, newYork, tromso), repository.cities.first().map { it.city })
         repository.move(tromso.id, -10)
-        assertEquals(listOf(tromso, tokyo, newYork, london), repository.cities.first().map { it.city })
+        assertEquals(listOf(london, tromso, tokyo, newYork), repository.cities.first().map { it.city })
         repository.move(tromso.id, 10)
-        assertEquals(listOf(tokyo, newYork, london, tromso), repository.cities.first().map { it.city })
+        assertEquals(listOf(london, tokyo, newYork, tromso), repository.cities.first().map { it.city })
         repository.move(42, 1)
-        assertEquals(listOf(tokyo, newYork, london, tromso), repository.cities.first().map { it.city })
+        assertEquals(listOf(london, tokyo, newYork, tromso), repository.cities.first().map { it.city })
+    }
+
+    @Test
+    fun aHomeSavedLowerDownStillComesFirst() = runTest {
+        // As an older version could leave it, after making a later city home.
+        dao.upsert(
+            listOf(
+                london.toEntity(isHome = false, position = 0),
+                tokyo.toEntity(isHome = true, position = 1),
+                newYork.toEntity(isHome = false, position = 2),
+            ),
+        )
+        assertEquals(listOf(tokyo, london, newYork), repository.cities.first().map { it.city })
+
+        repository.move(newYork.id, -1)
+        assertEquals(listOf(tokyo, newYork, london), repository.cities.first().map { it.city })
     }
 
     @Test

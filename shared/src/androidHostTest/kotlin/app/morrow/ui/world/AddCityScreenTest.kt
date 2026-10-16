@@ -249,7 +249,8 @@ class AddCityScreenTest {
 
         compose.waitUntil(timeoutMillis = 5_000) { backs == 1 }
         val saved = runBlocking { world.cities.cities.first() }
-        assertEquals(listOf("London", "Tokyo"), saved.map { it.city.name })
+        // The new home goes to the top.
+        assertEquals(listOf("Tokyo", "London"), saved.map { it.city.name })
         assertEquals("Tokyo", saved.single { it.isHome }.city.name)
     }
 

@@ -9,7 +9,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-/** The cities on the World tab, in the user's order. [phoneZone] is the phone's IANA zone id, for the first home city. */
+/**
+ * The cities on the World tab: home first, then the rest in the user's order. [phoneZone] is the phone's IANA zone id,
+ * for the first home city.
+ */
 class CityRepository(
     private val dao: SavedCityDao,
     private val catalog: CityCatalog,
@@ -18,7 +21,7 @@ class CityRepository(
     // Each change reads the rows and writes them back, so changes take turns.
     private val writing = Mutex()
 
-    val cities: Flow<List<SavedCity>> = dao.observeAll().map { rows -> rows.map { it.toSavedCity() } }
+    val cities: Flow<List<SavedCity>> = dao.observeAll().map { rows -> homeFirst(rows).map { it.toSavedCity() } }
 
     /** On first use, saves the phone's own city as home. Does nothing once any city is saved. */
     suspend fun ensureSeeded() = writing.withLock {
@@ -41,25 +44,31 @@ class CityRepository(
         if (!row.isHome) dao.delete(id)
     }
 
+    /** Makes [id] the home city, which goes to the top. */
     suspend fun makeHome(id: Long) = writing.withLock {
         val rows = dao.getAll()
         if (rows.none { it.id == id }) return@withLock
-        dao.upsert(rows.mapNotNull { row -> row.copy(isHome = row.id == id).takeIf { it != row } })
+        dao.upsert(renumber(homeFirst(rows.map { it.copy(isHome = it.id == id) }), rows))
     }
 
-    /** Moves a city [by] places, negative for up, stopping at either end. */
+    /** Moves a city [by] places, negative for up, stopping at either end. Home stays at the top and never moves. */
     suspend fun move(id: Long, by: Int) = writing.withLock {
-        val rows = dao.getAll().toMutableList()
+        val saved = dao.getAll()
+        val rows = homeFirst(saved).toMutableList()
         val from = rows.indexOfFirst { it.id == id }
-        if (from < 0) return@withLock
+        if (from < 0 || rows[from].isHome) return@withLock
         val row = rows.removeAt(from)
-        rows.add((from + by).coerceIn(0, rows.size), row)
-        dao.upsert(renumber(rows))
+        val top = if (rows.firstOrNull()?.isHome == true) 1 else 0
+        rows.add((from + by).coerceIn(top, rows.size), row)
+        dao.upsert(renumber(rows, saved))
     }
 
     suspend fun home(): SavedCity? = dao.getAll().firstOrNull { it.isHome }?.toSavedCity()
 
-    /** The rows whose position changes when they're numbered 0, 1, 2… in this order. */
-    private fun renumber(rows: List<SavedCityEntity>) =
-        rows.mapIndexedNotNull { position, row -> row.copy(position = position).takeIf { it != row } }
+    /** Home, wherever an older version saved it, then the rest in order. */
+    private fun homeFirst(rows: List<SavedCityEntity>) = rows.sortedBy { !it.isHome }
+
+    /** [rows] numbered 0, 1, 2… in this order, leaving out any that are the same as [saved]. */
+    private fun renumber(rows: List<SavedCityEntity>, saved: List<SavedCityEntity>) =
+        rows.mapIndexed { position, row -> row.copy(position = position) }.filter { it !in saved }
 }

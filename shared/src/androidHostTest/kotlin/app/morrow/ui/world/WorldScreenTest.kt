@@ -265,20 +265,18 @@ class WorldScreenTest {
     }
 
     @Test
-    fun talkBackCanMoveACardUpAndDown() {
+    fun talkBackCanMoveACardUpAndDownBelowHome() {
         show()
+
+        assertEquals(emptyList(), actionsOf(londonCard))
+        assertEquals(listOf("Move down"), actionsOf(tokyoCard))
+        assertEquals(listOf("Move up"), actionsOf(newYorkCard))
 
         moveAction(newYorkCard, "Move up")
         assertEquals(listOf("London", "New York City", "Tokyo"), order())
-        moveAction(newYorkCard, "Move up")
-        assertEquals(listOf("New York City", "London", "Tokyo"), order())
-        moveAction(newYorkCard, "Move down")
+        assertEquals(listOf("Move down"), actionsOf(newYorkCard))
         moveAction(newYorkCard, "Move down")
         assertEquals(listOf("London", "Tokyo", "New York City"), order())
-
-        assertEquals(listOf("Move down"), actionsOf(londonCard))
-        assertEquals(listOf("Move up", "Move down"), actionsOf(tokyoCard))
-        assertEquals(listOf("Move up"), actionsOf(newYorkCard))
     }
 
     @Test
@@ -306,6 +304,39 @@ class WorldScreenTest {
 
         compose.waitForIdle()
         assertEquals(listOf("London", "New York City", "Tokyo"), order())
+    }
+
+    @Test
+    fun nothingCanBeDraggedAboveHome() {
+        show()
+        val height = compose.onNodeWithContentDescription(tokyoCard).getBoundsInRoot().let { it.bottom - it.top }
+
+        compose.onNodeWithContentDescription(tokyoCard).performTouchInput {
+            down(center)
+            advanceEventTime(viewConfiguration.longPressTimeoutMillis + 100)
+            moveBy(Offset(0f, -10f))
+            moveBy(Offset(0f, -(height + 12.dp).toPx() * 2))
+            up()
+        }
+
+        compose.waitForIdle()
+        assertEquals(listOf("London", "Tokyo", "New York City"), order())
+        // Letting go of a held card doesn't open it.
+        compose.onNodeWithText("Make home city").assertDoesNotExist()
+    }
+
+    @Test
+    fun theHomeCityStaysOnTopWhenAnotherIsMadeHome() {
+        show()
+        compose.onNodeWithContentDescription(newYorkCard).performClick()
+
+        compose.onNodeWithText("Make home city").performClick()
+
+        compose.waitForIdle()
+        assertEquals(listOf("New York City", "London", "Tokyo"), order())
+        val tops = listOf("New York City, home city, 02:40, Today · −5 h", "London, 07:40, Today · your time", tokyoCard)
+            .map { compose.onNodeWithContentDescription(it).getBoundsInRoot().top }
+        assertTrue(tops[0] < tops[1] && tops[1] < tops[2], "Cards should run New York, London, Tokyo, but their tops are $tops")
     }
 
     /** TalkBack reads a control by its text or description, so one with neither is unusable without sight. */
