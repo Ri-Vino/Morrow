@@ -25,4 +25,8 @@ interface AlarmDao {
 
     @Query("DELETE FROM alarms WHERE id = :id")
     suspend fun delete(id: Long)
+
+    /** Alarms ringing with [sound], as stored, go back to the one chosen in Settings. */
+    @Query("UPDATE alarms SET sound = NULL WHERE sound = :sound")
+    suspend fun clearSound(sound: String)
 }

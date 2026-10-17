@@ -1,12 +1,5 @@
 package app.morrow
 
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.content.pm.ApplicationInfo
-import android.os.Build
-import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
@@ -20,6 +13,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import app.morrow.alarm.AlarmTone
+import app.morrow.alarm.AndroidSoundPicker
 import app.morrow.debug.DebugScreen
 import app.morrow.debug.WithTestFontScale
 import app.morrow.missions.AndroidCodeScanner
@@ -31,12 +25,22 @@ import app.morrow.ui.MorrowApp
 import app.morrow.ui.MorrowServices
 import app.morrow.ui.mission.MissionServices
 import app.morrow.weather.RefreshReason
-import kotlinx.coroutines.launch
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.ApplicationInfo
+import android.os.Build
+import android.os.Bundle
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var permissions: AndroidPermissionGate
+
+    // Registered before the activity starts, as the system's file picker needs.
+    private val soundPicker = AndroidSoundPicker(this)
 
     private val clockChanged = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) = morrow.themeClock.refresh()
@@ -60,6 +64,8 @@ class MainActivity : ComponentActivity() {
             app.cities, app.catalog, app.citySearch, app.weather, phoneCountry = Locale.getDefault().country, speaker = app.speaker,
             timers = app.timers,
             canSnooze = true,
+            ownSounds = app.ownSounds,
+            soundPicker = soundPicker,
         )
         setContent {
             WithTestFontScale {

@@ -1,5 +1,7 @@
 package app.morrow.ui.edit
 
+import app.morrow.domain.OwnSound
+import app.morrow.domain.RingSound
 import app.morrow.domain.Alarm
 import app.morrow.domain.DefaultGames
 import app.morrow.domain.Difficulty
@@ -330,7 +332,7 @@ class EditModelTest {
     fun anAlarmWithoutItsOwnSoundShowsTheDefault() {
         val model = app.morrow.ui.edit.editModel(alarm(7, 0), at("2026-10-05T22:00"), london, WakeSound.SOFT_PIANO)
         assertEquals(SoundRow("Soft piano", "Default, as chosen in Settings", own = false), model.sound)
-        assertEquals(listOf(null) + WakeSound.entries, model.soundChoices.map { it.sound })
+        assertEquals(listOf(null) + WakeSound.entries.map(RingSound::Bundled), model.soundChoices.map { it.sound })
         assertEquals(SoundChoice(null, "Default", "Soft piano, as chosen in Settings", selected = true), model.soundChoices.first())
         assertEquals(listOf(true), model.soundChoices.filter { it.selected }.map { it.sound == null })
     }
@@ -339,15 +341,34 @@ class EditModelTest {
     fun soundsAreListedUnderTheirCategories() {
         val choices = app.morrow.ui.edit.editModel(alarm(7, 0), at("2026-10-05T22:00"), london).soundChoices
         assertEquals(listOf(null, "Gentle", "Nature", "Upbeat", "Classic"), choices.map { it.group }.distinct())
-        assertEquals(SoundChoice(WakeSound.OCEAN_WAVES, "Ocean waves", "Waves rolling in and out", false, "Nature"), choices.single { it.sound == WakeSound.OCEAN_WAVES })
+        assertEquals(
+            SoundChoice(RingSound.Bundled(WakeSound.OCEAN_WAVES), "Ocean waves", "Waves rolling in and out", false, "Nature"),
+            choices.single { it.sound == RingSound.Bundled(WakeSound.OCEAN_WAVES) },
+        )
+    }
+
+    @Test
+    fun theUsersOwnSoundsComeFirstAndCanBeRemoved() {
+        val song = OwnSound(4, "Our song", "/sounds/a.mp3")
+        fun model(draft: Alarm) = app.morrow.ui.edit.editModel(draft, at("2026-10-05T22:00"), london, ownSounds = listOf(song))
+        val mine = model(alarm(7, 0).copy(sound = RingSound.Own(4)))
+        assertEquals(SoundRow("Our song", "Just for this alarm", own = true), mine.sound)
+        assertEquals(
+            SoundChoice(RingSound.Own(4), "Our song", "From your phone", selected = true, group = "Your sounds", removable = true),
+            mine.soundChoices[1],
+        )
+        // A sound that's been removed rings with the default.
+        val gone = model(alarm(7, 0).copy(sound = RingSound.Own(9)))
+        assertEquals(false, gone.sound.own)
+        assertEquals(true, gone.soundChoices.first().selected)
     }
 
     @Test
     fun anAlarmWithItsOwnSoundShowsIt() {
-        val draft = alarm(7, 0).copy(sound = WakeSound.WIND_CHIMES)
+        val draft = alarm(7, 0).copy(sound = RingSound.Bundled(WakeSound.WIND_CHIMES))
         val model = app.morrow.ui.edit.editModel(draft, at("2026-10-05T22:00"), london, WakeSound.SOFT_PIANO)
         assertEquals(SoundRow("Wind chimes", "Just for this alarm", own = true), model.sound)
-        assertEquals(listOf(WakeSound.WIND_CHIMES), model.soundChoices.filter { it.selected }.map { it.sound })
+        assertEquals(listOf(RingSound.Bundled(WakeSound.WIND_CHIMES)), model.soundChoices.filter { it.selected }.map { it.sound })
     }
 
     @Test

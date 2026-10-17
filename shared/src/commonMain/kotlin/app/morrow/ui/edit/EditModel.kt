@@ -5,6 +5,8 @@ import app.morrow.domain.Difficulty
 import app.morrow.domain.GameStep
 import app.morrow.domain.MAX_SNOOZES
 import app.morrow.domain.MissionType
+import app.morrow.domain.OwnSound
+import app.morrow.domain.RingSound
 import app.morrow.domain.WakeSound
 import app.morrow.domain.clockZone
 import app.morrow.domain.nextOccurrence
@@ -87,7 +89,15 @@ data class SoundRow(val title: String, val subtitle: String, val own: Boolean)
  * A choice in the Alarm sound sheet. Picking it sets the alarm's [sound], null for the one chosen in Settings. It's
  * listed under [group], the sound's category, or under nothing for the default.
  */
-data class SoundChoice(val sound: WakeSound?, val name: String, val subtitle: String, val selected: Boolean, val group: String? = null)
+data class SoundChoice(
+    val sound: RingSound?,
+    val name: String,
+    val subtitle: String,
+    val selected: Boolean,
+    val group: String? = null,
+    /** One of the user's own, which can be taken off the list. */
+    val removable: Boolean = false,
+)
 
 /** A choice in the "Ring by the time in…" sheet. Picking it sets the alarm's [timeZone] and [city], both null for the phone's. */
 data class ZoneChoice(
@@ -118,7 +128,12 @@ fun editModel(
     oldDifficulty: Difficulty = Difficulty.NORMAL,
     /** False where Morrow can't snooze an alarm, as on iOS, where the system rings it. */
     canSnooze: Boolean = true,
+    /** The sounds the user has added, to pick from too. */
+    ownSounds: List<OwnSound> = emptyList(),
 ): EditModel {
+    // An own sound that's been taken off the list rings with the default.
+    val own = (draft.sound as? RingSound.Own)?.let { picked -> ownSounds.firstOrNull { it.id == picked.id } }
+    val sound = draft.sound.takeIf { it is RingSound.Bundled || own != null }
     val difficulty = draft.difficulty ?: oldDifficulty
     val alarmMinute = draft.hour * 60 + draft.minute
     val nowMinute = cityMinute(now, phoneZone)
@@ -140,13 +155,20 @@ fun editModel(
         } else {
             ZoneRow("$city time", "Follows $city’s clock, summer time included", zoned = true)
         },
-        sound = draft.sound?.let { SoundRow(it.displayName, "Just for this alarm", own = true) }
+        sound = (own?.name ?: (sound as? RingSound.Bundled)?.sound?.displayName)?.let { SoundRow(it, "Just for this alarm", own = true) }
             ?: SoundRow(defaultSound.displayName, "Default, as chosen in Settings", own = false),
         difficulty = difficulty,
         difficultyText = difficulty.description,
         snooze = if (canSnooze) SnoozeRow(draft.snoozeMinutes, snoozeText(draft.snoozeMinutes)) else null,
-        soundChoices = listOf(SoundChoice(null, "Default", "${defaultSound.displayName}, as chosen in Settings", draft.sound == null)) +
-            WakeSound.entries.map { SoundChoice(it, it.displayName, it.description, draft.sound == it, it.category.displayName) },
+        soundChoices = listOf(SoundChoice(null, "Default", "${defaultSound.displayName}, as chosen in Settings", sound == null)) +
+            ownSounds.map { mine ->
+                val ref = RingSound.Own(mine.id)
+                SoundChoice(ref, mine.name, "From your phone", sound == ref, OWN_SOUNDS, removable = true)
+            } +
+            WakeSound.entries.map { bundled ->
+                val ref = RingSound.Bundled(bundled)
+                SoundChoice(ref, bundled.displayName, bundled.description, sound == ref, bundled.category.displayName)
+            },
         games = games.mapIndexed { i, step ->
             val max = step.type.rules.maxRounds
             GameRow(
@@ -170,6 +192,9 @@ fun editModel(
         canAddGame = games.size < MissionType.entries.size,
     )
 }
+
+/** The heading over the user's own sounds in the Alarm sound sheet. */
+const val OWN_SOUNDS = "Your sounds"
 
 fun snoozeText(minutes: Int): String =
     if (minutes == 0) "No snoozing: only the games stop it." else "Up to $MAX_SNOOZES times, $minutes minutes each."

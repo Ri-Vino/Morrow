@@ -3,8 +3,10 @@ package app.morrow.alarm
 import app.morrow.data.AlarmSetup
 import app.morrow.domain.Alarm
 import app.morrow.domain.DefaultGames
+import app.morrow.domain.RingSound
 import app.morrow.domain.canSnooze
 import app.morrow.morrow
+import app.morrow.platform.play
 import app.morrow.timers.Timer
 import android.app.Notification
 import android.app.NotificationManager
@@ -134,7 +136,10 @@ class RingService : Service() {
                 val setup = runCatching { withTimeoutOrNull(1.seconds) { morrow.settings.alarmSetup.first() } }.getOrNull()
                     ?: AlarmSetup.Default
                 val own = runCatching { withTimeoutOrNull(1.seconds) { morrow.repository.get(alarmId)?.sound } }.getOrNull()
-                if (mode == Mode.ALARM) sound.play(own ?: setup.sound, setup.ramp.duration)
+                val file = (own as? RingSound.Own)?.let { mine ->
+                    runCatching { withTimeoutOrNull(1.seconds) { morrow.ownSounds.get(mine.id) } }.getOrNull()
+                }
+                if (mode == Mode.ALARM) sound.play(own, setup.sound, setup.ramp.duration, listOfNotNull(file))
             }
         }
 

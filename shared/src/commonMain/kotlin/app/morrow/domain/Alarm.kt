@@ -17,7 +17,7 @@ data class Alarm(
     /** The city the zone was picked from, such as "New York". */
     val zoneLabel: String? = null,
     /** This alarm's own sound; null rings with the one chosen in Settings. */
-    val sound: WakeSound? = null,
+    val sound: RingSound? = null,
     /**
      * How hard each round of its games is. Null for an alarm from before this was set per alarm, which plays as hard as
      * Settings used to say, or Normal.

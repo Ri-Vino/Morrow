@@ -7,8 +7,9 @@ import app.morrow.domain.Alarm
 import app.morrow.domain.DEFAULT_SNOOZE_MINUTES
 import app.morrow.domain.DefaultGames
 import app.morrow.domain.Difficulty
-import app.morrow.domain.WakeSound
 import app.morrow.domain.decodeGames
+import app.morrow.domain.decodeRingSound
+import app.morrow.domain.encode
 import app.morrow.domain.encodeGames
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.isoDayNumber
@@ -27,7 +28,7 @@ data class AlarmEntity(
     /** An IANA zone id, or null to follow the phone's clock. */
     @ColumnInfo(name = "time_zone") val timeZone: String? = null,
     @ColumnInfo(name = "zone_label") val zoneLabel: String? = null,
-    /** A [WakeSound]'s name, or null for the one chosen in Settings. */
+    /** As [encode] writes it, or null for the one chosen in Settings. */
     val sound: String? = null,
     /** A [Difficulty]'s name, or null for an alarm saved before each had its own. */
     val difficulty: String? = null,
@@ -44,7 +45,7 @@ internal fun Alarm.toEntity() = AlarmEntity(
     enabled = enabled,
     timeZone = timeZone,
     zoneLabel = zoneLabel,
-    sound = sound?.name,
+    sound = sound?.encode(),
     difficulty = difficulty?.name,
     snoozeMinutes = snoozeMinutes,
 )
@@ -60,7 +61,7 @@ internal fun AlarmEntity.toAlarm() = Alarm(
     timeZone = timeZone,
     zoneLabel = zoneLabel,
     // A sound this version doesn't know rings with the default.
-    sound = WakeSound.entries.firstOrNull { it.name == sound },
+    sound = decodeRingSound(sound),
     difficulty = Difficulty.entries.firstOrNull { it.name == difficulty },
     snoozeMinutes = snoozeMinutes.coerceAtLeast(0),
 )

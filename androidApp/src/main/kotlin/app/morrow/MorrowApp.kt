@@ -1,12 +1,11 @@
 package app.morrow
 
-import android.app.Application
-import android.content.Context
 import app.morrow.alarm.AndroidAlarmScheduler
 import app.morrow.alarm.AndroidTimerScheduler
 import app.morrow.alarm.TimerNotifications
 import app.morrow.alarms.AlarmCoordinator
 import app.morrow.data.AlarmRepository
+import app.morrow.data.OwnSounds
 import app.morrow.data.buildMorrowDatabase
 import app.morrow.data.morrowDatabaseBuilder
 import app.morrow.data.morrowSettings
@@ -24,18 +23,21 @@ import app.morrow.timers.TimerVoice
 import app.morrow.weather.OpenMeteoGeocoder
 import app.morrow.weather.OpenMeteoSource
 import app.morrow.weather.WeatherRepository
+import android.app.Application
+import android.content.Context
+import kotlin.time.Clock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
-import kotlin.time.Clock
 
 class MorrowApp : Application() {
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val database by lazy { buildMorrowDatabase(morrowDatabaseBuilder(this)) }
     val repository by lazy { AlarmRepository(database.alarmDao()) }
     val coordinator by lazy { AlarmCoordinator(repository, AndroidAlarmScheduler(this)) }
+    val ownSounds by lazy { OwnSounds(database.ownSoundDao(), database.alarmDao()) }
     val timers by lazy { TimerCoordinator(TimerRepository(database.timerDao()), AndroidTimerScheduler(this), TimerNotifications(this)) }
     val themeClock by lazy { ThemeClock(appScope) }
     val settings by lazy { morrowSettings(this) }

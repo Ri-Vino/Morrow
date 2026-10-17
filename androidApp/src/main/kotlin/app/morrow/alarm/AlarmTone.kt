@@ -1,5 +1,9 @@
 package app.morrow.alarm
 
+import androidx.core.net.toUri
+import app.morrow.R
+import app.morrow.domain.WakeSound
+import app.morrow.platform.AlarmSound
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioManager
@@ -10,10 +14,7 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
-import androidx.core.net.toUri
-import app.morrow.R
-import app.morrow.domain.WakeSound
-import app.morrow.platform.AlarmSound
+import java.io.File
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -62,7 +63,9 @@ class AlarmTone(private val context: Context) : AlarmSound {
         }
     }
 
-    override fun play(sound: WakeSound, ramp: Duration) = start(sound.resource, ramp)
+    override fun play(sound: WakeSound, ramp: Duration) = start(listOf(bundled(sound.resource)), ramp)
+
+    override fun playFile(path: String, fallback: WakeSound, ramp: Duration) = start(listOf(File(path).toUri(), bundled(fallback.resource)), ramp)
 
     /** Call on the main thread. The last-resort tone can't be turned down. */
     override fun setLevel(level: Float) {
@@ -72,7 +75,7 @@ class AlarmTone(private val context: Context) : AlarmSound {
     }
 
     /** The timers' Bell, at full volume straight away: a timer that has ended has no time to ramp up. */
-    fun playBell() = start(R.raw.bell, Duration.ZERO)
+    fun playBell() = start(listOf(bundled(R.raw.bell)), Duration.ZERO)
 
     /**
      * Fades the sound down to a murmur while Pip speaks over it ([ducked]), and back up after. Call on the main thread.
@@ -89,12 +92,12 @@ class AlarmTone(private val context: Context) : AlarmSound {
         player?.setVolume(volume, volume)
     }
 
-    private fun start(resource: Int, ramp: Duration) {
+    private fun start(first: List<Uri>, ramp: Duration) {
         if (player != null || tone != null) return
         rampMillis = ramp.inWholeMilliseconds.coerceAtLeast(1)
         val startVolume = if (ramp.isPositive()) MIN_VOLUME else 1f
         rampVolume = startVolume
-        for (uri in soundCandidates(resource)) {
+        for (uri in (first + phoneAlarmSounds()).distinct()) {
             val started = runCatching {
                 MediaPlayer().apply {
                     setAudioAttributes(AlarmAudio)
@@ -136,13 +139,14 @@ class AlarmTone(private val context: Context) : AlarmSound {
         }
     }
 
-    /** The bundled sound, then the phone's own alarm sound in case it won't play. */
-    private fun soundCandidates(resource: Int): List<Uri> = listOfNotNull(
-        "android.resource://${context.packageName}/$resource".toUri(),
+    private fun bundled(resource: Int): Uri = "android.resource://${context.packageName}/$resource".toUri()
+
+    /** The phone's own alarm sounds, in case none of the app's will play. */
+    private fun phoneAlarmSounds(): List<Uri> = listOfNotNull(
         RingtoneManager.getActualDefaultRingtoneUri(context, RingtoneManager.TYPE_ALARM),
         RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
         RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE),
-    ).distinct()
+    )
 
     companion object {
         private const val TAG = "AlarmTone"

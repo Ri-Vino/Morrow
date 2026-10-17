@@ -1,5 +1,6 @@
 package app.morrow.data
 
+import app.morrow.domain.RingSound
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import androidx.sqlite.execSQL
@@ -40,7 +41,7 @@ class DifficultyMigrationTest {
             val alarms = AlarmRepository(database.alarmDao())
             val standUp = Alarm(
                 2, 9, 0, "Stand-up", DayOfWeek.entries.take(5).toSet(), listOf(GameStep(MissionType.TYPE, 4)), enabled = true,
-                sound = WakeSound.WIND_CHIMES,
+                sound = RingSound.Bundled(WakeSound.WIND_CHIMES),
             )
             assertEquals(listOf(standUp), alarms.getAll())
 

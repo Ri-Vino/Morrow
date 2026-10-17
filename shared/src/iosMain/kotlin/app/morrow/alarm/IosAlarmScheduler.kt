@@ -4,11 +4,12 @@ import app.morrow.alarms.FIXED_DATE_SLOTS
 import app.morrow.alarms.fixedDateId
 import app.morrow.alarms.fixedDates
 import app.morrow.domain.Alarm
+import app.morrow.domain.RingSound
 import app.morrow.domain.WakeSound
 import app.morrow.domain.ownZone
 import app.morrow.platform.AlarmScheduler
-import kotlinx.datetime.isoDayNumber
 import kotlin.time.Instant
+import kotlinx.datetime.isoDayNumber
 
 /**
  * Hands alarms to AlarmKit with their own sound, or the one chosen in Settings now, since AlarmKit plays the sound it
@@ -22,12 +23,12 @@ class IosAlarmScheduler(private val alarmKit: AlarmKitBridge, private val sound:
             // AlarmKit repeats alarms itself and follows the wall clock across timezones, so it takes the time of day, not [at].
             cancelDates(alarm.id)
             val days = alarm.days.map { it.isoDayNumber }.sorted()
-            alarmKit.schedule(alarm.id, alarm.label, alarm.hour, alarm.minute, days, (alarm.sound ?: sound()).fileName)
+            alarmKit.schedule(alarm.id, alarm.label, alarm.hour, alarm.minute, days, soundFor(alarm).fileName)
         } else {
             // AlarmKit's repeats keep the phone's clock, so another city's alarm goes over as its next week of dates.
             alarmKit.cancel(alarm.id)
             cancelDates(alarm.id)
-            val file = (alarm.sound ?: sound()).fileName
+            val file = soundFor(alarm).fileName
             // Up to FIXED_DATE_SLOTS alarms each. AlarmKit sets no fixed limit but may refuse more when the phone is
             // short of resources (maximumLimitReached); a refused date is only logged, and comes back when the alarm is next handed over.
             alarm.fixedDates(at, zone).forEachIndexed { i, date ->
@@ -40,6 +41,9 @@ class IosAlarmScheduler(private val alarmKit: AlarmKitBridge, private val sound:
         alarmKit.cancel(alarmId)
         cancelDates(alarmId)
     }
+
+    /** The alarm's own sound if it's one of the bundled ones; iOS has no sounds of the user's own. */
+    private fun soundFor(alarm: Alarm): WakeSound = (alarm.sound as? RingSound.Bundled)?.sound ?: sound()
 
     private fun cancelDates(alarmId: Long) {
         for (slot in 1..FIXED_DATE_SLOTS) alarmKit.cancel(fixedDateId(alarmId, slot))

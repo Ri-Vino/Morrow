@@ -76,6 +76,7 @@ import androidx.compose.ui.zIndex
 import app.morrow.domain.Alarm
 import app.morrow.domain.Difficulty
 import app.morrow.domain.MissionType
+import app.morrow.domain.RingSound
 import app.morrow.domain.SnoozeChoices
 import app.morrow.domain.WakeSound
 import app.morrow.theme.Illustration
@@ -103,8 +104,12 @@ class EditActions(
     val onPreview: () -> Unit,
     val onSave: () -> Unit,
     /** Plays a choice from the Alarm sound sheet, null for the one chosen in Settings, until [onStopSound]. */
-    val onHearSound: (WakeSound?) -> Unit = {},
+    val onHearSound: (RingSound?) -> Unit = {},
     val onStopSound: () -> Unit = {},
+    /** Brings in a sound from the phone; null where that can't be done. */
+    val onAddOwnSound: (() -> Unit)? = null,
+    /** Takes one of the user's own sounds off the list. */
+    val onRemoveOwnSound: (Long) -> Unit = {},
 )
 
 /** What the "Ring by the time in…" sheet offers: [choices] for the draft, and [find] for cities matching a search. */
@@ -117,6 +122,8 @@ fun EditScreen(
     actions: EditActions,
     zones: ZoneSheetData = ZoneSheetData(emptyList()) { emptyList() },
     modifier: Modifier = Modifier,
+    /** Why the last sound brought in from the phone couldn't be used, shown in the Alarm sound sheet. */
+    soundProblem: String? = null,
 ) {
     var addingGame by rememberSaveable { mutableStateOf(false) }
     var pickingZone by rememberSaveable { mutableStateOf(false) }
@@ -156,6 +163,9 @@ fun EditScreen(
         if (pickingSound) {
             SoundSheet(
                 model.soundChoices,
+                problem = soundProblem,
+                onAdd = actions.onAddOwnSound,
+                onRemove = { choice -> (choice.sound as? RingSound.Own)?.let { actions.onRemoveOwnSound(it.id) } },
                 onPick = { choice ->
                     actions.onChange(draft.copy(sound = choice.sound))
                     actions.onHearSound(choice.sound)
@@ -620,7 +630,14 @@ private fun SoundRowView(sound: SoundRow, onClick: () -> Unit) {
 
 /** Default and every sound; picking one plays it, and the sound stops when the sheet closes. */
 @Composable
-private fun SoundSheet(choices: List<SoundChoice>, onPick: (SoundChoice) -> Unit, onClose: () -> Unit) {
+private fun SoundSheet(
+    choices: List<SoundChoice>,
+    problem: String?,
+    onAdd: (() -> Unit)?,
+    onRemove: (SoundChoice) -> Unit,
+    onPick: (SoundChoice) -> Unit,
+    onClose: () -> Unit,
+) {
     val colors = MorrowTheme.colors
     val type = MorrowTheme.type
     Sheet("Alarm sound", onClose) {
@@ -635,7 +652,18 @@ private fun SoundSheet(choices: List<SoundChoice>, onPick: (SoundChoice) -> Unit
                         modifier = Modifier.padding(start = 8.dp, top = 8.dp).semantics { heading() },
                     )
                 }
-                SoundCard(inGroup, onPick)
+                SoundCard(inGroup, onPick, onRemove)
+                // Their own sounds come first; if there are none yet, the way to add one does.
+                if (onAdd != null && (group == OWN_SOUNDS || (group == null && choices.none { it.removable }))) {
+                    SecondaryButton("Add a sound from your phone", onAdd)
+                    problem?.let {
+                        BasicText(
+                            it,
+                            style = type.body.copy(color = colors.warn),
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        )
+                    }
+                }
             }
         }
         PrimaryButton("Done", onClose)
@@ -644,29 +672,41 @@ private fun SoundSheet(choices: List<SoundChoice>, onPick: (SoundChoice) -> Unit
 
 /** One group of the Alarm sound sheet's choices, in a card. */
 @Composable
-private fun SoundCard(choices: List<SoundChoice>, onPick: (SoundChoice) -> Unit) {
+private fun SoundCard(choices: List<SoundChoice>, onPick: (SoundChoice) -> Unit, onRemove: (SoundChoice) -> Unit) {
     val colors = MorrowTheme.colors
     val type = MorrowTheme.type
     val shape = RoundedCornerShape(24.dp)
     Column(Modifier.fillMaxWidth().clip(shape).background(colors.surface).border(1.dp, colors.line, shape)) {
         choices.forEachIndexed { i, choice ->
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 60.dp)
-                    .then(if (i > 0) Modifier.topDivider(colors.line) else Modifier)
-                    .selectable(choice.selected, role = Role.RadioButton) { onPick(choice) }
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().then(if (i > 0) Modifier.topDivider(colors.line) else Modifier),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                val ring = if (choice.selected) colors.hi else colors.muted
-                Box(Modifier.size(24.dp).border(2.dp, ring, CircleShape), contentAlignment = Alignment.Center) {
-                    if (choice.selected) Box(Modifier.size(12.dp).background(colors.hi, CircleShape))
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 60.dp)
+                        .selectable(choice.selected, role = Role.RadioButton) { onPick(choice) }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    val ring = if (choice.selected) colors.hi else colors.muted
+                    Box(Modifier.size(24.dp).border(2.dp, ring, CircleShape), contentAlignment = Alignment.Center) {
+                        if (choice.selected) Box(Modifier.size(12.dp).background(colors.hi, CircleShape))
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        BasicText(choice.name, style = type.button.copy(color = colors.text))
+                        BasicText(choice.subtitle, style = type.body.copy(color = colors.muted))
+                    }
                 }
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    BasicText(choice.name, style = type.button.copy(color = colors.text))
-                    BasicText(choice.subtitle, style = type.body.copy(color = colors.muted))
+                if (choice.removable) {
+                    Box(
+                        modifier = Modifier.size(48.dp).pressable({ onRemove(choice) }, onClickLabel = "Remove ${choice.name}"),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        MorrowIcon(Icons.Close, colors.muted, size = 18.dp, strokeWidth = 2.2f, contentDescription = "Remove ${choice.name}")
+                    }
                 }
             }
         }

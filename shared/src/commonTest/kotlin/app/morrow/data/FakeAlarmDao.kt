@@ -33,4 +33,8 @@ class FakeAlarmDao : AlarmDao {
     override suspend fun delete(id: Long) {
         rows.value -= id
     }
+
+    override suspend fun clearSound(sound: String) {
+        rows.value = rows.value.mapValues { (_, row) -> if (row.sound == sound) row.copy(sound = null) else row }
+    }
 }

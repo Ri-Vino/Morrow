@@ -12,8 +12,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
 @Database(
-    entities = [AlarmEntity::class, SavedCityEntity::class, WeatherCacheEntity::class, CitySearchCacheEntity::class, TimerEntity::class],
-    version = 9,
+    entities = [AlarmEntity::class, SavedCityEntity::class, WeatherCacheEntity::class, CitySearchCacheEntity::class, TimerEntity::class, OwnSoundEntity::class],
+    version = 10,
 )
 @ConstructedBy(MorrowDatabaseConstructor::class)
 abstract class MorrowDatabase : RoomDatabase() {
@@ -26,6 +26,8 @@ abstract class MorrowDatabase : RoomDatabase() {
     abstract fun citySearchCacheDao(): CitySearchCacheDao
 
     abstract fun timerDao(): TimerDao
+
+    abstract fun ownSoundDao(): OwnSoundDao
 }
 
 // Room generates the actual implementations.
@@ -40,7 +42,7 @@ fun buildMorrowDatabase(builder: RoomDatabase.Builder<MorrowDatabase>): MorrowDa
     builder
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(GamesMigration, CitiesMigration, ZonesMigration, WeatherMigration, TimersMigration, SoundsMigration, DifficultyMigration, SnoozeMigration)
+        .addMigrations(GamesMigration, CitiesMigration, ZonesMigration, WeatherMigration, TimersMigration, SoundsMigration, DifficultyMigration, SnoozeMigration, OwnSoundsMigration)
         .build()
 
 /** An alarm's one mission becomes its first and only game, with that game's usual rounds. */
@@ -132,5 +134,15 @@ internal object DifficultyMigration : Migration(7, 8) {
 internal object SnoozeMigration : Migration(8, 9) {
     override fun migrate(connection: SQLiteConnection) {
         connection.execSQL("ALTER TABLE `alarms` ADD COLUMN `snooze_minutes` INTEGER NOT NULL DEFAULT 5")
+    }
+}
+
+/** Adds the user's own sounds, none yet. */
+internal object OwnSoundsMigration : Migration(9, 10) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL(
+            "CREATE TABLE IF NOT EXISTS `own_sounds` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, " +
+                "`path` TEXT NOT NULL, `added_at` INTEGER NOT NULL)",
+        )
     }
 }
