@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import app.morrow.domain.Alarm
 import app.morrow.domain.DefaultGames
+import app.morrow.domain.Difficulty
 import app.morrow.domain.WakeSound
 import app.morrow.domain.decodeGames
 import app.morrow.domain.encodeGames
@@ -27,6 +28,8 @@ data class AlarmEntity(
     @ColumnInfo(name = "zone_label") val zoneLabel: String? = null,
     /** A [WakeSound]'s name, or null for the one chosen in Settings. */
     val sound: String? = null,
+    /** A [Difficulty]'s name, or null for an alarm saved before each had its own. */
+    val difficulty: String? = null,
 )
 
 internal fun Alarm.toEntity() = AlarmEntity(
@@ -40,6 +43,7 @@ internal fun Alarm.toEntity() = AlarmEntity(
     timeZone = timeZone,
     zoneLabel = zoneLabel,
     sound = sound?.name,
+    difficulty = difficulty?.name,
 )
 
 internal fun AlarmEntity.toAlarm() = Alarm(
@@ -54,4 +58,5 @@ internal fun AlarmEntity.toAlarm() = Alarm(
     zoneLabel = zoneLabel,
     // A sound this version doesn't know rings with the default.
     sound = WakeSound.entries.firstOrNull { it.name == sound },
+    difficulty = Difficulty.entries.firstOrNull { it.name == difficulty },
 )

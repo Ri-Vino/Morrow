@@ -97,6 +97,7 @@ class RingActivity : ComponentActivity() {
                     // The alarm rings on until the last game is done. If this screen fails, the safety stop still ends it.
                     stage == Stage.MISSION -> SequenceRoute(
                         ringing.games,
+                        ringing.difficulty,
                         missions,
                         onDone = {
                             wokeAt = Clock.System.now().toEpochMilliseconds()

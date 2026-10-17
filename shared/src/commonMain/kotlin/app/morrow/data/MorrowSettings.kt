@@ -29,7 +29,10 @@ class MorrowSettings internal constructor(private val store: DataStore<Preferenc
         store.edit { it[FirstRunDone] = true }
     }
 
-    /** What missions need at ring time. */
+    /**
+     * What missions need at ring time. Its difficulty is the one Settings used to set for every alarm, which alarms
+     * saved before each had its own still play at.
+     */
     val missionSetup: Flow<MissionSetup> = store.data.map { prefs ->
         MissionSetup(
             difficulty = prefs[DifficultyKey].toEnum(Difficulty.NORMAL),
@@ -51,10 +54,6 @@ class MorrowSettings internal constructor(private val store: DataStore<Preferenc
 
     suspend fun setRamp(ramp: VolumeRamp) {
         store.edit { it[RampKey] = ramp.name }
-    }
-
-    suspend fun setDifficulty(difficulty: Difficulty) {
-        store.edit { it[DifficultyKey] = difficulty.name }
     }
 
     /** The code the Scan mission looks for, usually a sticker on the kettle. */

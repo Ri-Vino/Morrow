@@ -39,7 +39,6 @@ fun SettingsRoute(
 ) {
     val scope = rememberCoroutineScope()
     val missing by permissions.missing.collectAsStateWithLifecycle()
-    val missions by settings.missionSetup.collectAsStateWithLifecycle(initialValue = null)
     val alarm by settings.alarmSetup.collectAsStateWithLifecycle(initialValue = null)
     val weatherOn by settings.weatherEnabled.collectAsStateWithLifecycle(initialValue = null)
     val mode by settings.weatherSource.collectAsStateWithLifecycle(initialValue = WeatherPlaceMode.AUTO)
@@ -53,20 +52,18 @@ fun SettingsRoute(
     val voices by produceState<List<VoiceInfo>?>(initialValue = null, speaker) { value = speaker.voices() }
     PlatformBackHandler(onBack = onBack)
 
-    val difficulty = missions?.difficulty ?: return
     val sound = alarm ?: return
     val enabled = weatherOn ?: return
     val shownUnits = units ?: return
     val readsAloud = readAloud ?: return
     val voice = savedVoice ?: return
     SettingsScreen(
-        model = settingsModel(difficulty, permissions.asked, missing),
-        choices = SettingsChoices(difficulty, sound.sound, sound.ramp),
+        model = settingsModel(permissions.asked, missing),
+        choices = SettingsChoices(sound.sound, sound.ramp),
         weather = weatherSection(enabled, mode, herePlace, homeName, shownUnits, readsAloud),
         voice = voiceSection(voice.id, voices),
         actions = SettingsActions(
             onBack = onBack,
-            onDifficulty = { scope.launch { settings.setDifficulty(it) } },
             onSound = { scope.launch { settings.setSound(it) } },
             onRamp = { scope.launch { settings.setRamp(it) } },
             onAllow = permissions::request,

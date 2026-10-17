@@ -21,6 +21,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import app.morrow.data.MorrowSettings
 import app.morrow.data.createSettingsStore
+import app.morrow.domain.Difficulty
 import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
 import app.morrow.missions.BreatheMission
@@ -252,8 +253,13 @@ class SequenceRouteTest {
         compose.onNodeWithContentDescription("Game 1 of 1", substring = true).assertDoesNotExist()
     }
 
-    private fun start(vararg games: GameStep, settings: MorrowSettings = settings(), motion: MotionSensor = this.motion) {
-        compose.setContent { SequenceRoute(games.toList(), MissionServices(settings, motion, scanner), onDone = { done = true }) }
+    private fun start(
+        vararg games: GameStep,
+        settings: MorrowSettings = settings(),
+        motion: MotionSensor = this.motion,
+        difficulty: Difficulty? = null,
+    ) {
+        compose.setContent { SequenceRoute(games.toList(), difficulty, MissionServices(settings, motion, scanner), onDone = { done = true }) }
         // The mission appears once its settings have loaded from disk.
         compose.waitUntil { compose.onAllNodes(hasText("WAKE-UP MISSION")).fetchSemanticsNodes().isNotEmpty() }
     }

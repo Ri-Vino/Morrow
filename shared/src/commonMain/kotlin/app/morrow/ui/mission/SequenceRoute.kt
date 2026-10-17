@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import app.morrow.data.MissionSetup
 import app.morrow.data.MorrowSettings
+import app.morrow.domain.Difficulty
 import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
 import app.morrow.domain.SHAKES_PER_ROUND
@@ -36,17 +37,17 @@ import kotlinx.coroutines.delay
 class MissionServices(val settings: MorrowSettings, val motion: MotionSensor, val scanner: CodeScanner)
 
 /**
- * Plays [games] in order, each for its rounds and as hard as the difficulty setting says, then calls [onDone] once the
- * last one is finished. A game this phone can't play, with the camera off or no motion sensor, can switch to sums, so
+ * Plays [games] in order, each for its rounds and at [difficulty], then calls [onDone] once the last one is finished.
+ * A null difficulty, from an alarm saved before each had its own, plays as hard as Settings used to say. A game this phone can't play, with the camera off or no motion sensor, can switch to sums, so
  * an alarm can always be finished.
  */
 @Composable
-fun SequenceRoute(games: List<GameStep>, services: MissionServices, onDone: () -> Unit) {
-    val setup by services.settings.missionSetup.collectAsState(initial = null)
+fun SequenceRoute(games: List<GameStep>, difficulty: Difficulty?, services: MissionServices, onDone: () -> Unit) {
+    val saved by services.settings.missionSetup.collectAsState(initial = null)
     // Starts again if the games change, as when the ringing alarm's own games replace the placeholder's.
     var steps by rememberSaveable(games, stateSaver = StepsSaver) { mutableStateOf(games) }
     var index by rememberSaveable(games) { mutableIntStateOf(0) }
-    val loaded = setup ?: return
+    val loaded = saved?.let { setup -> difficulty?.let { setup.copy(difficulty = it) } ?: setup } ?: return
     val current = steps[index]
     val step = Step(steps, index, onFinished = { if (index == steps.lastIndex) onDone() else index++ })
     val switchToSums = { steps = switchedToSums(steps, index) }

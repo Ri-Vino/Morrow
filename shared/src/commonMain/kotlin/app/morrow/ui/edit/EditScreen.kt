@@ -74,6 +74,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import app.morrow.domain.Alarm
+import app.morrow.domain.Difficulty
 import app.morrow.domain.MissionType
 import app.morrow.domain.WakeSound
 import app.morrow.theme.Illustration
@@ -87,6 +88,7 @@ import app.morrow.ui.components.PillButton
 import app.morrow.ui.components.PrimaryButton
 import app.morrow.ui.components.ReadoutPart
 import app.morrow.ui.components.SecondaryButton
+import app.morrow.ui.components.SegmentedControl
 import app.morrow.ui.components.SkyDial
 import app.morrow.ui.components.largeText
 import app.morrow.ui.components.pressable
@@ -211,6 +213,10 @@ private fun EditForm(
             Section("Wake-up games", aside = "Played in this order") {
                 GameList(draft, model.games, actions.onChange)
                 EstimateRow(model, onAddGame)
+            }
+            Section("Difficulty") {
+                SegmentedControl(Difficulty.entries, model.difficulty, Difficulty::displayName, { actions.onChange(draft.copy(difficulty = it)) })
+                BasicText(model.difficultyText, style = MorrowTheme.type.body.copy(color = colors.muted))
             }
         }
         if (largeText()) {

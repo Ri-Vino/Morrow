@@ -1,6 +1,5 @@
 package app.morrow.ui.settings
 
-import app.morrow.domain.Difficulty
 import app.morrow.platform.AlarmPermission
 import app.morrow.platform.VoiceInfo
 import app.morrow.theme.ThemeKind
@@ -8,30 +7,12 @@ import app.morrow.weather.HerePlace
 import app.morrow.weather.Units
 import app.morrow.weather.WeatherPlaceMode
 
-data class SettingsModel(
-    /** What the chosen difficulty means for a round. */
-    val difficultyLevel: String,
-    val difficultyDescription: String,
-    val permissions: List<PermissionStatus>,
-)
+data class SettingsModel(val permissions: List<PermissionStatus>)
 
 data class PermissionStatus(val permission: AlarmPermission, val granted: Boolean)
 
-fun settingsModel(
-    difficulty: Difficulty,
-    asked: List<AlarmPermission>,
-    missing: List<AlarmPermission>,
-): SettingsModel {
-    return SettingsModel(
-        difficultyLevel = when (difficulty) {
-            Difficulty.GENTLE -> "Gentler rounds: small sums, short sentences, soft shakes."
-            Difficulty.NORMAL -> "Everyday rounds: two-digit sums and short sentences."
-            Difficulty.TOUGH -> "Tougher rounds: bigger sums, longer sentences, firm shakes."
-        },
-        difficultyDescription = "How hard each round is. The number of rounds is set on each alarm.",
-        permissions = asked.map { PermissionStatus(it, granted = it !in missing) },
-    )
-}
+fun settingsModel(asked: List<AlarmPermission>, missing: List<AlarmPermission>): SettingsModel =
+    SettingsModel(permissions = asked.map { PermissionStatus(it, granted = it !in missing) })
 
 /** Settings › Weather. */
 data class WeatherSection(

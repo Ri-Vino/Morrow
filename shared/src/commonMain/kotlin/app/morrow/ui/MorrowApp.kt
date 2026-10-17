@@ -26,6 +26,7 @@ import app.morrow.data.AlarmSetup
 import app.morrow.data.MorrowSettings
 import app.morrow.domain.Alarm
 import app.morrow.domain.DefaultGames
+import app.morrow.domain.Difficulty
 import app.morrow.domain.MissionType
 import app.morrow.domain.WakeSound
 import app.morrow.domain.decodeGames
@@ -46,6 +47,7 @@ import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeClock
 import app.morrow.theme.ThemeKind
 import app.morrow.timers.TimerCoordinator
+import app.morrow.ui.components.skySceneState
 import app.morrow.ui.edit.EditActions
 import app.morrow.ui.edit.EditScreen
 import app.morrow.ui.edit.KettleCodeScreen
@@ -53,22 +55,21 @@ import app.morrow.ui.edit.ZoneSheetData
 import app.morrow.ui.edit.editModel
 import app.morrow.ui.edit.phoneCityName
 import app.morrow.ui.edit.searchChoices
-import app.morrow.ui.edit.zoneChoices
 import app.morrow.ui.edit.withGame
+import app.morrow.ui.edit.zoneChoices
 import app.morrow.ui.firstrun.SetupScreen
 import app.morrow.ui.firstrun.WelcomeScreen
 import app.morrow.ui.home.HomeActions
 import app.morrow.ui.home.HomeScreen
 import app.morrow.ui.home.homeModel
 import app.morrow.ui.home.homeWeather
-import app.morrow.ui.components.skySceneState
 import app.morrow.ui.mission.MissionServices
 import app.morrow.ui.mission.SequenceRoute
 import app.morrow.ui.morning.MorningRoute
 import app.morrow.ui.ring.RingPreview
-import app.morrow.ui.settings.SettingsRoute
 import app.morrow.ui.ring.RingScreen
 import app.morrow.ui.ring.ringModel
+import app.morrow.ui.settings.SettingsRoute
 import app.morrow.ui.tabs.Tab
 import app.morrow.ui.tabs.TabHost
 import app.morrow.ui.tabs.TabSaver
@@ -82,6 +83,9 @@ import app.morrow.weather.RefreshReason
 import app.morrow.weather.WeatherRepository
 import app.morrow.weather.WeatherState
 import app.morrow.weather.defaultUnits
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -89,9 +93,6 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Clock
-import kotlin.time.Duration.Companion.seconds
-import kotlin.time.Instant
 
 class MorrowServices(
     val repository: AlarmRepository,
@@ -349,7 +350,7 @@ private fun EditRoute(
     }
     EditScreen(
         draft = current,
-        model = editModel(current, now, phoneZone, alarmSetup.sound),
+        model = editModel(current, now, phoneZone, alarmSetup.sound, missions.difficulty),
         zones = ZoneSheetData(
             choices = zoneChoices(current, savedCities.map { it.city }, now, phoneZone, phoneCityName(savedCities, phoneZone, zoneCity)),
             find = { query -> searchChoices(services.catalog.search(query, limit = 8), Clock.System.now(), phoneZone) },
@@ -409,6 +410,7 @@ private fun RingPreviewRoute(services: MorrowServices, alarm: Alarm, onSystemBar
         )
         PreviewStage.MISSION -> SequenceRoute(
             alarm.games,
+            alarm.difficulty,
             services.missions,
             onDone = {
                 soundOn = false
@@ -444,6 +446,8 @@ private fun WakeRoute(services: MorrowServices, alarmId: Long, onSystemBarsChang
     var games by rememberSaveable(alarmId) { mutableStateOf<String?>(null) }
     // The alarm's own sound's name, empty for the one chosen in Settings.
     var ownSound by rememberSaveable(alarmId) { mutableStateOf("") }
+    // Its difficulty's name, empty for an alarm saved before each had its own.
+    var difficulty by rememberSaveable(alarmId) { mutableStateOf("") }
     var wokeAt by rememberSaveable(alarmId) { mutableStateOf<Long?>(null) }
     LaunchedEffect(alarmId) {
         if (games != null) return@LaunchedEffect
@@ -452,6 +456,7 @@ private fun WakeRoute(services: MorrowServices, alarmId: Long, onSystemBarsChang
         services.coordinator.onRang(alarmId)
         val alarm = services.repository.get(alarmId)
         ownSound = alarm?.sound?.name.orEmpty()
+        difficulty = alarm?.difficulty?.name.orEmpty()
         games = encodeGames(alarm?.games ?: DefaultGames)
     }
     val ringing = wokeAt == null
@@ -481,7 +486,12 @@ private fun WakeRoute(services: MorrowServices, alarmId: Long, onSystemBarsChang
                 }
             },
         )
-        chosen != null -> SequenceRoute(decodeGames(chosen), services.missions, onDone = { wokeAt = Clock.System.now().toEpochMilliseconds() })
+        chosen != null -> SequenceRoute(
+            decodeGames(chosen),
+            Difficulty.entries.firstOrNull { it.name == difficulty },
+            services.missions,
+            onDone = { wokeAt = Clock.System.now().toEpochMilliseconds() },
+        )
     }
 }
 
@@ -573,7 +583,7 @@ private val AlarmSaver = Saver<Alarm?, List<Any>>(
         alarm?.let {
             listOf(
                 it.id, it.hour, it.minute, it.label, it.days.joinToString(",") { day -> day.name }, encodeGames(it.games), it.enabled,
-                it.timeZone.orEmpty(), it.zoneLabel.orEmpty(), it.sound?.name.orEmpty(),
+                it.timeZone.orEmpty(), it.zoneLabel.orEmpty(), it.sound?.name.orEmpty(), it.difficulty?.name.orEmpty(),
             )
         }
     },
@@ -589,6 +599,7 @@ private val AlarmSaver = Saver<Alarm?, List<Any>>(
             timeZone = (saved.getOrNull(7) as String?)?.ifEmpty { null },
             zoneLabel = (saved.getOrNull(8) as String?)?.ifEmpty { null },
             sound = WakeSound.entries.firstOrNull { it.name == saved.getOrNull(9) },
+            difficulty = Difficulty.entries.firstOrNull { it.name == saved.getOrNull(10) },
         )
     },
 )

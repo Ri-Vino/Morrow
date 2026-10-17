@@ -1,6 +1,5 @@
 package app.morrow.ui.settings
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -33,7 +32,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -41,7 +39,6 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import app.morrow.domain.Difficulty
 import app.morrow.domain.VolumeRamp
 import app.morrow.domain.WakeSound
 import app.morrow.platform.AlarmPermission
@@ -53,6 +50,7 @@ import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.components.MorrowToggle
 import app.morrow.ui.components.PillButton
 import app.morrow.ui.components.SecondaryButton
+import app.morrow.ui.components.SegmentedControl
 import app.morrow.ui.components.pressable
 import app.morrow.ui.firstrun.icon
 import app.morrow.weather.Units
@@ -61,11 +59,10 @@ import app.morrow.weather.WeatherPlaceMode
 private const val SPEAKER_ICON = "M4 9v6h4l5 4V5L8 9H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"
 private const val PLAY_ICON = "M9 7.5v9l7-4.5z"
 
-class SettingsChoices(val difficulty: Difficulty, val sound: WakeSound, val ramp: VolumeRamp)
+class SettingsChoices(val sound: WakeSound, val ramp: VolumeRamp)
 
 class SettingsActions(
     val onBack: () -> Unit,
-    val onDifficulty: (Difficulty) -> Unit,
     val onSound: (WakeSound) -> Unit,
     val onRamp: (VolumeRamp) -> Unit,
     val onAllow: (AlarmPermission) -> Unit,
@@ -140,11 +137,6 @@ private fun SettingsContent(
         ) {
             if (weather != null) Section("Weather") { WeatherSettings(weather, actions) }
             if (voice != null) Section("Voice") { VoiceSettings(voice, actions.onHearSample, onPickVoice) }
-            Section("Mission difficulty") {
-                SegmentedControl(Difficulty.entries, choices.difficulty, Difficulty::displayName, actions.onDifficulty)
-                Note(model.difficultyLevel)
-                Note(model.difficultyDescription)
-            }
             Section("Default alarm sound") {
                 Card {
                     WakeSound.entries.forEachIndexed { i, sound ->
@@ -342,50 +334,6 @@ private fun VoicePickerSheet(voice: VoiceSection, onPick: (String?) -> Unit, onC
             }
         }
         voice.emptyNote?.let { Note(it) }
-    }
-}
-
-@Composable
-private fun <T> SegmentedControl(
-    options: List<T>,
-    selected: T,
-    label: (T) -> String,
-    onSelect: (T) -> Unit,
-    modifier: Modifier = Modifier.fillMaxWidth(),
-    background: Color = MorrowTheme.colors.surface,
-    border: Color? = MorrowTheme.colors.line,
-    /** What TalkBack says for an option, when its label alone reads badly. */
-    description: ((T) -> String)? = null,
-) {
-    val colors = MorrowTheme.colors
-    val shape = RoundedCornerShape(26.dp)
-    Row(
-        modifier = modifier
-            .background(background, shape)
-            .then(if (border != null) Modifier.border(1.dp, border, shape) else Modifier)
-            .padding(4.dp)
-            .selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        options.forEach { option ->
-            val on = option == selected
-            val fill by animateColorAsState(if (on) colors.accent else Color.Transparent)
-            val content by animateColorAsState(if (on) colors.onAccent else colors.muted)
-            val outline by animateColorAsState(if (on) colors.hi else Color.Transparent)
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 44.dp)
-                    .selectable(on, role = Role.RadioButton) { onSelect(option) }
-                    .then(if (description != null) Modifier.semantics { contentDescription = description(option) } else Modifier)
-                    .background(fill, CircleShape)
-                    .border(2.dp, outline, CircleShape)
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                BasicText(label(option), style = MorrowTheme.type.bodyStrong.copy(color = content, textAlign = TextAlign.Center))
-            }
-        }
     }
 }
 

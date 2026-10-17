@@ -1,6 +1,7 @@
 package app.morrow.ui.edit
 
 import app.morrow.domain.Alarm
+import app.morrow.domain.Difficulty
 import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
 import app.morrow.domain.WakeSound
@@ -18,13 +19,13 @@ import app.morrow.ui.hhmm
 import app.morrow.ui.roundsText
 import app.morrow.ui.world.cityClock
 import app.morrow.ui.world.cityMinute
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.offsetIn
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.roundToInt
 import kotlin.time.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.offsetIn
 
 private const val MINUTES_PER_DAY = 24 * 60
 
@@ -40,6 +41,9 @@ data class EditModel(
     val untilText: String,
     val zone: ZoneRow,
     val sound: SoundRow,
+    /** How hard the rounds are, and what that means. */
+    val difficulty: Difficulty,
+    val difficultyText: String,
     /** The Alarm sound sheet: Default first, then every sound. */
     val soundChoices: List<SoundChoice>,
     /** The wake-up games in play order. */
@@ -93,8 +97,18 @@ data class GameChoice(val type: MissionType, val name: String, val description: 
 data class Estimate(val text: String, val tooLong: Boolean)
 
 /** [now] and [phoneZone] are the phone's; an alarm on another city's clock is shown by that clock. */
-/** [defaultSound] is the one chosen in Settings, which alarms without their own ring with. */
-fun editModel(draft: Alarm, now: Instant, phoneZone: TimeZone, defaultSound: WakeSound = WakeSound.BIRDSONG): EditModel {
+/**
+ * [defaultSound] is the one chosen in Settings, which alarms without their own ring with. [oldDifficulty] is what
+ * Settings used to set for every alarm, which an alarm saved before each had its own still plays at.
+ */
+fun editModel(
+    draft: Alarm,
+    now: Instant,
+    phoneZone: TimeZone,
+    defaultSound: WakeSound = WakeSound.BIRDSONG,
+    oldDifficulty: Difficulty = Difficulty.NORMAL,
+): EditModel {
+    val difficulty = draft.difficulty ?: oldDifficulty
     val alarmMinute = draft.hour * 60 + draft.minute
     val nowMinute = cityMinute(now, phoneZone)
     val city = draft.zoneName()
@@ -117,6 +131,8 @@ fun editModel(draft: Alarm, now: Instant, phoneZone: TimeZone, defaultSound: Wak
         },
         sound = draft.sound?.let { SoundRow(it.displayName, "Just for this alarm", own = true) }
             ?: SoundRow(defaultSound.displayName, "Default, as chosen in Settings", own = false),
+        difficulty = difficulty,
+        difficultyText = difficulty.description,
         soundChoices = listOf(SoundChoice(null, "Default", "${defaultSound.displayName}, as chosen in Settings", draft.sound == null)) +
             WakeSound.entries.map { SoundChoice(it, it.displayName, it.description, draft.sound == it) },
         games = games.mapIndexed { i, step ->
@@ -142,6 +158,14 @@ fun editModel(draft: Alarm, now: Instant, phoneZone: TimeZone, defaultSound: Wak
         canAddGame = games.size < MissionType.entries.size,
     )
 }
+
+/** What a difficulty means for a round. */
+val Difficulty.description: String
+    get() = when (this) {
+        Difficulty.GENTLE -> "Gentler rounds: small sums, short sentences, soft shakes."
+        Difficulty.NORMAL -> "Everyday rounds: two-digit sums and short sentences."
+        Difficulty.TOUGH -> "Tougher rounds: bigger sums, longer sentences, firm shakes."
+    }
 
 /** The city whose clock the alarm keeps, or null when it follows the phone, as it does when its zone isn't known here. */
 fun Alarm.zoneName(): String? {

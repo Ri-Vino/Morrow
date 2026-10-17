@@ -18,6 +18,11 @@ data class Alarm(
     val zoneLabel: String? = null,
     /** This alarm's own sound; null rings with the one chosen in Settings. */
     val sound: WakeSound? = null,
+    /**
+     * How hard each round of its games is. Null for an alarm from before this was set per alarm, which plays as hard as
+     * Settings used to say, or Normal.
+     */
+    val difficulty: Difficulty? = null,
 ) {
     init {
         require(hour in 0..23) { "hour must be 0..23, was $hour" }

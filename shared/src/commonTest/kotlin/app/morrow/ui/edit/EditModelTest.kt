@@ -2,6 +2,7 @@ package app.morrow.ui.edit
 
 import app.morrow.domain.Alarm
 import app.morrow.domain.DefaultGames
+import app.morrow.domain.Difficulty
 import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
 import app.morrow.domain.MissionType.BREATHE
@@ -339,6 +340,16 @@ class EditModelTest {
         val model = app.morrow.ui.edit.editModel(draft, at("2026-10-05T22:00"), london, WakeSound.SOFT_PIANO)
         assertEquals(SoundRow("Wind chimes", "Just for this alarm", own = true), model.sound)
         assertEquals(listOf(false, false, true, false), model.soundChoices.map { it.selected })
+    }
+
+    @Test
+    fun eachAlarmSaysHowHardItsRoundsAre() {
+        fun model(draft: Alarm) = app.morrow.ui.edit.editModel(draft, at("2026-10-05T22:00"), london, oldDifficulty = Difficulty.TOUGH)
+        // One saved before alarms had their own plays as hard as Settings used to say.
+        assertEquals(Difficulty.TOUGH, model(alarm(7, 0)).difficulty)
+        val gentle = model(alarm(7, 0).copy(difficulty = Difficulty.GENTLE))
+        assertEquals(Difficulty.GENTLE, gentle.difficulty)
+        assertEquals("Gentler rounds: small sums, short sentences, soft shakes.", gentle.difficultyText)
     }
 
     @Test

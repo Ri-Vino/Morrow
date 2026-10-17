@@ -1,6 +1,5 @@
 package app.morrow.ui.settings
 
-import app.morrow.domain.Difficulty
 import app.morrow.platform.AlarmPermission
 import app.morrow.platform.AndroidPermissions
 import app.morrow.platform.IosPermissions
@@ -19,30 +18,21 @@ import kotlin.test.assertTrue
 class SettingsModelTest {
 
     @Test
-    fun difficultySaysHowHardEachRoundIs() {
-        fun model(difficulty: Difficulty) = settingsModel(difficulty, AndroidPermissions, emptyList())
-        assertEquals("Gentler rounds: small sums, short sentences, soft shakes.", model(Difficulty.GENTLE).difficultyLevel)
-        assertEquals("Everyday rounds: two-digit sums and short sentences.", model(Difficulty.NORMAL).difficultyLevel)
-        assertEquals("Tougher rounds: bigger sums, longer sentences, firm shakes.", model(Difficulty.TOUGH).difficultyLevel)
-        assertEquals("How hard each round is. The number of rounds is set on each alarm.", model(Difficulty.TOUGH).difficultyDescription)
-    }
-
-    @Test
     fun listsEveryPermissionWithItsState() {
-        val model = settingsModel(Difficulty.NORMAL, AndroidPermissions, missing = listOf(AlarmPermission.EXACT_ALARMS))
+        val model = settingsModel(AndroidPermissions, missing = listOf(AlarmPermission.EXACT_ALARMS))
         assertEquals(AndroidPermissions, model.permissions.map { it.permission })
         assertEquals(listOf(true, false, true, true, true, true), model.permissions.map { it.granted })
     }
 
     @Test
     fun locationIsListedOnAndroid() {
-        val model = settingsModel(Difficulty.NORMAL, AndroidPermissions, missing = listOf(AlarmPermission.LOCATION))
+        val model = settingsModel(AndroidPermissions, missing = listOf(AlarmPermission.LOCATION))
         assertEquals(PermissionStatus(AlarmPermission.LOCATION, granted = false), model.permissions.last())
     }
 
     @Test
     fun listsOnlyThePlatformsPermissions() {
-        val model = settingsModel(Difficulty.NORMAL, IosPermissions, missing = listOf(AlarmPermission.LOCATION))
+        val model = settingsModel(IosPermissions, missing = listOf(AlarmPermission.LOCATION))
         assertEquals(
             listOf(PermissionStatus(AlarmPermission.ALARMS, granted = true), PermissionStatus(AlarmPermission.LOCATION, granted = false)),
             model.permissions,
