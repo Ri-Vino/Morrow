@@ -43,7 +43,7 @@ enum class RefreshReason {
     /** Weather turned on, or "Where I am" / "Home city" changed. */
     SETTINGS,
 
-    /** The developer tools' "Refresh now": fetches every place, however fresh. */
+    /** Pulling World down, or the developer tools' "Refresh now": fetches every place, however fresh. */
     MANUAL,
 }
 

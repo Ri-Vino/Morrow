@@ -19,6 +19,8 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.unit.dp
 import app.morrow.places.City
 import app.morrow.theme.MorrowTheme
@@ -48,6 +50,7 @@ class WorldScreenTest {
     private val world = WorldFixtures()
     private var addCityTapped = 0
     private val newAlarms = mutableListOf<City?>()
+    private var refreshes = 0
 
     private fun show(weather: WeatherState = WeatherState.Off, units: Units = Units.CELSIUS, unitsFrom: Flow<Units>? = null) {
         runBlocking {
@@ -67,6 +70,7 @@ class WorldScreenTest {
                     units = inUnits,
                     ticks = world.ticks,
                     phoneZone = world.phoneZone,
+                    onRefreshWeather = { refreshes++ },
                 )
             }
         }
@@ -337,6 +341,33 @@ class WorldScreenTest {
         val tops = listOf("New York City, home city, 02:40, Today · −5 h", "London, 07:40, Today · your time", tokyoCard)
             .map { compose.onNodeWithContentDescription(it).getBoundsInRoot().top }
         assertTrue(tops[0] < tops[1] && tops[1] < tops[2], "Cards should run New York, London, Tokyo, but their tops are $tops")
+    }
+
+    @Test
+    fun pullingTheCitiesDownFetchesTheWeatherAgain() {
+        show(world.weather())
+
+        compose.onRoot().performTouchInput { swipeDown(startY = top + 20f, endY = bottom - 20f, durationMillis = 400) }
+        compose.waitForIdle()
+        assertEquals(1, refreshes)
+
+        // A short tug isn't enough.
+        compose.onRoot().performTouchInput { swipeDown(startY = top + 20f, endY = top + 80f, durationMillis = 300) }
+        compose.waitForIdle()
+        assertEquals(1, refreshes)
+    }
+
+    @Test
+    fun talkBackCanRefreshTheWeather() {
+        show(world.weather())
+
+        compose.onNode(SemanticsMatcher("has refresh action") { node ->
+            node.config.getOrNull(SemanticsActions.CustomActions)?.any { it.label == "Refresh the weather" } == true
+        }).fetchSemanticsNode().config[SemanticsActions.CustomActions].single { it.label == "Refresh the weather" }.let { action ->
+            compose.runOnIdle { action.action() }
+        }
+        compose.waitForIdle()
+        assertEquals(1, refreshes)
     }
 
     /** TalkBack reads a control by its text or description, so one with neither is unusable without sight. */

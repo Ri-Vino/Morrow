@@ -227,6 +227,7 @@ fun MorrowApp(
                                         onNewAlarm = { editing = it?.let(::newAlarmTarget) ?: NEW_ALARM },
                                         onSheetChange = { worldSheetOpen = it },
                                         weather = services.weather.forecasts,
+                                        onRefreshWeather = { services.weather.refresh(RefreshReason.MANUAL) },
                                         units = remember { services.settings.effectiveUnits(services.phoneCountry) },
                                     )
                                 }

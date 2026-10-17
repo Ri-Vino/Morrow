@@ -57,6 +57,7 @@ object Icons {
     const val DeleteDigit = "M20 5H9l-6 7 6 7h11zM13 10l4 4M17 10l-4 4"
     const val Speaker = "M4 9v6h4l5 4V5L8 9H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"
     const val SpeakerOff = "M4 9v6h4l5 4V5L8 9H4zM16 9.5l5 5M21 9.5l-5 5"
+    const val Refresh = "M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"
     const val Close = "M6 6l12 12M18 6L6 18"
     const val CameraOff = "M3 3l18 18M9.5 4.5h5L16 7h3a2 2 0 0 1 2 2v8.5M17.5 19H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2M9.9 10.4a3 3 0 0 0 4 4"
     const val Type = "M3 6.5A1.5 1.5 0 0 1 4.5 5h15A1.5 1.5 0 0 1 21 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5zM7 9.5h.01M10.5 9.5h.01M14 9.5h.01M17.5 9.5h.01M7 13h.01M17.5 13h.01M9 15.5h6"

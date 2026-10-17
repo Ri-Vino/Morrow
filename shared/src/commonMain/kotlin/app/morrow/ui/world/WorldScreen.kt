@@ -59,6 +59,7 @@ import app.morrow.ui.components.Icons
 import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.components.PillButton
 import app.morrow.ui.components.PrimaryButton
+import app.morrow.ui.components.PullToRefresh
 import app.morrow.ui.components.largeText
 import app.morrow.ui.components.pressable
 import app.morrow.ui.components.weatherIcon
@@ -77,14 +78,29 @@ class WorldActions(
     val onMove: (id: Long, by: Int) -> Unit,
     /** Opens Edit for a new alarm on that city's clock. */
     val onNewAlarm: (Long) -> Unit = {},
+    /** Fetches the weather again, from pulling the cities down; null where there's none to fetch. */
+    val onRefresh: (() -> Unit)? = null,
 )
 
 /** The World tab: a card for each saved city, and the sheet for [sheet] when a card has been tapped. */
 @Composable
-fun WorldScreen(model: WorldModel, sheet: CitySheet?, actions: WorldActions, modifier: Modifier = Modifier) {
+fun WorldScreen(
+    model: WorldModel,
+    sheet: CitySheet?,
+    actions: WorldActions,
+    modifier: Modifier = Modifier,
+    /** The weather is being fetched again after a pull. */
+    refreshing: Boolean = false,
+) {
     Box(modifier.fillMaxSize()) {
         // Behind the sheet, the cities are hidden from TalkBack as well as dimmed.
-        WorldContent(model, actions, Modifier.semantics { if (sheet != null) hideFromAccessibility() })
+        val hidden = Modifier.semantics { if (sheet != null) hideFromAccessibility() }
+        val refresh = actions.onRefresh
+        if (refresh == null) {
+            WorldContent(model, actions, hidden)
+        } else {
+            PullToRefresh(refreshing, refresh, label = "Refresh the weather", modifier = hidden) { WorldContent(model, actions, Modifier) }
+        }
         if (sheet != null) CitySheetView(sheet, actions)
     }
 }

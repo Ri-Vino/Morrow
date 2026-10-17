@@ -12,21 +12,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.morrow.places.City
+import app.morrow.places.CityRepository
 import app.morrow.places.CitySearch
 import app.morrow.places.OnlineSearch
-import app.morrow.places.CityRepository
 import app.morrow.places.SavedCity
 import app.morrow.ui.PlatformBackHandler
 import app.morrow.ui.minuteTicks
 import app.morrow.weather.Units
 import app.morrow.weather.WeatherState
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
-import kotlin.time.Clock
-import kotlin.time.Instant
 
 /**
  * The World tab over the saved cities and their [weather], shown in [units]. [ticks] is the time, then each minute
@@ -42,6 +43,8 @@ fun WorldRoute(
     /** Whether a city's sheet is open, so the tab bar can step aside for its buttons. */
     onSheetChange: (open: Boolean) -> Unit = {},
     weather: Flow<WeatherState> = NoWeather,
+    /** Fetches every city's weather again, however fresh, when World is pulled down. */
+    onRefreshWeather: (suspend () -> Unit)? = null,
     units: Flow<Units> = InCelsius,
     ticks: Flow<Instant>? = null,
     phoneZone: TimeZone = TimeZone.currentSystemDefault(),
@@ -53,6 +56,7 @@ fun WorldRoute(
     val unit by units.collectAsStateWithLifecycle<Units?>(initialValue = null)
     val now by remember(ticks) { ticks ?: minuteTicks() }.collectAsStateWithLifecycle(initialValue = Clock.System.now())
     var openId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var refreshing by remember { mutableStateOf(false) }
 
     val list = saved ?: return
     val open = openId?.let { id -> list.firstOrNull { it.id == id } }
@@ -79,12 +83,30 @@ fun WorldRoute(
                 scope.launch { cities.remove(id) }
             },
             onMove = { id, by -> scope.launch { cities.move(id, by) } },
+            onRefresh = onRefreshWeather?.let { fetch ->
+                {
+                    if (!refreshing) {
+                        scope.launch {
+                            refreshing = true
+                            try {
+                                // Shown a moment at least, so a quick answer doesn't just flicker.
+                                val shownUntil = Clock.System.now() + MIN_REFRESHING
+                                fetch()
+                                delay(shownUntil - Clock.System.now())
+                            } finally {
+                                refreshing = false
+                            }
+                        }
+                    }
+                }
+            },
             onNewAlarm = { id ->
                 openId = null
                 list.firstOrNull { it.id == id }?.city?.let { city -> onNewAlarm(city.takeIf { zoneOf(it, phoneZone) != phoneZone }) }
             },
         ),
         modifier = modifier,
+        refreshing = refreshing,
     )
 }
 
@@ -175,6 +197,8 @@ private class Found(val query: String, val cities: List<City>)
 private class Online(val query: String, val result: OnlineSearch)
 
 private const val SEARCH_DELAY_MS = 150L
+
+private val MIN_REFRESHING = 0.6.seconds
 
 /** From the last key press, so it includes [SEARCH_DELAY_MS]. */
 private const val ONLINE_DELAY_MS = 400L
