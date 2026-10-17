@@ -1,14 +1,20 @@
 package app.morrow.ui.components
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.CornerRadius
@@ -21,12 +27,18 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
 import app.morrow.weather.Sky
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.hypot
+import kotlinx.coroutines.launch
 
 private const val SCENE_WIDTH = 390f
 private const val SCENE_HEIGHT = 330f
@@ -34,7 +46,7 @@ private const val SCENE_HEIGHT = 330f
 /**
  * The Home header: the sky for [minuteOfDay], stars, Pip as the sun or the sleeping moon, the [weather] over them, then
  * hills and the cottage. Its bottom edge is drawn in the theme's background colour so the screen continues below it.
- * Decorative.
+ * Tapping Pip pokes it, and it answers in the way of the time of day ([pipPoke]). Decorative.
  */
 @Composable
 fun SkyScene(minuteOfDay: Float, theme: ThemeKind, modifier: Modifier = Modifier, weather: Sky? = null) {
@@ -50,16 +62,44 @@ fun SkyScene(minuteOfDay: Float, theme: ThemeKind, modifier: Modifier = Modifier
     val seconds = rememberSceneSeconds()
 
     val zs = rememberZs(Illustration.starlight, sizes = listOf(16f, 12f, 10f))
+    val poke = remember { Animatable(1f) }
+    val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    val pipAt by rememberUpdatedState(pipY)
 
     // The weather goes between Pip and the hills, so it's drawn on its own between the scene's back and front.
-    Box(modifier.fillMaxWidth().aspectRatio(SCENE_WIDTH / SCENE_HEIGHT).clipToBounds()) {
+    Box(
+        modifier
+            .fillMaxWidth()
+            .aspectRatio(SCENE_WIDTH / SCENE_HEIGHT)
+            .clipToBounds()
+            .pointerInput(Unit) {
+                detectTapGestures { tap ->
+                    val unit = size.width / SCENE_WIDTH
+                    if (hypot(tap.x / unit - PIP_X, tap.y / unit - pipAt) > PIP_REACH) return@detectTapGestures
+                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    scope.launch {
+                        poke.snapTo(0f)
+                        poke.animateTo(1f, tween(POKE_MILLIS, easing = LinearEasing))
+                    }
+                }
+            },
+    ) {
         Canvas(Modifier.matchParentSize()) {
             val t = seconds.value
+            val frame = pipPoke(theme, target.pip.moon, poke.value)
+            val look = if (frame.delighted && !target.pip.moon) target.pip.copy(mood = PipMood.DELIGHTED) else target.pip
             scale(size.width / SCENE_WIDTH, Offset.Zero) {
                 drawRect(sky, size = Size(SCENE_WIDTH, SCENE_HEIGHT))
-                drawStars(target.starAlpha, t)
-                translate(292f, pipY) {
-                    drawPip(target.pip, t)
+                drawStars(target.starAlpha, t, frame.starBoost)
+                translate(PIP_X, pipY) {
+                    withTransform({
+                        translate(frame.dx, frame.dy)
+                        rotate(frame.rotation, Offset.Zero)
+                        scale(frame.scaleX, frame.scaleY, Offset.Zero)
+                    }) {
+                        drawPip(look, t)
+                    }
                     if (target.pip.mood == PipMood.ASLEEP) drawZs(zs, t, MoonZs)
                 }
             }
@@ -86,12 +126,14 @@ private val Stars = listOf(
     Star(160f, 186f, 1.3f, 3f), Star(330f, 140f, 1.1f, 1.3f), Star(96f, 196f, 1.2f, 2.9f),
 )
 
-private fun DrawScope.drawStars(alpha: Float, t: Float) {
+/** [boost], from 0 to 1, makes them twinkle brighter and bigger for a moment, as when the moon is poked. */
+private fun DrawScope.drawStars(alpha: Float, t: Float, boost: Float = 0f) {
     if (alpha <= 0f) return
     for (star in Stars) {
         // Twinkles between 25% and 100% every 3.2 s.
         val twinkle = 0.25f + 0.75f * (0.5f - 0.5f * cos(2f * PI.toFloat() * (t - star.delay) / 3.2f))
-        drawCircle(Illustration.starlight.copy(alpha = alpha * twinkle), star.radius, Offset(star.x, star.y))
+        val bright = twinkle + (1f - twinkle) * boost
+        drawCircle(Illustration.starlight.copy(alpha = alpha * bright), star.radius * (1f + 0.6f * boost), Offset(star.x, star.y))
     }
 }
 
@@ -127,6 +169,10 @@ private fun flicker(t: Float): Float = when ((t / 3.5f % 1f) * 100f) {
     in 71f..73f -> 0.9f
     else -> 1f
 }
+
+/** Where Pip is across the sky, and how far from its middle a tap still counts as on it, in design units. */
+private const val PIP_X = 292f
+private const val PIP_REACH = 52f
 
 /** Where the z's start, to the moon's upper left. */
 private val MoonZs = listOf(Offset(-52f, -34f), Offset(-62f, -48f), Offset(-44f, -56f))
