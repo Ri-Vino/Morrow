@@ -61,6 +61,23 @@ class AlarmRepositoryTest {
     }
 
     @Test
+    fun aFreshInstallStartsWithAnOffAlarmAtEightOnWeekdays() = runTest {
+        repository.seedFirstAlarm()
+        val first = repository.getAll().single()
+        assertEquals(8 to 0, first.hour to first.minute)
+        assertEquals(setOf(MONDAY, DayOfWeek.TUESDAY, WEDNESDAY, DayOfWeek.THURSDAY, FRIDAY), first.days)
+        assertEquals(false, first.enabled)
+
+        // Only ever the once: not again, and not over alarms already there.
+        repository.seedFirstAlarm()
+        assertEquals(1, repository.getAll().size)
+        repository.delete(first.id)
+        repository.save(alarm(6, 30))
+        repository.seedFirstAlarm()
+        assertEquals(listOf(6 to 30), repository.getAll().map { it.hour to it.minute })
+    }
+
+    @Test
     fun alarmsAreSortedByTime() = runTest {
         repository.save(alarm(9, 0))
         repository.save(alarm(5, 45))

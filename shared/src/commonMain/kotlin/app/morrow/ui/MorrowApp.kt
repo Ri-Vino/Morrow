@@ -253,7 +253,12 @@ private fun FirstRun(services: MorrowServices, theme: ThemeKind, onSystemBarsCha
             asked = services.permissions.asked,
             missing = missing,
             onAllow = services.permissions::request,
-            onContinue = { scope.launch { services.settings.markFirstRunDone() } },
+            onContinue = {
+                scope.launch {
+                    services.repository.seedFirstAlarm()
+                    services.settings.markFirstRunDone()
+                }
+            },
         )
     }
 }
