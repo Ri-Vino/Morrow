@@ -1,12 +1,10 @@
 package app.morrow.ui.tabs
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -26,14 +24,19 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.CollectionInfo
 import androidx.compose.ui.semantics.CollectionItemInfo
@@ -45,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import app.morrow.theme.MorrowTheme
 import app.morrow.ui.PlatformBackHandler
 import app.morrow.ui.components.MorrowIcon
+import kotlinx.coroutines.launch
 
 enum class Tab(val label: String, val icon: String) {
     ALARMS("Alarms", "M12 6a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM12 10v3l2 1.5M5 3L2 6M19 3l3 3"),
@@ -74,20 +78,10 @@ fun TabHost(
     Column(modifier.fillMaxSize().background(MorrowTheme.colors.bg)) {
         // The bar takes the navigation bar's space, so the screen above it needn't leave room for it.
         Box(Modifier.weight(1f).fillMaxWidth().then(if (barHidden) Modifier else Modifier.consumeWindowInsets(WindowInsets.navigationBars))) {
-            AnimatedContent(
-                targetState = selected,
-                transitionSpec = {
-                    val way = if (targetState.ordinal > initialState.ordinal) 1 else -1
-                    (fadeIn(tween(TAB_FADE_MILLIS)) + slideInHorizontally(tween(TAB_SLIDE_MILLIS)) { way * it / 16 }) togetherWith
-                        fadeOut(tween(TAB_FADE_MILLIS / 2))
-                },
-                label = "tab",
-            ) { tab ->
-                when (tab) {
-                    Tab.ALARMS -> alarms()
-                    Tab.WORLD -> world()
-                    Tab.TIMERS -> timers()
-                }
+            when (selected) {
+                Tab.ALARMS -> alarms()
+                Tab.WORLD -> world()
+                Tab.TIMERS -> timers()
             }
         }
         if (!barHidden) TabBar(selected, onSelect)
@@ -99,6 +93,18 @@ fun TabHost(
 fun TabBar(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier) {
     val colors = MorrowTheme.colors
     val shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    // The pill's two ends, in tabs from the left. The end leading the way moves first and the other follows, so the
+    // pill stretches towards the tab picked and settles there.
+    val start = remember { Animatable(selected.ordinal.toFloat()) }
+    val end = remember { Animatable(selected.ordinal + 1f) }
+    LaunchedEffect(selected) {
+        val right = selected.ordinal > start.value
+        val target = selected.ordinal.toFloat()
+        launch { start.animateTo(target, if (right) Trailing else Leading) }
+        launch { end.animateTo(target + 1f, if (right) Leading else Trailing) }
+    }
+    val pill = colors.accent
+    val outline = colors.hi
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -108,8 +114,24 @@ fun TabBar(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 10.dp)
             .heightIn(min = 52.dp)
+            .drawBehind {
+                val gap = TAB_GAP.toPx()
+                val tab = (size.width - gap * (Tab.entries.size - 1)) / Tab.entries.size
+                val left = start.value * (tab + gap)
+                val right = end.value * (tab + gap) - gap
+                val radius = CornerRadius(PILL_RADIUS.toPx())
+                val line = 2.dp.toPx()
+                drawRoundRect(pill, Offset(left, 0f), Size(right - left, size.height), radius)
+                drawRoundRect(
+                    outline,
+                    Offset(left + line / 2, line / 2),
+                    Size(right - left - line, size.height - line),
+                    radius,
+                    style = Stroke(line),
+                )
+            }
             .semantics { collectionInfo = CollectionInfo(rowCount = 1, columnCount = Tab.entries.size) },
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(TAB_GAP),
     ) {
         Tab.entries.forEachIndexed { index, tab ->
             TabItem(tab, index, tab == selected, onClick = { onSelect(tab) })
@@ -121,17 +143,11 @@ fun TabBar(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier
 private fun RowScope.TabItem(tab: Tab, index: Int, selected: Boolean, onClick: () -> Unit) {
     val colors = MorrowTheme.colors
     val content by animateColorAsState(if (selected) colors.onAccent else colors.muted, tween(TAB_FADE_MILLIS))
-    val fill by animateColorAsState(if (selected) colors.accent else colors.surface, tween(TAB_FADE_MILLIS))
-    val outline by animateColorAsState(if (selected) colors.hi else colors.surface, tween(TAB_FADE_MILLIS))
     // Big text no longer fits beside the icon in a third of the bar, so it goes underneath.
     val stacked = LocalDensity.current.fontScale > 1.3f
-    val shape = RoundedCornerShape(26.dp)
     val itemModifier = Modifier
         .weight(1f)
         .heightIn(min = 52.dp)
-        .background(fill, shape)
-        // The fill alone is too faint against the bar in the light themes; the outline, as on the switches, marks it.
-        .border(2.dp, outline, shape)
         .selectable(selected, role = Role.Tab, onClick = onClick)
         .semantics { collectionItemInfo = CollectionItemInfo(rowIndex = 0, rowSpan = 1, columnIndex = index, columnSpan = 1) }
         .padding(horizontal = 4.dp)
@@ -153,7 +169,12 @@ private fun TabContent(tab: Tab, content: Color) {
 }
 
 private const val TAB_FADE_MILLIS = 220
-private const val TAB_SLIDE_MILLIS = 260
+private val TAB_GAP = 4.dp
+
+/** The selected tab's pill; its outline marks it where the fill alone is too faint against the bar. */
+private val PILL_RADIUS = 26.dp
+private val Leading = spring<Float>(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow)
+private val Trailing = spring<Float>(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow)
 
 /** A hairline along the top, where the bar meets the screen. */
 private fun Modifier.topEdge(color: Color) = drawBehind {
