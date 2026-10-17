@@ -462,6 +462,8 @@ private fun WakeRoute(services: MorrowServices, alarmId: Long, onSystemBarsChang
         // Yesterday's "one small thing" lasts until the next alarm, which is this one.
         services.settings.clearIntention()
         services.coordinator.onRang(alarmId)
+        // The weather is fetched while the games are played, so Morning has it as it opens.
+        services.weather.prepareMorning()
         val alarm = services.repository.get(alarmId)
         ownSound = alarm?.sound?.name.orEmpty()
         difficulty = alarm?.difficulty?.name.orEmpty()

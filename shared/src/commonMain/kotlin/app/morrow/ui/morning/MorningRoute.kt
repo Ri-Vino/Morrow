@@ -15,7 +15,6 @@ import androidx.compose.runtime.setValue
 import app.morrow.data.MorrowSettings
 import app.morrow.platform.Speaker
 import app.morrow.platform.SpeechPurpose
-import app.morrow.weather.RefreshReason
 import app.morrow.weather.WeatherRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -26,7 +25,8 @@ import kotlin.time.Instant
 /**
  * The Morning screen for a mission finished at [wokeAt]. [onStartDay] gets what the user typed, trimmed.
  *
- * Opening it refreshes the weather, for up to 5 s. The card shows as soon as there is a forecast from today, and a
+ * Opening it refreshes the weather, for up to 5 s, or takes up the refresh [WeatherRepository.prepareMorning] began
+ * during the games. The card shows as soon as there is a forecast from today, and a
  * fresh fetch replaces it in place; with nothing from today, it stays hidden. With "Pip reads it out when you wake"
  * on, [speaker] reads the card once after the refresh, and a button reads it again; leaving the screen or "Start my
  * day" cuts off only what this screen is saying. [phoneCountry] is the phone's region, for the default units.
@@ -52,7 +52,7 @@ fun MorningRoute(
     var stored by remember { mutableStateOf<Instant?>(null) }
     LaunchedEffect(weather) {
         stored = try {
-            weather.refresh(RefreshReason.MORNING)
+            weather.refreshForMorning()
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {

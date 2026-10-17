@@ -169,7 +169,7 @@ private fun StepFrame(step: Step, model: MissionModel, progress: Float, body: @C
     )
     if (!done) return
     LaunchedEffect(Unit) {
-        delay(if (next == null) 1500 else 1100)
+        delay(if (next == null) 900 else 1100)
         step.onFinished()
     }
 }
