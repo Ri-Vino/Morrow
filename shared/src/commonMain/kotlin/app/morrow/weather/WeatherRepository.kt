@@ -7,8 +7,11 @@ import app.morrow.places.City
 import app.morrow.places.CityCatalog
 import app.morrow.places.CityRepository
 import app.morrow.platform.LocationProvider
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -22,6 +25,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
@@ -122,6 +126,34 @@ class WeatherRepository(
     /** [refresh] in the app's scope, for callers that don't wait for it. */
     fun refreshSoon(reason: RefreshReason) {
         scope.launch { refresh(reason) }
+    }
+
+    private var prepared: Pair<Instant, Deferred<Instant?>>? = null
+
+    /**
+     * Starts the Morning refresh while the games are played, so the location fix and the request are done by the time
+     * [refreshForMorning] is asked for. Asking again starts it again.
+     */
+    fun prepareMorning() {
+        prepared = clock.now() to scope.async {
+            try {
+                refresh(RefreshReason.MORNING)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    /**
+     * [refresh] for the Morning screen: takes up what [prepareMorning] started in the last [PreparedFor], once, and
+     * waits for it if it is still running, rather than fixing the location and asking again.
+     */
+    suspend fun refreshForMorning(): Instant? {
+        val early = prepared?.takeIf { clock.now() - it.first < PreparedFor }?.second
+        prepared = null
+        return if (early != null) early.await() else refresh(RefreshReason.MORNING)
     }
 
     /** [refreshCity] in the app's scope. */
@@ -237,6 +269,9 @@ class WeatherRepository(
     private companion object {
         val RequestTimeout = 10.seconds
         val MorningTimeout = 5.seconds
+
+        /** How long a refresh started by [prepareMorning] counts for the Morning screen. */
+        val PreparedFor = 10.minutes
 
         /** Of [MorningTimeout], what finding the location may take. */
         val MorningFixTimeout = 2.seconds

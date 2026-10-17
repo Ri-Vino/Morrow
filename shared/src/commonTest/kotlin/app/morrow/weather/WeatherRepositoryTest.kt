@@ -216,6 +216,63 @@ class WeatherRepositoryTest {
     }
 
     @Test
+    fun aMorningRefreshStartedDuringTheGamesIsAlreadyDoneWhenMorningOpens() = runTest {
+        seedLondonAndTokyo()
+        val slow = Slow(fixTime = 1.seconds, requestTime = 3.seconds)
+        val weather = weatherWith(slow)
+
+        weather.prepareMorning()
+        delay(30.seconds)
+        val before = currentTime
+        val stored = weather.refreshForMorning()
+
+        assertEquals(before, currentTime, "nothing left to wait for")
+        assertEquals(clock.now, stored)
+        assertEquals(listOf(2.seconds), slow.timeouts, "the location was found once")
+    }
+
+    @Test
+    fun aMorningRefreshStillRunningIsWaitedForNotStartedAgain() = runTest {
+        seedLondonAndTokyo()
+        val slow = Slow(fixTime = 1.seconds, requestTime = 3.seconds)
+        val weather = weatherWith(slow)
+
+        weather.prepareMorning()
+        delay(1.seconds)
+        weather.refreshForMorning()
+
+        assertEquals(4_000L, currentTime)
+        assertEquals(listOf(2.seconds), slow.timeouts)
+    }
+
+    @Test
+    fun aMorningRefreshStartedLongAgoIsNotTakenUp() = runTest {
+        seedLondonAndTokyo()
+        val slow = Slow(fixTime = 1.seconds, requestTime = 1.seconds)
+        val weather = weatherWith(slow)
+
+        weather.prepareMorning()
+        delay(10.seconds)
+        clock.now = start + 11.minutes
+        weather.refreshForMorning()
+
+        assertEquals(listOf(2.seconds, 2.seconds), slow.timeouts)
+    }
+
+    @Test
+    fun aPreparedMorningRefreshIsTakenUpOnce() = runTest {
+        seedLondonAndTokyo()
+        val slow = Slow(fixTime = 1.seconds, requestTime = 1.seconds)
+        val weather = weatherWith(slow)
+
+        weather.prepareMorning()
+        weather.refreshForMorning()
+        weather.refreshForMorning()
+
+        assertEquals(listOf(2.seconds, 2.seconds), slow.timeouts)
+    }
+
+    @Test
     fun aMorningFixSlowerThanItsShareFallsBackToTheHomeCityAndStillLoads() = runTest {
         cities.ensureSeeded()
         cities.add(tokyo)

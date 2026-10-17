@@ -77,6 +77,8 @@ class RingActivity : ComponentActivity() {
                         }
                     }
                 }
+                // The weather is fetched while the games are played, so Morning has it as it opens.
+                LaunchedEffect(stage) { if (stage == Stage.MISSION) morrow.weather.prepareMorning() }
                 LaunchedEffect(stage) {
                     if (stage != Stage.MORNING) return@LaunchedEffect
                     delay(MORNING_HOLD)
