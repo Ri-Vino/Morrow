@@ -720,7 +720,7 @@ private fun SoundCard(choices: List<SoundChoice>, onPick: (SoundChoice) -> Unit,
 private fun <T, K> groupedByRun(items: List<T>, key: (T) -> K): List<Pair<K, List<T>>> =
     items.fold(mutableListOf<Pair<K, MutableList<T>>>()) { runs, item ->
         val k = key(item)
-        if (runs.lastOrNull()?.first == k) runs.last().second += item else runs += k to mutableListOf(item)
+        if (runs.isNotEmpty() && runs.last().first == k) runs.last().second += item else runs += k to mutableListOf(item)
         runs
     }
 

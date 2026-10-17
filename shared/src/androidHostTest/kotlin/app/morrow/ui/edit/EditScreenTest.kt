@@ -1,5 +1,8 @@
 package app.morrow.ui.edit
 
+import androidx.compose.ui.test.assertIsDisplayed
+import app.morrow.domain.WakeSound
+import app.morrow.domain.RingSound
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -80,6 +83,18 @@ class EditScreenTest {
                 )
             }
         }
+    }
+
+    @Test
+    fun theSoundSheetListsTheSoundsByKindAndPicksOne() {
+        show(alarm(hour = 7, minute = 0))
+
+        compose.onNodeWithText("Default, as chosen in Settings").performScrollTo().performClick()
+        compose.onNodeWithText("Alarm sound").assertExists()
+        compose.onNodeWithText("NATURE").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Ocean waves").performScrollTo().performClick()
+
+        assertEquals(RingSound.Bundled(WakeSound.OCEAN_WAVES), draft.sound)
     }
 
     @Test
