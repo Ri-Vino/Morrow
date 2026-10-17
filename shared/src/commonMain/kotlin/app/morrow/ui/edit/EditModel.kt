@@ -83,8 +83,11 @@ data class ZoneRow(val title: String, val subtitle: String, val zoned: Boolean)
 /** The alarm's sound, [own] when it has one rather than the one chosen in Settings. */
 data class SoundRow(val title: String, val subtitle: String, val own: Boolean)
 
-/** A choice in the Alarm sound sheet. Picking it sets the alarm's [sound], null for the one chosen in Settings. */
-data class SoundChoice(val sound: WakeSound?, val name: String, val subtitle: String, val selected: Boolean)
+/**
+ * A choice in the Alarm sound sheet. Picking it sets the alarm's [sound], null for the one chosen in Settings. It's
+ * listed under [group], the sound's category, or under nothing for the default.
+ */
+data class SoundChoice(val sound: WakeSound?, val name: String, val subtitle: String, val selected: Boolean, val group: String? = null)
 
 /** A choice in the "Ring by the time in…" sheet. Picking it sets the alarm's [timeZone] and [city], both null for the phone's. */
 data class ZoneChoice(
@@ -143,7 +146,7 @@ fun editModel(
         difficultyText = difficulty.description,
         snooze = if (canSnooze) SnoozeRow(draft.snoozeMinutes, snoozeText(draft.snoozeMinutes)) else null,
         soundChoices = listOf(SoundChoice(null, "Default", "${defaultSound.displayName}, as chosen in Settings", draft.sound == null)) +
-            WakeSound.entries.map { SoundChoice(it, it.displayName, it.description, draft.sound == it) },
+            WakeSound.entries.map { SoundChoice(it, it.displayName, it.description, draft.sound == it, it.category.displayName) },
         games = games.mapIndexed { i, step ->
             val max = step.type.rules.maxRounds
             GameRow(
@@ -340,7 +343,15 @@ fun typedTime(hours: String, minutes: String): Int? {
 
 private val WakeSound.description: String
     get() = when (this) {
-        WakeSound.BIRDSONG -> "Birds waking up with you"
-        WakeSound.WIND_CHIMES -> "Chimes on a soft breeze"
         WakeSound.SOFT_PIANO -> "A slow, gentle tune"
+        WakeSound.WIND_CHIMES -> "Chimes on a soft breeze"
+        WakeSound.MUSIC_BOX -> "A little lullaby, plucked"
+        WakeSound.SINGING_BOWL -> "Slow, humming bowls"
+        WakeSound.BIRDSONG -> "Birds waking up with you"
+        WakeSound.OCEAN_WAVES -> "Waves rolling in and out"
+        WakeSound.GENTLE_RAIN -> "Steady rain on the leaves"
+        WakeSound.MARIMBA -> "A bouncy, bright tune"
+        WakeSound.SUNRISE_ARPEGGIO -> "Rising synth chords"
+        WakeSound.ALARM_BELL -> "An old wind-up clock"
+        WakeSound.DIGITAL_BEEPS -> "The classic four beeps"
     }

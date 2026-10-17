@@ -330,9 +330,16 @@ class EditModelTest {
     fun anAlarmWithoutItsOwnSoundShowsTheDefault() {
         val model = app.morrow.ui.edit.editModel(alarm(7, 0), at("2026-10-05T22:00"), london, WakeSound.SOFT_PIANO)
         assertEquals(SoundRow("Soft piano", "Default, as chosen in Settings", own = false), model.sound)
-        assertEquals(listOf(null, WakeSound.BIRDSONG, WakeSound.WIND_CHIMES, WakeSound.SOFT_PIANO), model.soundChoices.map { it.sound })
+        assertEquals(listOf(null) + WakeSound.entries, model.soundChoices.map { it.sound })
         assertEquals(SoundChoice(null, "Default", "Soft piano, as chosen in Settings", selected = true), model.soundChoices.first())
-        assertEquals(listOf(true, false, false, false), model.soundChoices.map { it.selected })
+        assertEquals(listOf(true), model.soundChoices.filter { it.selected }.map { it.sound == null })
+    }
+
+    @Test
+    fun soundsAreListedUnderTheirCategories() {
+        val choices = app.morrow.ui.edit.editModel(alarm(7, 0), at("2026-10-05T22:00"), london).soundChoices
+        assertEquals(listOf(null, "Gentle", "Nature", "Upbeat", "Classic"), choices.map { it.group }.distinct())
+        assertEquals(SoundChoice(WakeSound.OCEAN_WAVES, "Ocean waves", "Waves rolling in and out", false, "Nature"), choices.single { it.sound == WakeSound.OCEAN_WAVES })
     }
 
     @Test
@@ -340,7 +347,7 @@ class EditModelTest {
         val draft = alarm(7, 0).copy(sound = WakeSound.WIND_CHIMES)
         val model = app.morrow.ui.edit.editModel(draft, at("2026-10-05T22:00"), london, WakeSound.SOFT_PIANO)
         assertEquals(SoundRow("Wind chimes", "Just for this alarm", own = true), model.sound)
-        assertEquals(listOf(false, false, true, false), model.soundChoices.map { it.selected })
+        assertEquals(listOf(WakeSound.WIND_CHIMES), model.soundChoices.filter { it.selected }.map { it.sound })
     }
 
     @Test

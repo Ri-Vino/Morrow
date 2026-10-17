@@ -623,36 +623,63 @@ private fun SoundRowView(sound: SoundRow, onClick: () -> Unit) {
 private fun SoundSheet(choices: List<SoundChoice>, onPick: (SoundChoice) -> Unit, onClose: () -> Unit) {
     val colors = MorrowTheme.colors
     val type = MorrowTheme.type
-    val shape = RoundedCornerShape(24.dp)
     Sheet("Alarm sound", onClose) {
         BasicText("Alarm sound", style = type.title.copy(color = colors.text), modifier = Modifier.semantics { heading() })
         BasicText("Tap one to hear it.", style = type.body.copy(color = colors.muted))
-        Column(Modifier.fillMaxWidth().clip(shape).background(colors.surface).border(1.dp, colors.line, shape).selectableGroup()) {
-            choices.forEachIndexed { i, choice ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 60.dp)
-                        .then(if (i > 0) Modifier.topDivider(colors.line) else Modifier)
-                        .selectable(choice.selected, role = Role.RadioButton) { onPick(choice) }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    val ring = if (choice.selected) colors.hi else colors.muted
-                    Box(Modifier.size(24.dp).border(2.dp, ring, CircleShape), contentAlignment = Alignment.Center) {
-                        if (choice.selected) Box(Modifier.size(12.dp).background(colors.hi, CircleShape))
-                    }
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        BasicText(choice.name, style = type.button.copy(color = colors.text))
-                        BasicText(choice.subtitle, style = type.body.copy(color = colors.muted))
-                    }
+        Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            groupedByRun(choices) { it.group }.forEach { (group, inGroup) ->
+                if (group != null) {
+                    BasicText(
+                        group.uppercase(),
+                        style = type.caption.copy(color = colors.muted),
+                        modifier = Modifier.padding(start = 8.dp, top = 8.dp).semantics { heading() },
+                    )
                 }
+                SoundCard(inGroup, onPick)
             }
         }
         PrimaryButton("Done", onClose)
     }
 }
+
+/** One group of the Alarm sound sheet's choices, in a card. */
+@Composable
+private fun SoundCard(choices: List<SoundChoice>, onPick: (SoundChoice) -> Unit) {
+    val colors = MorrowTheme.colors
+    val type = MorrowTheme.type
+    val shape = RoundedCornerShape(24.dp)
+    Column(Modifier.fillMaxWidth().clip(shape).background(colors.surface).border(1.dp, colors.line, shape)) {
+        choices.forEachIndexed { i, choice ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 60.dp)
+                    .then(if (i > 0) Modifier.topDivider(colors.line) else Modifier)
+                    .selectable(choice.selected, role = Role.RadioButton) { onPick(choice) }
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                val ring = if (choice.selected) colors.hi else colors.muted
+                Box(Modifier.size(24.dp).border(2.dp, ring, CircleShape), contentAlignment = Alignment.Center) {
+                    if (choice.selected) Box(Modifier.size(12.dp).background(colors.hi, CircleShape))
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    BasicText(choice.name, style = type.button.copy(color = colors.text))
+                    BasicText(choice.subtitle, style = type.body.copy(color = colors.muted))
+                }
+            }
+        }
+    }
+}
+
+/** [items] cut into runs that share a [key], in order. */
+private fun <T, K> groupedByRun(items: List<T>, key: (T) -> K): List<Pair<K, List<T>>> =
+    items.fold(mutableListOf<Pair<K, MutableList<T>>>()) { runs, item ->
+        val k = key(item)
+        if (runs.lastOrNull()?.first == k) runs.last().second += item else runs += k to mutableListOf(item)
+        runs
+    }
 
 @Composable
 private fun ZoneSheet(zones: ZoneSheetData, onPick: (ZoneChoice) -> Unit, onClose: () -> Unit) {

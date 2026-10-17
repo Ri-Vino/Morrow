@@ -138,9 +138,12 @@ private fun SettingsContent(
             if (weather != null) Section("Weather") { WeatherSettings(weather, actions) }
             if (voice != null) Section("Voice") { VoiceSettings(voice, actions.onHearSample, onPickVoice) }
             Section("Default alarm sound") {
-                Card {
-                    WakeSound.entries.forEachIndexed { i, sound ->
-                        RadioRow(sound.displayName, selected = sound == choices.sound, divider = i > 0) { actions.onSound(sound) }
+                WakeSound.entries.groupBy { it.category }.forEach { (category, sounds) ->
+                    GroupLabel(category.displayName)
+                    Card {
+                        sounds.forEachIndexed { i, sound ->
+                            RadioRow(sound.displayName, selected = sound == choices.sound, divider = i > 0) { actions.onSound(sound) }
+                        }
                     }
                 }
                 Note("Alarms ring with this unless you pick a sound for one when you edit it.")
@@ -186,6 +189,16 @@ private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) 
         )
         content()
     }
+}
+
+/** Names the group of choices under it. */
+@Composable
+private fun GroupLabel(text: String) {
+    BasicText(
+        text.uppercase(),
+        style = MorrowTheme.type.caption.copy(color = MorrowTheme.colors.muted),
+        modifier = Modifier.padding(start = 8.dp, top = 4.dp).semantics { heading() },
+    )
 }
 
 @Composable

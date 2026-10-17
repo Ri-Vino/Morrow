@@ -164,7 +164,15 @@ class AlarmTone(private val context: Context) : AlarmSound {
 
 private val WakeSound.resource: Int
     get() = when (this) {
-        WakeSound.BIRDSONG -> R.raw.birdsong
-        WakeSound.WIND_CHIMES -> R.raw.wind_chimes
         WakeSound.SOFT_PIANO -> R.raw.soft_piano
+        WakeSound.WIND_CHIMES -> R.raw.wind_chimes
+        WakeSound.MUSIC_BOX -> R.raw.music_box
+        WakeSound.SINGING_BOWL -> R.raw.singing_bowl
+        WakeSound.BIRDSONG -> R.raw.birdsong
+        WakeSound.OCEAN_WAVES -> R.raw.ocean_waves
+        WakeSound.GENTLE_RAIN -> R.raw.gentle_rain
+        WakeSound.MARIMBA -> R.raw.marimba
+        WakeSound.SUNRISE_ARPEGGIO -> R.raw.sunrise_arpeggio
+        WakeSound.ALARM_BELL -> R.raw.alarm_bell
+        WakeSound.DIGITAL_BEEPS -> R.raw.digital_beeps
     }

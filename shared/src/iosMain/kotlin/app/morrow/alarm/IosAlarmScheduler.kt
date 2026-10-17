@@ -48,8 +48,4 @@ class IosAlarmScheduler(private val alarmKit: AlarmKitBridge, private val sound:
 
 /** The sound's file in the app bundle, made by tools/make_sounds.py. */
 internal val WakeSound.fileName: String
-    get() = when (this) {
-        WakeSound.BIRDSONG -> "birdsong.caf"
-        WakeSound.WIND_CHIMES -> "wind_chimes.caf"
-        WakeSound.SOFT_PIANO -> "soft_piano.caf"
-    }
+    get() = "${name.lowercase()}.caf"
