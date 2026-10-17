@@ -1,30 +1,38 @@
 package app.morrow.ui.tabs
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.CollectionInfo
@@ -66,10 +74,20 @@ fun TabHost(
     Column(modifier.fillMaxSize().background(MorrowTheme.colors.bg)) {
         // The bar takes the navigation bar's space, so the screen above it needn't leave room for it.
         Box(Modifier.weight(1f).fillMaxWidth().then(if (barHidden) Modifier else Modifier.consumeWindowInsets(WindowInsets.navigationBars))) {
-            when (selected) {
-                Tab.ALARMS -> alarms()
-                Tab.WORLD -> world()
-                Tab.TIMERS -> timers()
+            AnimatedContent(
+                targetState = selected,
+                transitionSpec = {
+                    val way = if (targetState.ordinal > initialState.ordinal) 1 else -1
+                    (fadeIn(tween(TAB_FADE_MILLIS)) + slideInHorizontally(tween(TAB_SLIDE_MILLIS)) { way * it / 16 }) togetherWith
+                        fadeOut(tween(TAB_FADE_MILLIS / 2))
+                },
+                label = "tab",
+            ) { tab ->
+                when (tab) {
+                    Tab.ALARMS -> alarms()
+                    Tab.WORLD -> world()
+                    Tab.TIMERS -> timers()
+                }
             }
         }
         if (!barHidden) TabBar(selected, onSelect)
@@ -102,16 +120,18 @@ fun TabBar(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier
 @Composable
 private fun RowScope.TabItem(tab: Tab, index: Int, selected: Boolean, onClick: () -> Unit) {
     val colors = MorrowTheme.colors
-    val content = if (selected) colors.onAccent else colors.muted
+    val content by animateColorAsState(if (selected) colors.onAccent else colors.muted, tween(TAB_FADE_MILLIS))
+    val fill by animateColorAsState(if (selected) colors.accent else colors.surface, tween(TAB_FADE_MILLIS))
+    val outline by animateColorAsState(if (selected) colors.hi else colors.surface, tween(TAB_FADE_MILLIS))
     // Big text no longer fits beside the icon in a third of the bar, so it goes underneath.
     val stacked = LocalDensity.current.fontScale > 1.3f
     val shape = RoundedCornerShape(26.dp)
     val itemModifier = Modifier
         .weight(1f)
         .heightIn(min = 52.dp)
-        .background(if (selected) colors.accent else colors.surface, shape)
+        .background(fill, shape)
         // The fill alone is too faint against the bar in the light themes; the outline, as on the switches, marks it.
-        .then(if (selected) Modifier.border(2.dp, colors.hi, shape) else Modifier)
+        .border(2.dp, outline, shape)
         .selectable(selected, role = Role.Tab, onClick = onClick)
         .semantics { collectionItemInfo = CollectionItemInfo(rowIndex = 0, rowSpan = 1, columnIndex = index, columnSpan = 1) }
         .padding(horizontal = 4.dp)
@@ -131,6 +151,9 @@ private fun TabContent(tab: Tab, content: Color) {
     MorrowIcon(tab.icon, content, size = 20.dp, strokeWidth = 2.2f)
     BasicText(tab.label, style = MorrowTheme.type.bodyStrong.copy(color = content), maxLines = 1)
 }
+
+private const val TAB_FADE_MILLIS = 220
+private const val TAB_SLIDE_MILLIS = 260
 
 /** A hairline along the top, where the bar meets the screen. */
 private fun Modifier.topEdge(color: Color) = drawBehind {

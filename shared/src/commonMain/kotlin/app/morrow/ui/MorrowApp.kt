@@ -1,5 +1,6 @@
 package app.morrow.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -55,6 +56,7 @@ import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeClock
 import app.morrow.theme.ThemeKind
 import app.morrow.timers.TimerCoordinator
+import app.morrow.ui.components.screenChange
 import app.morrow.ui.components.skySceneState
 import app.morrow.ui.edit.EditActions
 import app.morrow.ui.edit.EditScreen
@@ -162,81 +164,96 @@ fun MorrowApp(
                     var addingCity by rememberSaveable { mutableStateOf(false) }
                     var pickingHome by rememberSaveable { mutableStateOf(false) }
                     var tab by rememberSaveable(stateSaver = TabSaver) { mutableStateOf(Tab.ALARMS) }
-                    val target = editing
-                    val preview = previewing
-                    when {
-                        waking != null -> WakeRoute(services, waking, onSystemBarsChange, onDone = onWoken)
-                        wakingTimers.isNotEmpty() -> {
-                            LaunchedEffect(Unit) { onSystemBarsChange(true) }
-                            TimerWakeRoute(services.timers, services.speaker, wakingTimers, onDone = onTimersWoken)
-                        }
-                        preview != null -> RingPreviewRoute(services, preview, onSystemBarsChange, onExit = { previewing = null })
-                        inSettings && pickingHome -> {
-                            ThemeSystemBars(theme, onSystemBarsChange)
-                            AddCityRoute(
-                                services.citySearch, services.cities,
-                                onBack = { pickingHome = false },
-                                purpose = CityPickPurpose.HOME,
-                                onPicked = services.weather::refreshCitySoon,
-                            )
-                        }
-                        inSettings -> {
-                            ThemeSystemBars(theme, onSystemBarsChange)
-                            SettingsRoute(
-                                settings = services.settings,
-                                permissions = services.permissions,
-                                cities = services.cities,
-                                here = services.weather.here,
-                                phoneCountry = services.phoneCountry,
-                                speaker = services.speaker,
-                                developerTools = developerTools,
-                                onPickHomeCity = { pickingHome = true },
-                                onWeatherChanged = { services.weather.refreshSoon(RefreshReason.SETTINGS) },
-                                onBack = { inSettings = false },
-                            )
-                        }
-                        addingCity -> {
-                            ThemeSystemBars(theme, onSystemBarsChange)
-                            AddCityRoute(services.citySearch, services.cities, onBack = { addingCity = false }, onPicked = services.weather::refreshCitySoon)
-                        }
-                        target == null -> {
-                            if (tab != Tab.ALARMS) ThemeSystemBars(theme, onSystemBarsChange)
-                            var worldSheetOpen by remember { mutableStateOf(false) }
-                            val world = @Composable {
-                                LaunchedEffect(Unit) { services.weather.refreshSoon(RefreshReason.WORLD) }
-                                WorldRoute(
-                                    services.cities,
-                                    onAddCity = { addingCity = true },
-                                    onNewAlarm = { editing = it?.let(::newAlarmTarget) ?: NEW_ALARM },
-                                    onSheetChange = { worldSheetOpen = it },
-                                    weather = services.weather.forecasts,
-                                    units = remember { services.settings.effectiveUnits(services.phoneCountry) },
+                    val route = when {
+                        waking != null -> Route.Wake(waking)
+                        wakingTimers.isNotEmpty() -> Route.TimersWake(wakingTimers)
+                        previewing != null -> Route.Preview(previewing!!)
+                        inSettings && pickingHome -> Route.PickHome
+                        inSettings -> Route.Settings
+                        addingCity -> Route.AddCity
+                        editing == null -> Route.Tabs
+                        else -> Route.Edit(editing!!)
+                    }
+                    AnimatedContent(
+                        targetState = route,
+                        transitionSpec = { screenChange(forward = targetState.depth >= initialState.depth) },
+                        contentKey = { it::class },
+                        label = "screen",
+                    ) { shown ->
+                        when (shown) {
+                            is Route.Wake -> WakeRoute(services, shown.alarmId, onSystemBarsChange, onDone = onWoken)
+                            is Route.TimersWake -> {
+                                LaunchedEffect(Unit) { onSystemBarsChange(true) }
+                                TimerWakeRoute(services.timers, services.speaker, shown.timerIds, onDone = onTimersWoken)
+                            }
+                            is Route.Preview -> RingPreviewRoute(services, shown.alarm, onSystemBarsChange, onExit = { previewing = null })
+                            Route.PickHome -> {
+                                ThemeSystemBars(theme, onSystemBarsChange)
+                                AddCityRoute(
+                                    services.citySearch, services.cities,
+                                    onBack = { pickingHome = false },
+                                    purpose = CityPickPurpose.HOME,
+                                    onPicked = services.weather::refreshCitySoon,
                                 )
                             }
-                            TabHost(
-                                tab, onSelect = { tab = it }, barHidden = tab == Tab.WORLD && worldSheetOpen, world = world,
-                                timers = { screens.SaveableStateProvider(TIMERS) { TimersRoute(services.timers, services.permissions) } },
-                            ) {
-                                screens.SaveableStateProvider(HOME) {
-                                    Home(
-                                        services, theme, onSystemBarsChange,
-                                        onEdit = { editing = it?.toString() ?: NEW_ALARM },
-                                        onPreview = { previewing = it },
-                                        onSettings = { inSettings = true },
-                                        onOpenWorld = { tab = Tab.WORLD },
+                            Route.Settings -> {
+                                ThemeSystemBars(theme, onSystemBarsChange)
+                                SettingsRoute(
+                                    settings = services.settings,
+                                    permissions = services.permissions,
+                                    cities = services.cities,
+                                    here = services.weather.here,
+                                    phoneCountry = services.phoneCountry,
+                                    speaker = services.speaker,
+                                    developerTools = developerTools,
+                                    onPickHomeCity = { pickingHome = true },
+                                    onWeatherChanged = { services.weather.refreshSoon(RefreshReason.SETTINGS) },
+                                    onBack = { inSettings = false },
+                                )
+                            }
+                            Route.AddCity -> {
+                                ThemeSystemBars(theme, onSystemBarsChange)
+                                AddCityRoute(services.citySearch, services.cities, onBack = { addingCity = false }, onPicked = services.weather::refreshCitySoon)
+                            }
+                            Route.Tabs -> {
+                                if (tab != Tab.ALARMS) ThemeSystemBars(theme, onSystemBarsChange)
+                                var worldSheetOpen by remember { mutableStateOf(false) }
+                                val world = @Composable {
+                                    LaunchedEffect(Unit) { services.weather.refreshSoon(RefreshReason.WORLD) }
+                                    WorldRoute(
+                                        services.cities,
+                                        onAddCity = { addingCity = true },
+                                        onNewAlarm = { editing = it?.let(::newAlarmTarget) ?: NEW_ALARM },
+                                        onSheetChange = { worldSheetOpen = it },
+                                        weather = services.weather.forecasts,
+                                        units = remember { services.settings.effectiveUnits(services.phoneCountry) },
                                     )
                                 }
+                                TabHost(
+                                    tab, onSelect = { tab = it }, barHidden = tab == Tab.WORLD && worldSheetOpen, world = world,
+                                    timers = { screens.SaveableStateProvider(TIMERS) { TimersRoute(services.timers, services.permissions) } },
+                                ) {
+                                    screens.SaveableStateProvider(HOME) {
+                                        Home(
+                                            services, theme, onSystemBarsChange,
+                                            onEdit = { editing = it?.toString() ?: NEW_ALARM },
+                                            onPreview = { previewing = it },
+                                            onSettings = { inSettings = true },
+                                            onOpenWorld = { tab = Tab.WORLD },
+                                        )
+                                    }
+                                }
                             }
-                        }
-                        else -> screens.SaveableStateProvider(EDIT) {
-                            EditRoute(
-                                services, theme, target, onSystemBarsChange,
-                                onPreview = { previewing = it },
-                                onDone = {
-                                    editing = null
-                                    screens.removeState(EDIT)
-                                },
-                            )
+                            is Route.Edit -> screens.SaveableStateProvider(EDIT) {
+                                EditRoute(
+                                    services, theme, shown.target, onSystemBarsChange,
+                                    onPreview = { previewing = it },
+                                    onDone = {
+                                        editing = null
+                                        screens.removeState(EDIT)
+                                    },
+                                )
+                            }
                         }
                     }
                 }
@@ -491,6 +508,18 @@ private fun RingPreviewRoute(services: MorrowServices, alarm: Alarm, onSystemBar
 }
 
 private enum class PreviewStage { RINGING, MISSION, MORNING }
+
+/** Which screen shows, and how deep it is: going deeper slides forward, coming back slides back. */
+private sealed class Route(val depth: Int) {
+    data object Tabs : Route(0)
+    data object Settings : Route(1)
+    data object AddCity : Route(1)
+    data class Edit(val target: String) : Route(1)
+    data object PickHome : Route(2)
+    data class Preview(val alarm: Alarm) : Route(2)
+    data class Wake(val alarmId: Long) : Route(3)
+    data class TimersWake(val timerIds: List<Long>) : Route(3)
+}
 
 /**
  * After the system's alarm screen, which on iOS can only stop the alarm or open the app: the alarm's games,

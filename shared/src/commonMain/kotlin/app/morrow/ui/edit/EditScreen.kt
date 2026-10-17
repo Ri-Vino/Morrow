@@ -92,9 +92,12 @@ import app.morrow.ui.components.ReadoutPart
 import app.morrow.ui.components.SecondaryButton
 import app.morrow.ui.components.SegmentedControl
 import app.morrow.ui.components.SkyDial
+import app.morrow.ui.components.fadingWith
 import app.morrow.ui.components.largeText
 import app.morrow.ui.components.pressable
+import app.morrow.ui.components.rememberSheetEntrance
 import app.morrow.ui.components.repeatingPressable
+import app.morrow.ui.components.risingWith
 import kotlinx.datetime.DayOfWeek
 
 class EditActions(
@@ -839,11 +842,15 @@ private fun Sheet(title: String, onClose: () -> Unit, onScrimClick: () -> Unit =
     val colors = MorrowTheme.colors
     val sheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     PlatformBackHandler(onBack = onClose)
+    val entrance = rememberSheetEntrance()
     Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().background(Illustration.scrim).pressable(onScrimClick).semantics { contentDescription = "Close" })
+        Box(
+            Modifier.fillMaxSize().fadingWith(entrance).background(Illustration.scrim).pressable(onScrimClick).semantics { contentDescription = "Close" },
+        )
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .risingWith(entrance)
                 .fillMaxWidth()
                 .shadow(18.dp, sheetShape, ambientColor = colors.shadow, spotColor = colors.shadow)
                 .background(colors.bg, sheetShape)

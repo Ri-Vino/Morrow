@@ -83,11 +83,15 @@ fun BottomSheet(title: String, onClose: () -> Unit, modifier: Modifier = Modifie
         }
     }
     PlatformBackHandler(onBack = onClose)
+    val entrance = rememberSheetEntrance()
     Box(modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().background(Illustration.scrim).pressable(onClose).semantics { contentDescription = "Close" })
+        Box(
+            Modifier.fillMaxSize().fadingWith(entrance).background(Illustration.scrim).pressable(onClose).semantics { contentDescription = "Close" },
+        )
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .risingWith(entrance)
                 .offset { IntOffset(0, pulled.roundToInt()) }
                 .fillMaxWidth()
                 .shadow(18.dp, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
