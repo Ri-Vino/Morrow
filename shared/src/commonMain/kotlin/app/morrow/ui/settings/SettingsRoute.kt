@@ -1,6 +1,7 @@
 package app.morrow.ui.settings
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -8,6 +9,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.morrow.data.MorrowSettings
 import app.morrow.places.CityRepository
+import app.morrow.platform.AlarmSound
 import app.morrow.platform.PermissionGate
 import app.morrow.platform.Speaker
 import app.morrow.platform.SpeechPurpose
@@ -15,6 +17,7 @@ import app.morrow.platform.VoiceInfo
 import app.morrow.ui.PlatformBackHandler
 import app.morrow.weather.HerePlace
 import app.morrow.weather.WeatherPlaceMode
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -36,6 +39,8 @@ fun SettingsRoute(
     onPickHomeCity: () -> Unit,
     onWeatherChanged: () -> Unit,
     onBack: () -> Unit,
+    /** Plays sounds from the Default alarm sound sheet; null to stay silent. */
+    alarmSound: AlarmSound? = null,
 ) {
     val scope = rememberCoroutineScope()
     val missing by permissions.missing.collectAsStateWithLifecycle()
@@ -51,6 +56,8 @@ fun SettingsRoute(
     val savedVoice by remember(settings) { settings.voiceId.map { SavedVoice(it) } }.collectAsStateWithLifecycle(initialValue = null)
     val voices by produceState<List<VoiceInfo>?>(initialValue = null, speaker) { value = speaker.voices() }
     PlatformBackHandler(onBack = onBack)
+    // A sound being heard stops when Settings closes.
+    DisposableEffect(alarmSound) { onDispose { alarmSound?.stop() } }
 
     val sound = alarm ?: return
     val enabled = weatherOn ?: return
@@ -65,6 +72,11 @@ fun SettingsRoute(
         actions = SettingsActions(
             onBack = onBack,
             onSound = { scope.launch { settings.setSound(it) } },
+            onHearSound = { sound ->
+                alarmSound?.stop()
+                alarmSound?.play(sound, SOUND_SAMPLE_RAMP)
+            },
+            onStopSound = { alarmSound?.stop() },
             onRamp = { scope.launch { settings.setRamp(it) } },
             onAllow = permissions::request,
             onDeveloperTools = developerTools,
@@ -97,3 +109,6 @@ fun SettingsRoute(
 }
 
 private class SavedVoice(val id: String?)
+
+/** A sound heard in the sheet comes up quickly, but not at full volume at once. */
+private val SOUND_SAMPLE_RAMP = 2.seconds

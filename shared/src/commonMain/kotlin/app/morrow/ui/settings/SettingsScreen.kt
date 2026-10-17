@@ -49,6 +49,7 @@ import app.morrow.ui.components.Icons
 import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.components.MorrowToggle
 import app.morrow.ui.components.PillButton
+import app.morrow.ui.components.PrimaryButton
 import app.morrow.ui.components.SecondaryButton
 import app.morrow.ui.components.SegmentedControl
 import app.morrow.ui.components.pressable
@@ -75,6 +76,9 @@ class SettingsActions(
     val onReadAloud: (Boolean) -> Unit = {},
     /** Pip's voice was picked in the sheet: null for the phone's default. */
     val onPickVoice: (String?) -> Unit = {},
+    /** Plays a sound picked in the Default alarm sound sheet, until [onStopSound]. */
+    val onHearSound: (WakeSound) -> Unit = {},
+    val onStopSound: () -> Unit = {},
     val onHearSample: () -> Unit = {},
 )
 
@@ -88,8 +92,22 @@ fun SettingsScreen(
     voice: VoiceSection? = null,
 ) {
     var pickingVoice by rememberSaveable { mutableStateOf(false) }
+    var pickingSound by rememberSaveable { mutableStateOf(false) }
     Box(modifier.fillMaxSize()) {
-        SettingsContent(model, choices, actions, weather, voice, onPickVoice = { pickingVoice = true })
+        SettingsContent(model, choices, actions, weather, voice, onPickVoice = { pickingVoice = true }, onPickSound = { pickingSound = true })
+        if (pickingSound) {
+            SoundPickerSheet(
+                choices.sound,
+                onPick = { sound ->
+                    actions.onSound(sound)
+                    actions.onHearSound(sound)
+                },
+                onClose = {
+                    pickingSound = false
+                    actions.onStopSound()
+                },
+            )
+        }
         if (pickingVoice && voice != null) {
             VoicePickerSheet(
                 voice,
@@ -111,6 +129,7 @@ private fun SettingsContent(
     weather: WeatherSection?,
     voice: VoiceSection?,
     onPickVoice: () -> Unit,
+    onPickSound: () -> Unit,
 ) {
     val colors = MorrowTheme.colors
     Column(Modifier.fillMaxSize().background(colors.bg).statusBarsPadding()) {
@@ -138,12 +157,22 @@ private fun SettingsContent(
             if (weather != null) Section("Weather") { WeatherSettings(weather, actions) }
             if (voice != null) Section("Voice") { VoiceSettings(voice, actions.onHearSample, onPickVoice) }
             Section("Default alarm sound") {
-                WakeSound.entries.groupBy { it.category }.forEach { (category, sounds) ->
-                    GroupLabel(category.displayName)
-                    Card {
-                        sounds.forEachIndexed { i, sound ->
-                            RadioRow(sound.displayName, selected = sound == choices.sound, divider = i > 0) { actions.onSound(sound) }
+                Card(selectable = false) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 64.dp)
+                            .pressable(onPickSound, onClickLabel = "Change the default alarm sound")
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        MorrowIcon(Icons.Music, colors.hi, size = 22.dp)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            BasicText(choices.sound.displayName, style = MorrowTheme.type.button.copy(color = colors.text))
+                            BasicText(choices.sound.category.displayName, style = MorrowTheme.type.body.copy(color = colors.muted))
                         }
+                        MorrowIcon(Icons.Forward, colors.muted, size = 20.dp, strokeWidth = 2.2f)
                     }
                 }
                 Note("Alarms ring with this unless you pick a sound for one when you edit it.")
@@ -330,6 +359,29 @@ private fun ColumnScope.VoiceSettings(voice: VoiceSection, onHearSample: () -> U
         }
     }
     Note("Reads timer notes and the morning weather. It uses your phone’s own voices, so nothing is sent anywhere.")
+}
+
+/** Every sound under its kind; picking one makes it the default and plays it, until the sheet closes. */
+@Composable
+private fun SoundPickerSheet(selected: WakeSound, onPick: (WakeSound) -> Unit, onClose: () -> Unit) {
+    val colors = MorrowTheme.colors
+    BottomSheet(title = "Default alarm sound", onClose = onClose) {
+        BasicText(
+            "Default alarm sound",
+            style = MorrowTheme.type.title.copy(color = colors.text),
+            modifier = Modifier.semantics { heading() },
+        )
+        Note("Tap one to hear it.")
+        WakeSound.entries.groupBy { it.category }.forEach { (category, sounds) ->
+            GroupLabel(category.displayName)
+            Card {
+                sounds.forEachIndexed { i, sound ->
+                    RadioRow(sound.displayName, selected = sound == selected, divider = i > 0) { onPick(sound) }
+                }
+            }
+        }
+        PrimaryButton("Done", onClose)
+    }
 }
 
 @Composable

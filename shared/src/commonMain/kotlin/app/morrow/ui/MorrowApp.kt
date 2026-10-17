@@ -209,6 +209,7 @@ fun MorrowApp(
                                     onPickHomeCity = { pickingHome = true },
                                     onWeatherChanged = { services.weather.refreshSoon(RefreshReason.SETTINGS) },
                                     onBack = { inSettings = false },
+                                    alarmSound = services.alarmSound,
                                 )
                             }
                             Route.AddCity -> {
