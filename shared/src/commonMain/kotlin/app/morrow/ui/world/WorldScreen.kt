@@ -1,7 +1,7 @@
 package app.morrow.ui.world
 
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -61,6 +62,9 @@ import app.morrow.ui.components.PrimaryButton
 import app.morrow.ui.components.largeText
 import app.morrow.ui.components.pressable
 import app.morrow.ui.components.weatherIcon
+import kotlin.math.abs
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 class WorldActions(
@@ -155,6 +159,7 @@ private fun CityCards(cards: List<WorldCard>, actions: WorldActions) {
     // Where each card was last laid out in the column, and where the drag counts it as being, which runs a frame ahead.
     val laid = remember { mutableMapOf<Long, Float>() }
     val places = remember { mutableMapOf<Long, Place>() }
+    val slides = remember { mutableMapOf<Long, Slide>() }
     val gap = with(LocalDensity.current) { 12.dp.toPx() }
 
     val ids = cards.map { it.id }
@@ -186,6 +191,11 @@ private fun CityCards(cards: List<WorldCard>, actions: WorldActions) {
         offset -= myTop - me.top
         places[id] = me.copy(top = myTop)
         places[other] = them.copy(top = theirTop)
+        // The neighbour starts its slide from where it is now in the same frame as it moves, so it never shows in its
+        // new place first.
+        laid[id] = myTop
+        laid[other] = theirTop
+        slides[other]?.nudge(them.top - theirTop)
         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
     }
 
@@ -193,7 +203,11 @@ private fun CityCards(cards: List<WorldCard>, actions: WorldActions) {
         key(card.id) {
             val isHeld = held == card.id
             val scope = rememberCoroutineScope()
-            val slide = remember { Animatable(0f) }
+            val slide = remember { Slide(scope) }
+            DisposableEffect(card.id) {
+                slides[card.id] = slide
+                onDispose { slides.remove(card.id) }
+            }
             val lift by animateFloatAsState(if (isHeld) 1.03f else 1f)
             CityCard(
                 name = card.name,
@@ -212,13 +226,8 @@ private fun CityCards(cards: List<WorldCard>, actions: WorldActions) {
                         if (held == card.id) places[card.id]?.let { offset -= top - it.top }
                         places[card.id] = Place(top, coordinates.size.height.toFloat())
                         val before = laid.put(card.id, top)
-                        if (before != null && before != top && held != card.id) {
-                            // Slides from where it was into its new place.
-                            scope.launch {
-                                slide.snapTo(slide.value + before - top)
-                                slide.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
-                            }
-                        }
+                        // Slides from where it was into its new place, unless the drag has already started it.
+                        if (before != null && abs(before - top) > 0.5f && held != card.id) slide.nudge(before - top)
                     }
                     // Gives the position above its own place in the column, without the drag or slide drawn below.
                     .layout { measurable, constraints ->
@@ -250,13 +259,9 @@ private fun CityCards(cards: List<WorldCard>, actions: WorldActions) {
                                     }
                                     // Glides the rest of the way into its place, starting from where the finger left it.
                                     landing = card.id
-                                    scope.launch {
-                                        slide.snapTo(offset)
-                                        held = null
-                                        offset = 0f
-                                        slide.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow))
-                                        if (landing == card.id) landing = null
-                                    }
+                                    slide.from(offset) { if (landing == card.id) landing = null }
+                                    held = null
+                                    offset = 0f
                                 }
                                 detectDragGesturesAfterLongPress(
                                     onDragStart = {
@@ -266,6 +271,7 @@ private fun CityCards(cards: List<WorldCard>, actions: WorldActions) {
                                         order = start
                                         from = start.indexOf(card.id)
                                         offset = slide.value
+                                        slide.stop()
                                         held = card.id
                                     },
                                     onDrag = { pointer, amount ->
@@ -280,6 +286,30 @@ private fun CityCards(cards: List<WorldCard>, actions: WorldActions) {
                     ),
             )
         }
+    }
+}
+
+/** How far a card is drawn from its place while it slides into it: set at once, then eased back to nothing. */
+private class Slide(private val scope: CoroutineScope) {
+    var value by mutableFloatStateOf(0f)
+        private set
+    private var easing: Job? = null
+
+    /** Moves the card [by] more at once, then eases it into its place. */
+    fun nudge(by: Float) = from(value + by)
+
+    fun from(start: Float, onSettled: () -> Unit = {}) {
+        easing?.cancel()
+        value = start
+        easing = scope.launch {
+            animate(start, 0f, animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { now, _ -> value = now }
+            onSettled()
+        }
+    }
+
+    fun stop() {
+        easing?.cancel()
+        value = 0f
     }
 }
 
