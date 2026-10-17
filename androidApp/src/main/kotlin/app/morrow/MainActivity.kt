@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
             app.repository, app.coordinator, app.themeClock, app.settings, permissions, AlarmTone(app), missions,
             app.cities, app.catalog, app.citySearch, app.weather, phoneCountry = Locale.getDefault().country, speaker = app.speaker,
             timers = app.timers,
+            canSnooze = true,
         )
         setContent {
             WithTestFontScale {

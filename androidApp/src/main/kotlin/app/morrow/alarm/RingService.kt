@@ -1,5 +1,11 @@
 package app.morrow.alarm
 
+import app.morrow.data.AlarmSetup
+import app.morrow.domain.Alarm
+import app.morrow.domain.DefaultGames
+import app.morrow.domain.canSnooze
+import app.morrow.morrow
+import app.morrow.timers.Timer
 import android.app.Notification
 import android.app.NotificationManager
 import android.app.Service
@@ -19,11 +25,9 @@ import android.provider.Settings
 import android.util.Log
 import android.view.View
 import android.view.WindowManager
-import app.morrow.data.AlarmSetup
-import app.morrow.domain.Alarm
-import app.morrow.domain.DefaultGames
-import app.morrow.morrow
-import app.morrow.timers.Timer
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,9 +41,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Clock
-import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Runs only while something rings: sound on the alarm stream, vibration and a wake lock. It always stops itself after
@@ -96,8 +97,9 @@ class RingService : Service() {
         lastStartId = startId
         when (intent?.action) {
             ACTION_STOP -> stopAlarm(gamesDone = true)
+            ACTION_SNOOZE -> snooze()
             ACTION_RING_TIMERS -> ringTimers()
-            else -> ring(intent?.getLongExtra(EXTRA_ALARM_ID, NO_ALARM) ?: NO_ALARM)
+            else -> ring(intent?.getLongExtra(EXTRA_ALARM_ID, NO_ALARM) ?: NO_ALARM, intent?.getIntExtra(EXTRA_SNOOZED, 0) ?: 0)
         }
         return START_NOT_STICKY
     }
@@ -108,8 +110,10 @@ class RingService : Service() {
         super.onDestroy()
     }
 
-    private fun ring(alarmId: Long) {
+    private fun ring(alarmId: Long, snoozed: Int) {
         val placeholder = placeholder(alarmId)
+        Ringing.snoozed = snoozed
+        getSystemService(NotificationManager::class.java).cancel(RingNotifications.snoozedId(alarmId))
         startInForeground(RingNotifications.ID, RingNotifications.build(this, placeholder))
         Ringing.set(placeholder)
         showRingScreen()
@@ -173,6 +177,20 @@ class RingService : Service() {
     private fun removeOverlay() {
         overlay?.let { runCatching { windowManager.removeView(it) } }
         overlay = null
+    }
+
+    /**
+     * Puts the ringing alarm off for its snooze length: it rings again then, and a notification says when, with a way
+     * to call it off. Does nothing if it can't be snoozed again.
+     */
+    private fun snooze() {
+        val alarm = Ringing.current.value
+        if (mode != Mode.ALARM || alarm == null || !canSnooze(alarm, Ringing.snoozed)) return
+        val until = Clock.System.now() + alarm.snoozeMinutes.minutes
+        AndroidAlarmScheduler(this).snooze(alarm.id, until, Ringing.snoozed + 1)
+        getSystemService(NotificationManager::class.java)
+            .notify(RingNotifications.snoozedId(alarm.id), RingNotifications.snoozed(this, alarm, until))
+        stopAlarm(gamesDone = false)
     }
 
     /** Games done, or the alarm's safety stop. */
@@ -365,6 +383,8 @@ class RingService : Service() {
     companion object {
         private const val TAG = "RingService"
         private const val ACTION_STOP = "app.morrow.action.STOP_RINGING"
+        private const val ACTION_SNOOZE = "app.morrow.action.SNOOZE"
+        private const val EXTRA_SNOOZED = "snoozed"
         private const val ACTION_RING_TIMERS = "app.morrow.action.RING_TIMERS"
         private const val EXTRA_ALARM_ID = "alarm_id"
         private const val NO_ALARM = -1L
@@ -382,9 +402,19 @@ class RingService : Service() {
             PixelFormat.TRANSLUCENT,
         )
 
-        fun start(context: Context, alarmId: Long) {
-            context.startForegroundService(Intent(context, RingService::class.java).putExtra(EXTRA_ALARM_ID, alarmId))
+        /** Rings [alarmId], snoozed [snoozed] times on the way here. */
+        fun start(context: Context, alarmId: Long, snoozed: Int = 0) {
+            context.startForegroundService(
+                Intent(context, RingService::class.java).putExtra(EXTRA_ALARM_ID, alarmId).putExtra(EXTRA_SNOOZED, snoozed),
+            )
         }
+
+        /** Snoozes the ringing alarm, if it can be. */
+        fun snooze(context: Context) {
+            context.startService(snoozeIntent(context))
+        }
+
+        fun snoozeIntent(context: Context): Intent = Intent(context, RingService::class.java).setAction(ACTION_SNOOZE)
 
         /** Rings every timer that has ended. From TimerReceiver, when a timer's exact alarm goes off. */
         fun ringTimers(context: Context) {

@@ -23,6 +23,7 @@ import kotlin.math.sin
 import app.morrow.domain.rules
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.minutes
@@ -350,6 +351,15 @@ class EditModelTest {
         val gentle = model(alarm(7, 0).copy(difficulty = Difficulty.GENTLE))
         assertEquals(Difficulty.GENTLE, gentle.difficulty)
         assertEquals("Gentler rounds: small sums, short sentences, soft shakes.", gentle.difficultyText)
+    }
+
+    @Test
+    fun snoozeSaysHowLongAndIsLeftOutWhereMorrowCantSnooze() {
+        fun model(draft: Alarm, canSnooze: Boolean = true) =
+            app.morrow.ui.edit.editModel(draft, at("2026-10-05T22:00"), london, canSnooze = canSnooze)
+        assertEquals(SnoozeRow(5, "Up to 3 times, 5 minutes each."), model(alarm(7, 0)).snooze)
+        assertEquals(SnoozeRow(0, "No snoozing: only the games stop it."), model(alarm(7, 0).copy(snoozeMinutes = 0)).snooze)
+        assertNull(model(alarm(7, 0), canSnooze = false).snooze)
     }
 
     @Test

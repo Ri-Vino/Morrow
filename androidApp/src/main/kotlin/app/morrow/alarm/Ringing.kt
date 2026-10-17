@@ -22,6 +22,11 @@ object Ringing {
         state.value = alarm
     }
 
+    /** How many times the ringing alarm has been snoozed on the way here. */
+    @Volatile
+    var snoozed = 0
+        internal set
+
     private val level = MutableStateFlow(1f)
 
     /** How loud the alarm plays, as RingActivity sets it for the games: 1 as it rang, less while they're played, 0 muted. */

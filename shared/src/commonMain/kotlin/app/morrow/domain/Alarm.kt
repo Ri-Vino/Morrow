@@ -23,6 +23,8 @@ data class Alarm(
      * Settings used to say, or Normal.
      */
     val difficulty: Difficulty? = null,
+    /** How long Snooze puts it off, in minutes; 0 means it can't be snoozed. */
+    val snoozeMinutes: Int = DEFAULT_SNOOZE_MINUTES,
 ) {
     init {
         require(hour in 0..23) { "hour must be 0..23, was $hour" }

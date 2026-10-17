@@ -65,11 +65,20 @@ import kotlin.time.Instant
 /** Extra controls when the screen is a preview from Home or Edit rather than a real alarm. */
 class RingPreview(val soundOn: Boolean, val onToggleSound: () -> Unit, val onExit: () -> Unit)
 
+/** The Snooze button, named by [label], which puts the alarm off for a few minutes. */
+class RingSnooze(val label: String, val onSnooze: () -> Unit)
+
 /** The ringing alarm: a sunrise with Pip waking up, the alarm's time and label, and the way into the mission. */
 @Composable
-fun RingScreen(model: RingModel, onStartMission: () -> Unit, modifier: Modifier = Modifier, preview: RingPreview? = null) {
+fun RingScreen(
+    model: RingModel,
+    onStartMission: () -> Unit,
+    modifier: Modifier = Modifier,
+    preview: RingPreview? = null,
+    snooze: RingSnooze? = null,
+) {
     MorrowTheme(ThemeKind.NIGHT) {
-        RingContent(model, rememberSceneSeconds(still = SUNRISE_DONE, fullRateFor = SUNRISE_LENGTH), onStartMission, modifier, preview)
+        RingContent(model, rememberSceneSeconds(still = SUNRISE_DONE, fullRateFor = SUNRISE_LENGTH), onStartMission, modifier, preview, snooze)
     }
 }
 
@@ -80,6 +89,7 @@ private fun RingContent(
     onStartMission: () -> Unit,
     modifier: Modifier = Modifier,
     preview: RingPreview? = null,
+    snooze: RingSnooze? = null,
 ) {
     val colors = MorrowTheme.colors
     val type = MorrowTheme.type
@@ -138,6 +148,16 @@ private fun RingContent(
                 icon = Icons.ArrowRight,
                 iconAfter = true,
             )
+            if (snooze != null) {
+                PillButton(
+                    text = snooze.label,
+                    onClick = snooze.onSnooze,
+                    background = Illustration.ground.copy(alpha = 0.55f),
+                    content = Illustration.onBadge,
+                    modifier = Modifier.fillMaxWidth(),
+                    height = 56.dp,
+                )
+            }
             BasicText(
                 "Pip keeps singing until you’re done. It stops by itself after 10 minutes, just in case.",
                 style = type.body.copy(color = colors.muted, textAlign = TextAlign.Center),

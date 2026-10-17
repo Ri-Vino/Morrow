@@ -1,5 +1,6 @@
 package app.morrow.ui.ring
 
+import kotlin.test.assertNull
 import app.morrow.domain.Alarm
 import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
@@ -48,6 +49,17 @@ class RingModelTest {
         assertEquals("Work days · Shake, Sums and Scan", model.label)
         assertEquals("I’m up — start shake", model.startLabel)
         assertEquals("Work days · Sums and Breathe", ringModel(alarm("Work days", MissionType.SUMS, MissionType.BREATHE)).label)
+    }
+
+    @Test
+    fun snoozeSaysHowLongAndHowManyAreLeft() {
+        val alarm = alarm("Gym")
+        assertEquals("Snooze 5 min", snoozeLabel(alarm, snoozed = 0))
+        assertEquals("Snooze 10 min · 2 left", snoozeLabel(alarm.copy(snoozeMinutes = 10), snoozed = 1))
+        assertEquals("Snooze 5 min · 1 left", snoozeLabel(alarm, snoozed = 2))
+        // After the last snooze, or with snoozing off, only the games stop it.
+        assertNull(snoozeLabel(alarm, snoozed = 3))
+        assertNull(snoozeLabel(alarm.copy(snoozeMinutes = 0), snoozed = 0))
     }
 
     @Test

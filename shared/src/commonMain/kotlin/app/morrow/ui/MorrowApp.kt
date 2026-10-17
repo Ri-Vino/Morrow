@@ -25,6 +25,7 @@ import app.morrow.data.AlarmRepository
 import app.morrow.data.AlarmSetup
 import app.morrow.data.MorrowSettings
 import app.morrow.domain.Alarm
+import app.morrow.domain.DEFAULT_SNOOZE_MINUTES
 import app.morrow.domain.DefaultGames
 import app.morrow.domain.Difficulty
 import app.morrow.domain.MissionType
@@ -68,7 +69,9 @@ import app.morrow.ui.mission.SequenceRoute
 import app.morrow.ui.morning.MorningRoute
 import app.morrow.ui.ring.RingPreview
 import app.morrow.ui.ring.RingScreen
+import app.morrow.ui.ring.RingSnooze
 import app.morrow.ui.ring.ringModel
+import app.morrow.ui.ring.snoozeLabel
 import app.morrow.ui.settings.SettingsRoute
 import app.morrow.ui.tabs.Tab
 import app.morrow.ui.tabs.TabHost
@@ -110,6 +113,8 @@ class MorrowServices(
     val phoneCountry: String,
     val speaker: Speaker = NoSpeaker,
     val timers: TimerCoordinator,
+    /** Whether Morrow rings alarms itself, so it can snooze them. On iOS the system does, without a snooze. */
+    val canSnooze: Boolean = false,
 )
 
 /**
@@ -350,7 +355,7 @@ private fun EditRoute(
     }
     EditScreen(
         draft = current,
-        model = editModel(current, now, phoneZone, alarmSetup.sound, missions.difficulty),
+        model = editModel(current, now, phoneZone, alarmSetup.sound, missions.difficulty, services.canSnooze),
         zones = ZoneSheetData(
             choices = zoneChoices(current, savedCities.map { it.city }, now, phoneZone, phoneCityName(savedCities, phoneZone, zoneCity)),
             find = { query -> searchChoices(services.catalog.search(query, limit = 8), Clock.System.now(), phoneZone) },
@@ -407,6 +412,8 @@ private fun RingPreviewRoute(services: MorrowServices, alarm: Alarm, onSystemBar
             model = ringModel(alarm, ringsAt, TimeZone.currentSystemDefault()),
             onStartMission = { stage = PreviewStage.MISSION },
             preview = RingPreview(soundOn, onToggleSound = { soundOn = !soundOn }, onExit = onExit),
+            // In a preview, snoozing just ends it.
+            snooze = snoozeLabel(alarm, snoozed = 0)?.takeIf { services.canSnooze }?.let { RingSnooze(it, onExit) },
         )
         PreviewStage.MISSION -> SequenceRoute(
             alarm.games,
@@ -585,7 +592,7 @@ private val AlarmSaver = Saver<Alarm?, List<Any>>(
         alarm?.let {
             listOf(
                 it.id, it.hour, it.minute, it.label, it.days.joinToString(",") { day -> day.name }, encodeGames(it.games), it.enabled,
-                it.timeZone.orEmpty(), it.zoneLabel.orEmpty(), it.sound?.name.orEmpty(), it.difficulty?.name.orEmpty(),
+                it.timeZone.orEmpty(), it.zoneLabel.orEmpty(), it.sound?.name.orEmpty(), it.difficulty?.name.orEmpty(), it.snoozeMinutes,
             )
         }
     },
@@ -602,6 +609,7 @@ private val AlarmSaver = Saver<Alarm?, List<Any>>(
             zoneLabel = (saved.getOrNull(8) as String?)?.ifEmpty { null },
             sound = WakeSound.entries.firstOrNull { it.name == saved.getOrNull(9) },
             difficulty = Difficulty.entries.firstOrNull { it.name == saved.getOrNull(10) },
+            snoozeMinutes = saved.getOrNull(11) as Int? ?: DEFAULT_SNOOZE_MINUTES,
         )
     },
 )

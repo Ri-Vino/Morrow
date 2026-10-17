@@ -13,7 +13,7 @@ import kotlinx.coroutines.IO
 
 @Database(
     entities = [AlarmEntity::class, SavedCityEntity::class, WeatherCacheEntity::class, CitySearchCacheEntity::class, TimerEntity::class],
-    version = 8,
+    version = 9,
 )
 @ConstructedBy(MorrowDatabaseConstructor::class)
 abstract class MorrowDatabase : RoomDatabase() {
@@ -40,7 +40,7 @@ fun buildMorrowDatabase(builder: RoomDatabase.Builder<MorrowDatabase>): MorrowDa
     builder
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(GamesMigration, CitiesMigration, ZonesMigration, WeatherMigration, TimersMigration, SoundsMigration, DifficultyMigration)
+        .addMigrations(GamesMigration, CitiesMigration, ZonesMigration, WeatherMigration, TimersMigration, SoundsMigration, DifficultyMigration, SnoozeMigration)
         .build()
 
 /** An alarm's one mission becomes its first and only game, with that game's usual rounds. */
@@ -125,5 +125,12 @@ internal object SoundsMigration : Migration(6, 7) {
 internal object DifficultyMigration : Migration(7, 8) {
     override fun migrate(connection: SQLiteConnection) {
         connection.execSQL("ALTER TABLE `alarms` ADD COLUMN `difficulty` TEXT")
+    }
+}
+
+/** Alarms can be snoozed, every one for five minutes to start with. */
+internal object SnoozeMigration : Migration(8, 9) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE `alarms` ADD COLUMN `snooze_minutes` INTEGER NOT NULL DEFAULT 5")
     }
 }

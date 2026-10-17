@@ -76,6 +76,7 @@ import androidx.compose.ui.zIndex
 import app.morrow.domain.Alarm
 import app.morrow.domain.Difficulty
 import app.morrow.domain.MissionType
+import app.morrow.domain.SnoozeChoices
 import app.morrow.domain.WakeSound
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
@@ -218,6 +219,12 @@ private fun EditForm(
                 SegmentedControl(Difficulty.entries, model.difficulty, Difficulty::displayName, { actions.onChange(draft.copy(difficulty = it)) })
                 BasicText(model.difficultyText, style = MorrowTheme.type.body.copy(color = colors.muted))
             }
+            model.snooze?.let { snooze ->
+                Section("Snooze") {
+                    SegmentedControl(SnoozeChoices, snooze.minutes, ::snoozeChoiceName, { actions.onChange(draft.copy(snoozeMinutes = it)) })
+                    BasicText(snooze.text, style = MorrowTheme.type.body.copy(color = colors.muted))
+                }
+            }
         }
         if (largeText()) {
             Column(Modifier.navigationBarsPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -342,6 +349,8 @@ private fun TimeSheet(hour: Int, minute: Int, onSet: (Int) -> Unit, onClose: () 
         )
     }
 }
+
+private fun snoozeChoiceName(minutes: Int) = if (minutes == 0) "Off" else "$minutes min"
 
 @Composable
 private fun Section(title: String, aside: String? = null, content: @Composable () -> Unit) {

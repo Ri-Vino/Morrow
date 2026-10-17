@@ -7,6 +7,8 @@ import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.Easing
 import androidx.compose.ui.graphics.Color
 import app.morrow.domain.Alarm
+import app.morrow.domain.MAX_SNOOZES
+import app.morrow.domain.canSnooze
 import app.morrow.theme.Illustration
 import app.morrow.theme.mix
 import app.morrow.ui.components.Icons
@@ -15,8 +17,8 @@ import app.morrow.ui.edit.zoneName
 import app.morrow.ui.gamesText
 import app.morrow.ui.hhmm
 import app.morrow.ui.world.cityClock
-import kotlinx.datetime.TimeZone
 import kotlin.time.Instant
+import kotlinx.datetime.TimeZone
 
 data class RingModel(
     val time: String,
@@ -39,6 +41,13 @@ fun ringModel(alarm: Alarm, ringsAt: Instant, phoneZone: TimeZone): RingModel {
         missionIcon = if (city == null) Icons.forMission(first) else Icons.Globe,
         startLabel = "I’m up — start ${first.displayName.lowercase()}",
     )
+}
+
+/** The ring screen's Snooze button for [alarm], snoozed [snoozed] times already, or null when it can't snooze again. */
+fun snoozeLabel(alarm: Alarm, snoozed: Int): String? {
+    if (!canSnooze(alarm, snoozed)) return null
+    val left = MAX_SNOOZES - snoozed
+    return "Snooze ${alarm.snoozeMinutes} min" + if (snoozed > 0) " · $left left" else ""
 }
 
 /** Hold the sunrise here to show it finished, for when animations are off. */

@@ -3,6 +3,7 @@ package app.morrow.ui.edit
 import app.morrow.domain.Alarm
 import app.morrow.domain.Difficulty
 import app.morrow.domain.GameStep
+import app.morrow.domain.MAX_SNOOZES
 import app.morrow.domain.MissionType
 import app.morrow.domain.WakeSound
 import app.morrow.domain.clockZone
@@ -44,6 +45,8 @@ data class EditModel(
     /** How hard the rounds are, and what that means. */
     val difficulty: Difficulty,
     val difficultyText: String,
+    /** The Snooze row, or null where the alarm can't be snoozed from Morrow. */
+    val snooze: SnoozeRow?,
     /** The Alarm sound sheet: Default first, then every sound. */
     val soundChoices: List<SoundChoice>,
     /** The wake-up games in play order. */
@@ -70,6 +73,9 @@ data class GameRow(
     val canMoveUp: Boolean,
     val canMoveDown: Boolean,
 )
+
+/** How long the alarm snoozes for, in [minutes], 0 for not at all, and what that means. */
+data class SnoozeRow(val minutes: Int, val text: String)
 
 /** The Time zone row: whose clock the alarm keeps. */
 data class ZoneRow(val title: String, val subtitle: String, val zoned: Boolean)
@@ -107,6 +113,8 @@ fun editModel(
     phoneZone: TimeZone,
     defaultSound: WakeSound = WakeSound.BIRDSONG,
     oldDifficulty: Difficulty = Difficulty.NORMAL,
+    /** False where Morrow can't snooze an alarm, as on iOS, where the system rings it. */
+    canSnooze: Boolean = true,
 ): EditModel {
     val difficulty = draft.difficulty ?: oldDifficulty
     val alarmMinute = draft.hour * 60 + draft.minute
@@ -133,6 +141,7 @@ fun editModel(
             ?: SoundRow(defaultSound.displayName, "Default, as chosen in Settings", own = false),
         difficulty = difficulty,
         difficultyText = difficulty.description,
+        snooze = if (canSnooze) SnoozeRow(draft.snoozeMinutes, snoozeText(draft.snoozeMinutes)) else null,
         soundChoices = listOf(SoundChoice(null, "Default", "${defaultSound.displayName}, as chosen in Settings", draft.sound == null)) +
             WakeSound.entries.map { SoundChoice(it, it.displayName, it.description, draft.sound == it) },
         games = games.mapIndexed { i, step ->
@@ -158,6 +167,9 @@ fun editModel(
         canAddGame = games.size < MissionType.entries.size,
     )
 }
+
+fun snoozeText(minutes: Int): String =
+    if (minutes == 0) "No snoozing: only the games stop it." else "Up to $MAX_SNOOZES times, $minutes minutes each."
 
 /** What a difficulty means for a round. */
 val Difficulty.description: String

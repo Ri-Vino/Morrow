@@ -1,10 +1,5 @@
 package app.morrow.alarm
 
-import android.app.KeyguardManager
-import android.content.Intent
-import android.os.Build
-import android.os.Bundle
-import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.addCallback
@@ -30,14 +25,21 @@ import app.morrow.ui.mission.MissionServices
 import app.morrow.ui.mission.SequenceRoute
 import app.morrow.ui.morning.MorningRoute
 import app.morrow.ui.ring.RingScreen
+import app.morrow.ui.ring.RingSnooze
 import app.morrow.ui.ring.ringModel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
+import app.morrow.ui.ring.snoozeLabel
+import android.app.KeyguardManager
+import android.content.Intent
+import android.os.Build
+import android.os.Bundle
+import android.view.WindowManager
 import java.util.Locale
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.datetime.TimeZone
 
 /** Shown over the lock screen from the moment an alarm rings until the Morning screen is done. */
 class RingActivity : ComponentActivity() {
@@ -111,7 +113,12 @@ class RingActivity : ComponentActivity() {
                             val zone = TimeZone.currentSystemDefault()
                             ringModel(ringing, ringing.occurrenceNear(Clock.System.now(), zone), zone)
                         }
-                        RingScreen(model, onStartMission = { stage = Stage.MISSION })
+                        val snooze = remember(ringing) { snoozeLabel(ringing, Ringing.snoozed) }
+                        RingScreen(
+                            model,
+                            onStartMission = { stage = Stage.MISSION },
+                            snooze = snooze?.let { RingSnooze(it) { RingService.snooze(this) } },
+                        )
                     }
                 }
             }
