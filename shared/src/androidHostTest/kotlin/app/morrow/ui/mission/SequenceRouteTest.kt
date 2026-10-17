@@ -1,5 +1,8 @@
 package app.morrow.ui.mission
 
+import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -247,6 +250,29 @@ class SequenceRouteTest {
     }
 
     @Test
+    fun theAlarmSoundsQuieterUnderTheGamesAndMutesForAMinute() {
+        val levels = mutableListOf<Float>()
+        start(GameStep(MissionType.SUMS, 2), volume = { levels += it })
+        compose.waitForIdle()
+        assertEquals(listOf(GAME_LEVEL), levels)
+
+        compose.onNode(hasClickLabel("Mute the alarm for a minute")).performClick()
+        compose.waitForIdle()
+        assertEquals(0f, levels.last())
+        compose.onNodeWithContentDescription("Alarm muted, back in 60 seconds").assertExists()
+
+        compose.onNode(hasClickLabel("Let the alarm sound")).performClick()
+        compose.waitForIdle()
+        assertEquals(GAME_LEVEL, levels.last())
+    }
+
+    @Test
+    fun withoutAVolumeThereIsNoMuteButton() {
+        start(GameStep(MissionType.SUMS, 2))
+        compose.onNode(hasClickLabel("Mute the alarm for a minute")).assertDoesNotExist()
+    }
+
+    @Test
     fun aSingleGameHasNoChips() {
         start(GameStep(MissionType.SUMS, 2))
         compose.onNodeWithText("1 of 2").assertExists()
@@ -258,13 +284,19 @@ class SequenceRouteTest {
         settings: MorrowSettings = settings(),
         motion: MotionSensor = this.motion,
         difficulty: Difficulty? = null,
+        volume: GameVolume? = null,
     ) {
-        compose.setContent { SequenceRoute(games.toList(), difficulty, MissionServices(settings, motion, scanner), onDone = { done = true }) }
+        compose.setContent {
+            SequenceRoute(games.toList(), difficulty, MissionServices(settings, motion, scanner), volume, onDone = { done = true })
+        }
         // The mission appears once its settings have loaded from disk.
         compose.waitUntil { compose.onAllNodes(hasText("WAKE-UP MISSION")).fetchSemanticsNodes().isNotEmpty() }
     }
 
     /** Pip's "We're up!" stays on screen for a moment, then the mission is done. */
+    private fun hasClickLabel(label: String) =
+        SemanticsMatcher("click label $label") { it.config.getOrNull(SemanticsActions.OnClick)?.label == label }
+
     private fun assertFinishes() {
         compose.waitForIdle()
         assertFalse(done)

@@ -412,6 +412,7 @@ private fun RingPreviewRoute(services: MorrowServices, alarm: Alarm, onSystemBar
             alarm.games,
             alarm.difficulty,
             services.missions,
+            volume = services.alarmSound::setLevel,
             onDone = {
                 soundOn = false
                 wokeAt = Clock.System.now().toEpochMilliseconds()
@@ -490,6 +491,7 @@ private fun WakeRoute(services: MorrowServices, alarmId: Long, onSystemBarsChang
             decodeGames(chosen),
             Difficulty.entries.firstOrNull { it.name == difficulty },
             services.missions,
+            volume = services.alarmSound::setLevel,
             onDone = { wokeAt = Clock.System.now().toEpochMilliseconds() },
         )
     }

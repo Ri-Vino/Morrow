@@ -9,4 +9,10 @@ interface AlarmSound {
     fun play(sound: WakeSound, ramp: Duration)
 
     fun stop()
+
+    /**
+     * Fades the sound to [level] of its volume, from 0, silent, to 1, as loud as it rings. It goes back to 1 when the
+     * sound stops. Used while the alarm's games are played.
+     */
+    fun setLevel(level: Float) {}
 }

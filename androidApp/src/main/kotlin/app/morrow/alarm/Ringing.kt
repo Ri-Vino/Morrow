@@ -21,4 +21,13 @@ object Ringing {
     internal fun set(alarm: Alarm?) {
         state.value = alarm
     }
+
+    private val level = MutableStateFlow(1f)
+
+    /** How loud the alarm plays, as RingActivity sets it for the games: 1 as it rang, less while they're played, 0 muted. */
+    val gameLevel: StateFlow<Float> = level.asStateFlow()
+
+    fun setGameLevel(value: Float) {
+        level.value = value
+    }
 }

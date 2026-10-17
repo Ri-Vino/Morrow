@@ -31,6 +31,8 @@ class AlarmTone(private val context: Context) : AlarmSound {
     private var rampVolume = 1f
     private var duckVolume = 1f
     private var duckTarget = 1f
+    private var levelVolume = 1f
+    private var levelTarget = 1f
 
     private val rampStep = object : Runnable {
         override fun run() {
@@ -51,7 +53,23 @@ class AlarmTone(private val context: Context) : AlarmSound {
         }
     }
 
+    private val levelStep = object : Runnable {
+        override fun run() {
+            val step = LEVEL_STEP_MILLIS.toFloat() / LEVEL_FADE_MILLIS
+            levelVolume = if (levelTarget < levelVolume) maxOf(levelTarget, levelVolume - step) else minOf(levelTarget, levelVolume + step)
+            applyVolume()
+            if (levelVolume != levelTarget) handler.postDelayed(this, LEVEL_STEP_MILLIS)
+        }
+    }
+
     override fun play(sound: WakeSound, ramp: Duration) = start(sound.resource, ramp)
+
+    /** Call on the main thread. The last-resort tone can't be turned down. */
+    override fun setLevel(level: Float) {
+        levelTarget = level.coerceIn(0f, 1f)
+        handler.removeCallbacks(levelStep)
+        if (levelVolume != levelTarget) handler.post(levelStep)
+    }
 
     /** The timers' Bell, at full volume straight away: a timer that has ended has no time to ramp up. */
     fun playBell() = start(R.raw.bell, Duration.ZERO)
@@ -67,7 +85,7 @@ class AlarmTone(private val context: Context) : AlarmSound {
     }
 
     private fun applyVolume() {
-        val volume = rampVolume * duckVolume
+        val volume = rampVolume * duckVolume * levelVolume
         player?.setVolume(volume, volume)
     }
 
@@ -83,7 +101,7 @@ class AlarmTone(private val context: Context) : AlarmSound {
                     setDataSource(context, uri)
                     isLooping = true
                     prepare()
-                    setVolume(startVolume * duckVolume, startVolume * duckVolume)
+                    setVolume(startVolume * duckVolume * levelVolume, startVolume * duckVolume * levelVolume)
                     start()
                 }
             }
@@ -105,6 +123,7 @@ class AlarmTone(private val context: Context) : AlarmSound {
         try {
             handler.removeCallbacks(rampStep)
             handler.removeCallbacks(duckStep)
+            handler.removeCallbacks(levelStep)
             player?.let { runCatching { it.stop() }; it.release() }
             tone?.release()
         } finally {
@@ -112,6 +131,8 @@ class AlarmTone(private val context: Context) : AlarmSound {
             tone = null
             duckVolume = 1f
             duckTarget = 1f
+            levelVolume = 1f
+            levelTarget = 1f
         }
     }
 
@@ -131,6 +152,8 @@ class AlarmTone(private val context: Context) : AlarmSound {
         private const val DUCKED_VOLUME = 0.2f
         private const val DUCK_FADE_MILLIS = 300L
         private const val DUCK_STEP_MILLIS = 20L
+        private const val LEVEL_FADE_MILLIS = 600L
+        private const val LEVEL_STEP_MILLIS = 20L
 
         val AlarmAudio: AudioAttributes = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_ALARM)

@@ -99,6 +99,7 @@ class RingActivity : ComponentActivity() {
                         ringing.games,
                         ringing.difficulty,
                         missions,
+                        volume = Ringing::setGameLevel,
                         onDone = {
                             wokeAt = Clock.System.now().toEpochMilliseconds()
                             stage = Stage.MORNING

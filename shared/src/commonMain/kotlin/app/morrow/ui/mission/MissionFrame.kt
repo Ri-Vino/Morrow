@@ -6,11 +6,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.semantics.contentDescription
-import app.morrow.ui.components.Icons
-import app.morrow.ui.components.MorrowIcon
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,8 +19,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
@@ -43,6 +40,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
@@ -52,11 +50,17 @@ import androidx.compose.ui.unit.dp
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.mix
+import app.morrow.ui.components.Icons
+import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.components.PipLook
 import app.morrow.ui.components.PipMood
 import app.morrow.ui.components.drawPip
+import app.morrow.ui.components.pressable
 import app.morrow.ui.components.svgPath
 import app.morrow.ui.components.withAlpha
+
+/** The mute button over the games: whether the alarm is [muted], for how many [secondsLeft], and what tapping it does. */
+internal class MuteButton(val muted: Boolean, val secondsLeft: Int, val onToggle: () -> Unit)
 
 /**
  * Every mission's screen: a strip of sky where Pip rises with [progress], the mission's header with a chip for each
@@ -67,6 +71,7 @@ internal fun MissionFrame(
     model: MissionModel,
     progress: Float,
     chips: List<StepChip> = emptyList(),
+    mute: MuteButton? = null,
     body: @Composable ColumnScope.() -> Unit,
 ) {
     val colors = MorrowTheme.colors
@@ -84,14 +89,17 @@ internal fun MissionFrame(
                     BasicText(model.title, style = type.title.copy(color = Illustration.glint), modifier = Modifier.semantics { heading() })
                     if (chips.isNotEmpty()) StepChips(chips)
                 }
-                BasicText(
-                    model.count,
-                    style = type.bodyStrong.copy(color = Illustration.onBadge),
-                    modifier = Modifier
-                        .background(Illustration.ground.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
-                        .padding(horizontal = 12.dp, vertical = 4.dp)
-                        .semantics { liveRegion = LiveRegionMode.Polite },
-                )
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    BasicText(
+                        model.count,
+                        style = type.bodyStrong.copy(color = Illustration.onBadge),
+                        modifier = Modifier
+                            .background(Illustration.ground.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                    if (mute != null) MuteToggle(mute)
+                }
             }
         }
         Column(
@@ -113,6 +121,28 @@ internal fun MissionFrame(
                 content = body,
             )
         }
+    }
+}
+
+/** Mutes the alarm for a while, showing the seconds left; tapped again, it sounds again. */
+@Composable
+private fun MuteToggle(mute: MuteButton) {
+    val type = MorrowTheme.type
+    Row(
+        modifier = Modifier
+            .heightIn(min = 44.dp)
+            .pressable(mute.onToggle, onClickLabel = if (mute.muted) "Let the alarm sound" else "Mute the alarm for a minute")
+            .background(Illustration.ground.copy(alpha = 0.5f), CircleShape)
+            .semantics(mergeDescendants = true) {
+                contentDescription = if (mute.muted) "Alarm muted, back in ${mute.secondsLeft} seconds" else "Alarm sounding quietly"
+            }
+            .padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        MorrowIcon(if (mute.muted) Icons.SpeakerOff else Icons.Speaker, Illustration.onBadge, size = 18.dp, strokeWidth = 2.2f)
+        val left = "${mute.secondsLeft / 60}:${(mute.secondsLeft % 60).toString().padStart(2, '0')}"
+        BasicText(if (mute.muted) left else "Mute", style = type.bodyStrong.copy(color = Illustration.onBadge, fontFeatureSettings = "tnum"))
     }
 }
 

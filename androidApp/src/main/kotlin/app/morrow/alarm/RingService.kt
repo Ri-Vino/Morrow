@@ -84,6 +84,12 @@ class RingService : Service() {
         }
     }
 
+    override fun onCreate() {
+        super.onCreate()
+        // The games turn the alarm down, or mute it for a while; the Bell for timers always rings out.
+        scope.launch { Ringing.gameLevel.collect { level -> if (mode == Mode.ALARM) sound.setLevel(level) } }
+    }
+
     override fun onBind(intent: Intent?) = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -115,6 +121,7 @@ class RingService : Service() {
         }
         if (mode != Mode.ALARM) {
             mode = Mode.ALARM
+            Ringing.setGameLevel(1f)
             holdWakeLock()
             startVibration()
             handler.postDelayed(alarmSafetyStop, RING_LIMIT.inWholeMilliseconds)
@@ -175,6 +182,7 @@ class RingService : Service() {
         quiet()
         mode = Mode.IDLE
         Ringing.set(null)
+        Ringing.setGameLevel(1f)
         // After the games comes the Morning screen, and RingActivity lets waiting timers go once it has gone. After the
         // safety stop nothing follows, so they ring now.
         if (!gamesDone) morrow.timers.releaseWaiting()

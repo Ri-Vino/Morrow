@@ -33,6 +33,10 @@ class IosAlarmSound : AlarmSound {
         }
     }
 
+    override fun setLevel(level: Float) {
+        player?.setVolume(level.coerceIn(0f, 1f), fadeDuration = LEVEL_FADE_SECONDS)
+    }
+
     override fun stop() {
         val playing = player ?: return
         playing.stop()
@@ -42,5 +46,6 @@ class IosAlarmSound : AlarmSound {
 
     private companion object {
         const val MIN_VOLUME = 0.05f
+        const val LEVEL_FADE_SECONDS = 0.6
     }
 }
