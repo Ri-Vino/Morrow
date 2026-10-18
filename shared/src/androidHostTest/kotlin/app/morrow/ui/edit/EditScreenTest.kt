@@ -1,31 +1,34 @@
 package app.morrow.ui.edit
 
-import androidx.compose.ui.test.assertIsDisplayed
-import app.morrow.domain.WakeSound
-import app.morrow.domain.RingSound
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
-import androidx.compose.ui.test.assertIsOff
-import androidx.compose.ui.test.assertIsOn
-import androidx.compose.ui.test.assertIsNotSelected
-import androidx.compose.ui.test.assertIsSelected
-import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertHasNoClickAction
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.unit.dp
 import app.morrow.domain.Alarm
 import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
+import app.morrow.domain.RingSound
+import app.morrow.domain.WakeSound
 import app.morrow.places.City
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
@@ -37,6 +40,7 @@ import kotlinx.datetime.toInstant
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -395,5 +399,16 @@ class EditScreenTest {
         compose.onNodeWithContentDescription("Back to alarms").performClick()
         compose.onNodeWithText("Discard changes").performScrollTo().performClick()
         assertEquals(1, leftEdit)
+    }
+
+    @Test
+    @Config(qualifiers = "w320dp-h640dp")
+    fun theSevenDaysFitOnANarrowPhone() {
+        show(alarm(hour = 7, minute = 0))
+
+        val root = compose.onRoot().getBoundsInRoot()
+        val sunday = compose.onNodeWithContentDescription("Sunday").performScrollTo().getBoundsInRoot()
+        assertTrue(sunday.right <= root.right, "Sunday ends at ${sunday.right}, past the screen's ${root.right}")
+        assertTrue(sunday.right - sunday.left >= 36.dp, "Sunday is only ${sunday.right - sunday.left} wide")
     }
 }

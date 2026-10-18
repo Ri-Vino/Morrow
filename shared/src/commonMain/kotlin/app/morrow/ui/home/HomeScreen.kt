@@ -107,8 +107,11 @@ fun HomeScreen(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: 
         // In the design the content starts 262 of the scene's 330 units down, over the hills.
         val density = LocalDensity.current
         var headerHeight by remember { mutableStateOf(0.dp) }
-        // Large text can make the header taller than the sky; then the content starts below it instead.
-        val contentTop = maxOf(maxWidth * (262f / 390f), headerHeight + 16.dp)
+        // Large text can make the header taller than the sky; then the content starts below it instead. On a screen
+        // wider than it is tall, such as a tablet on its side, the sky alone would push the alarms off the bottom, so
+        // they start no lower than [CONTENT_TOP_LIMIT] of the way down.
+        val overSky = minOf(maxWidth * (262f / 390f), maxHeight * CONTENT_TOP_LIMIT)
+        val contentTop = maxOf(overSky, headerHeight + 16.dp)
         Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             SkyScene(minuteOfDay, theme, weather = model.weather?.sky)
             Header(model, theme, minuteOfDay, actions, Modifier.onSizeChanged { headerHeight = with(density) { it.height.toDp() } })
@@ -423,6 +426,8 @@ private fun AlarmRowView(row: AlarmRow, actions: HomeActions) {
 }
 
 private const val SWIPE_TO_DELETE = 0.4f
+
+private const val CONTENT_TOP_LIMIT = 0.6f
 
 @Composable
 private fun EmptyAlarms(onNewAlarm: () -> Unit) {

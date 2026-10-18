@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -428,13 +429,17 @@ private fun Section(title: String, aside: String? = null, content: @Composable (
 @Composable
 private fun DayChips(days: Set<DayOfWeek>, onChange: (Set<DayOfWeek>) -> Unit) {
     val colors = MorrowTheme.colors
+    // Seven 44 dp days need 308 dp; on a narrower screen they share the width rather than spill, 39 dp each on a 320 dp
+    // phone, still well above the 28 dp smallest target.
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         DayOfWeek.entries.forEach { day ->
             val on = day in days
             val name = day.name.lowercase().replaceFirstChar(Char::uppercase)
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .weight(1f, fill = false)
+                    .widthIn(max = 44.dp)
+                    .aspectRatio(1f)
                     .semantics { contentDescription = name }
                     .toggleable(on, role = Role.Checkbox) { onChange(if (it) days + day else days - day) }
                     .background(if (on) colors.accent else colors.surface, CircleShape)

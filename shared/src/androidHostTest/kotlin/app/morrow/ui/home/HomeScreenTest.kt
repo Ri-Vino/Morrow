@@ -27,6 +27,7 @@ import kotlinx.datetime.toInstant
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -157,5 +158,14 @@ class HomeScreenTest {
 
         assertEquals(1, undoClosed)
         assertEquals(0, undone)
+    }
+
+    @Test
+    @Config(qualifiers = "w800dp-h360dp")
+    fun onAWideScreenTheAlarmsStartOnScreen() {
+        show(null, alarms = listOf(work))
+
+        val title = compose.onNodeWithText("Alarms").getBoundsInRoot()
+        assertTrue(title.top < 360.dp, "The alarms start at ${title.top}, below the screen")
     }
 }
