@@ -113,7 +113,8 @@ fun WorldRoute(
 /**
  * Add a city: search the bundled list, and online with weather on. Tapping + saves the city and goes [onBack] to World.
  * With [purpose] HOME, from Settings, the picked city is saved if it isn't already and becomes home.
- * [onPicked] hears about the city before going back.
+ * [onPicked] hears about the city before going back. With [firstRun], the last step of first run: no way back on
+ * screen, a Skip that calls [onSkip], and [onChosen] in place of [onBack] once a city has been picked.
  */
 @Composable
 fun AddCityRoute(
@@ -123,6 +124,9 @@ fun AddCityRoute(
     modifier: Modifier = Modifier,
     purpose: CityPickPurpose = CityPickPurpose.ADD,
     onPicked: (City) -> Unit = {},
+    firstRun: Boolean = false,
+    onSkip: () -> Unit = {},
+    onChosen: () -> Unit = onBack,
     ticks: Flow<Instant>? = null,
     phoneZone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
@@ -180,12 +184,13 @@ fun AddCityRoute(
                 cities.add(city)
                 if (purpose == CityPickPurpose.HOME) cities.makeHome(city.id)
                 onPicked(city)
-                onBack()
+                if (firstRun) onChosen() else onBack()
             }
         },
         onBack = onBack,
         modifier = modifier,
         purpose = purpose,
+        firstRun = if (firstRun) FirstRunHome(onSkip) else null,
     )
 }
 

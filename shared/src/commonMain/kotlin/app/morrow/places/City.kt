@@ -14,7 +14,7 @@ data class City(
     val population: Long,
 )
 
-/** A city on the World tab. Exactly one saved city is home, once there are any. */
+/** A city on the World tab. At most one saved city is home, and none is until one is seeded or picked. */
 data class SavedCity(val city: City, val isHome: Boolean) {
     val id: Long get() = city.id
 }

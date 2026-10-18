@@ -30,12 +30,12 @@ class CityRepository(
         dao.upsert(listOf(city.toEntity(isHome = true, position = 0)))
     }
 
-    /** Adds [city] at the end, unless it's already saved. With no home city yet, it becomes home. */
+    /** Adds [city] at the end, unless it's already saved. It never becomes home by itself; see [makeHome]. */
     suspend fun add(city: City) = writing.withLock {
         val rows = dao.getAll()
         if (rows.any { it.id == city.id }) return@withLock
         val position = (rows.maxOfOrNull { it.position } ?: -1) + 1
-        dao.upsert(listOf(city.toEntity(isHome = rows.none { it.isHome }, position = position)))
+        dao.upsert(listOf(city.toEntity(isHome = false, position = position)))
     }
 
     /** Removes a saved city. The home city stays: make another city home first. */
@@ -49,6 +49,13 @@ class CityRepository(
         val rows = dao.getAll()
         if (rows.none { it.id == id }) return@withLock
         dao.upsert(renumber(homeFirst(rows.map { it.copy(isHome = it.id == id) }), rows))
+    }
+
+    /** Leaves no city as home. The saved cities all stay, in their order. */
+    suspend fun clearHome() = writing.withLock {
+        val rows = dao.getAll()
+        if (rows.none { it.isHome }) return@withLock
+        dao.upsert(rows.filter { it.isHome }.map { it.copy(isHome = false) })
     }
 
     /** Moves a city [by] places, negative for up, stopping at either end. Home stays at the top and never moves. */

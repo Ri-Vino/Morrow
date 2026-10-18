@@ -49,18 +49,26 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.morrow.places.City
 import app.morrow.theme.MorrowTheme
 import app.morrow.ui.components.Icons
 import app.morrow.ui.components.MorrowIcon
+import app.morrow.ui.components.Pip
+import app.morrow.ui.components.PipLook
+import app.morrow.ui.components.PipMood
+import app.morrow.ui.components.SecondaryButton
 import app.morrow.ui.components.largeText
 import app.morrow.ui.components.pressable
 
+/** Picking home as the last step of first run, which has no way back on screen and a way to [onSkip] instead. */
+class FirstRunHome(val onSkip: () -> Unit)
+
 /**
- * Finding a city to add to the World tab, or to make home from Settings. [model] is null until the first results are in;
- * it can lag a little behind [query] while the user is typing.
+ * Finding a city to add to the World tab, or to make home from Settings or first run. [model] is null until the first
+ * results are in; it can lag a little behind [query] while the user is typing.
  */
 @Composable
 fun AddCityScreen(
@@ -71,36 +79,56 @@ fun AddCityScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     purpose: CityPickPurpose = CityPickPurpose.ADD,
+    firstRun: FirstRunHome? = null,
 ) {
     val colors = MorrowTheme.colors
     Column(modifier.fillMaxSize().background(colors.bg).statusBarsPadding().imePadding()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Box(
-                modifier = Modifier.size(44.dp).pressable(onBack).background(colors.surface, CircleShape),
-                contentAlignment = Alignment.Center,
+        if (firstRun != null) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 28.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                MorrowIcon(
-                    Icons.Back, colors.text, size = 22.dp, strokeWidth = 2.4f,
-                    contentDescription = if (purpose == CityPickPurpose.ADD) "Back to World" else "Back to Settings",
+                Pip(PipLook(PipMood.OPEN, rays = true), Modifier.size(80.dp))
+                BasicText(
+                    "Where’s home?",
+                    style = MorrowTheme.type.title.copy(color = colors.text, textAlign = TextAlign.Center),
+                    modifier = Modifier.semantics { heading() },
+                )
+                BasicText(
+                    "Pip shows the weather there on Home. You can change it any time in Settings.",
+                    style = MorrowTheme.type.body.copy(color = colors.muted, textAlign = TextAlign.Center),
                 )
             }
-            BasicText(
-                if (purpose == CityPickPurpose.ADD) "Add a city" else "Home city",
-                style = MorrowTheme.type.title.copy(color = colors.text),
-                modifier = Modifier.weight(1f).semantics { heading() },
-            )
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Box(
+                    modifier = Modifier.size(44.dp).pressable(onBack).background(colors.surface, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    MorrowIcon(
+                        Icons.Back, colors.text, size = 22.dp, strokeWidth = 2.4f,
+                        contentDescription = if (purpose == CityPickPurpose.ADD) "Back to World" else "Back to Settings",
+                    )
+                }
+                BasicText(
+                    if (purpose == CityPickPurpose.ADD) "Add a city" else "Home city",
+                    style = MorrowTheme.type.title.copy(color = colors.text),
+                    modifier = Modifier.weight(1f).semantics { heading() },
+                )
+            }
         }
         SearchField(query, onQueryChange, Modifier.padding(start = 24.dp, end = 24.dp, bottom = 16.dp))
         Column(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-                .padding(start = 24.dp, end = 24.dp, bottom = 48.dp),
+                .then(if (firstRun == null) Modifier.navigationBarsPadding() else Modifier)
+                .padding(start = 24.dp, end = 24.dp, bottom = if (firstRun == null) 48.dp else 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (model != null) {
@@ -130,6 +158,11 @@ fun AddCityScreen(
                     )
                 }
                 if (model.offline) OfflineNote()
+            }
+        }
+        if (firstRun != null) {
+            Box(Modifier.navigationBarsPadding().padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 24.dp)) {
+                SecondaryButton("Skip", firstRun.onSkip)
             }
         }
     }

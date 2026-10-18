@@ -21,6 +21,8 @@ data class WeatherSection(
     /** What the chosen mode means, and for "Where I am", which place it's using now. */
     val description: String,
     val homeCityName: String,
+    /** Whether there's a home city to clear. */
+    val hasHomeCity: Boolean,
     val units: Units,
     /** Whether Pip reads the weather out on the Morning screen. */
     val readAloud: Boolean,
@@ -47,6 +49,7 @@ fun weatherSection(
             WeatherPlaceMode.HOME -> "Always ${homeCity ?: "your home city"}, wherever you are."
         },
         homeCityName = homeCity ?: "None yet",
+        hasHomeCity = homeCity != null,
         units = units,
         readAloud = readAloud,
     )

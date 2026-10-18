@@ -131,6 +131,45 @@ class WeatherSettingsScreenTest {
     }
 
     @Test
+    fun clearingTheHomeCityTakesItAwayAndGoesBackToWhereIAm() {
+        runBlocking { settings.setWeatherSource(WeatherPlaceMode.HOME) }
+        show()
+        waitForText("Always London, wherever you are.")
+
+        compose.onNodeWithText("Clear home city").performScrollTo().performClick()
+
+        compose.waitUntil(timeoutMillis = 5_000) { runBlocking { cities.home() } == null }
+        compose.waitUntil(timeoutMillis = 5_000) { runBlocking { settings.weatherSource.first() } == WeatherPlaceMode.AUTO }
+        waitForText("None yet")
+        compose.onNodeWithText("Clear home city").assertDoesNotExist()
+        compose.onNodeWithText("Where I am").assertIsSelected()
+        compose.waitUntil(timeoutMillis = 5_000) { weatherChanges == 1 }
+        // London is still saved for the World tab.
+        assertEquals(listOf("London"), runBlocking { cities.cities.first() }.map { it.city.name })
+    }
+
+    @Test
+    fun clearingTheHomeCityLeavesWhereIAmAlone() {
+        show()
+        waitForText("Show the weather")
+
+        compose.onNodeWithText("Clear home city").performScrollTo().performClick()
+
+        compose.waitUntil(timeoutMillis = 5_000) { runBlocking { cities.home() } == null }
+        assertEquals(WeatherPlaceMode.AUTO, runBlocking { settings.weatherSource.first() })
+    }
+
+    @Test
+    fun withNoHomeCityThereIsNothingToClear() {
+        runBlocking { cities.ensureSeeded(); cities.clearHome() }
+        show()
+        waitForText("Show the weather")
+
+        compose.onNodeWithText("None yet").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Clear home city").assertDoesNotExist()
+    }
+
+    @Test
     fun unitsFollowTheCountryUntilPicked() {
         show(country = "US")
         waitForText("Show the weather")

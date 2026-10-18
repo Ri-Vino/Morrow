@@ -72,6 +72,8 @@ class SettingsActions(
     val onWeatherEnabled: (Boolean) -> Unit = {},
     val onWeatherMode: (WeatherPlaceMode) -> Unit = {},
     val onPickHomeCity: () -> Unit = {},
+    /** Takes the home city away, leaving it saved on the World tab. */
+    val onClearHomeCity: () -> Unit = {},
     val onUnits: (Units) -> Unit = {},
     val onReadAloud: (Boolean) -> Unit = {},
     /** Pip's voice was picked in the sheet: null for the phone's default. */
@@ -293,6 +295,19 @@ private fun ColumnScope.WeatherSettings(weather: WeatherSection, actions: Settin
             BasicText("Home city", style = MorrowTheme.type.bodyLarge.copy(color = colors.text), modifier = Modifier.weight(1f))
             BasicText(weather.homeCityName, style = MorrowTheme.type.bodyStrong.copy(color = colors.hi, textAlign = TextAlign.End))
             MorrowIcon(Icons.Forward, colors.muted, size = 20.dp, strokeWidth = 2.2f)
+        }
+        if (weather.hasHomeCity) {
+            Box(Modifier.fillMaxWidth().height(1.dp).background(colors.line))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
+                    .pressable(actions.onClearHomeCity)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BasicText("Clear home city", style = MorrowTheme.type.bodyLarge.copy(color = colors.muted))
+            }
         }
         Box(Modifier.fillMaxWidth().height(1.dp).background(colors.line))
         Row(

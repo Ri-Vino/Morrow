@@ -71,12 +71,36 @@ class CityRepositoryTest {
     }
 
     @Test
-    fun theFirstCityAddedWithoutAHomeBecomesHome() = runTest {
+    fun aCityAddedIsNeverHomeUntilMadeSo() = runTest {
         phoneZone = "UTC"
         repository.ensureSeeded()
         repository.add(tokyo)
         repository.add(newYork)
+        assertNull(repository.home())
+        repository.makeHome(tokyo.id)
         assertEquals(tokyo, repository.home()?.city)
+    }
+
+    @Test
+    fun aCityAddedAfterClearingHomeStaysNotHome() = runTest {
+        repository.ensureSeeded()
+        repository.clearHome()
+        repository.add(tokyo)
+        assertNull(repository.home())
+        assertEquals(listOf(london, tokyo), repository.cities.first().map { it.city })
+    }
+
+    @Test
+    fun clearHomeLeavesEveryCitySavedButNoneHome() = runTest {
+        repository.ensureSeeded()
+        repository.add(newYork)
+        repository.clearHome()
+        assertNull(repository.home())
+        assertEquals(listOf(london, newYork), repository.cities.first().map { it.city })
+        // Nothing to clear is fine, and a city can be made home again.
+        repository.clearHome()
+        repository.makeHome(newYork.id)
+        assertEquals(newYork, repository.home()?.city)
     }
 
     @Test

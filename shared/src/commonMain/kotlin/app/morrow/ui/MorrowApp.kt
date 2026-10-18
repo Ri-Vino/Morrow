@@ -70,6 +70,7 @@ import app.morrow.ui.edit.phoneCityName
 import app.morrow.ui.edit.searchChoices
 import app.morrow.ui.edit.withGame
 import app.morrow.ui.edit.zoneChoices
+import app.morrow.ui.firstrun.HomeTownRoute
 import app.morrow.ui.firstrun.SetupScreen
 import app.morrow.ui.firstrun.WelcomeScreen
 import app.morrow.ui.home.HomeActions
@@ -287,20 +288,31 @@ private fun LocationGrantedRefresh(services: MorrowServices) {
     }
 }
 
+/** First run's steps in order. */
+private enum class FirstRunStep { WELCOME, SETUP, HOME }
+
+private val FirstRunStepSaver = Saver<FirstRunStep, String>(save = { it.name }, restore = { FirstRunStep.valueOf(it) })
+
 @Composable
 private fun FirstRun(services: MorrowServices, theme: ThemeKind, onSystemBarsChange: (Boolean) -> Unit) {
     val scope = rememberCoroutineScope()
     val missing by services.permissions.missing.collectAsStateWithLifecycle()
-    var setup by rememberSaveable { mutableStateOf(false) }
+    var step by rememberSaveable(stateSaver = FirstRunStepSaver) { mutableStateOf(FirstRunStep.WELCOME) }
     ThemeSystemBars(theme, onSystemBarsChange)
-    if (!setup) {
-        WelcomeScreen(onContinue = { setup = true })
-    } else {
-        SetupScreen(
+    when (step) {
+        FirstRunStep.WELCOME -> WelcomeScreen(onContinue = { step = FirstRunStep.SETUP })
+        FirstRunStep.SETUP -> SetupScreen(
             asked = services.permissions.asked,
             missing = missing,
             onAllow = services.permissions::request,
-            onContinue = {
+            onContinue = { step = FirstRunStep.HOME },
+        )
+        FirstRunStep.HOME -> HomeTownRoute(
+            services.citySearch, services.cities, services.settings,
+            onBack = { step = FirstRunStep.SETUP },
+            onPicked = services.weather::refreshCitySoon,
+            onWeatherChanged = { services.weather.refreshSoon(RefreshReason.SETTINGS) },
+            onFinished = {
                 scope.launch {
                     services.repository.seedFirstAlarm()
                     services.settings.markFirstRunDone()

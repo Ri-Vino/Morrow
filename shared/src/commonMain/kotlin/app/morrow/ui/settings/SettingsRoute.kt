@@ -93,6 +93,14 @@ fun SettingsRoute(
                 }
             },
             onPickHomeCity = onPickHomeCity,
+            onClearHomeCity = {
+                scope.launch {
+                    cities.clearHome()
+                    // "Home city" weather with no home city would only follow the phone's zone, so go back to where the phone is.
+                    if (mode == WeatherPlaceMode.HOME) settings.setWeatherSource(WeatherPlaceMode.AUTO)
+                    onWeatherChanged()
+                }
+            },
             onUnits = { scope.launch { settings.setUnits(it) } },
             onReadAloud = { scope.launch { settings.setReadWeatherAloud(it) } },
             onPickVoice = { id ->
