@@ -219,6 +219,11 @@ private fun SettingsContent(
                     style = MorrowTheme.type.caption.copy(color = colors.muted, textAlign = TextAlign.Center),
                     modifier = Modifier.fillMaxWidth(),
                 )
+                BasicText(
+                    "Classical recordings from Musopen, in the public domain",
+                    style = MorrowTheme.type.caption.copy(color = colors.muted, textAlign = TextAlign.Center),
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
     }

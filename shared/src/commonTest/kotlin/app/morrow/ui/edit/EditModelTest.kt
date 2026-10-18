@@ -340,7 +340,7 @@ class EditModelTest {
     @Test
     fun soundsAreListedUnderTheirCategories() {
         val choices = app.morrow.ui.edit.editModel(alarm(7, 0), at("2026-10-05T22:00"), london).soundChoices
-        assertEquals(listOf(null, "Gentle", "Nature", "Upbeat", "Classic"), choices.map { it.group }.distinct())
+        assertEquals(listOf(null, "Gentle", "Nature", "Upbeat", "Classic", "Classical"), choices.map { it.group }.distinct())
         assertEquals(
             SoundChoice(RingSound.Bundled(WakeSound.OCEAN_WAVES), "Ocean waves", "Waves rolling in and out", false, "Nature"),
             choices.single { it.sound == RingSound.Bundled(WakeSound.OCEAN_WAVES) },

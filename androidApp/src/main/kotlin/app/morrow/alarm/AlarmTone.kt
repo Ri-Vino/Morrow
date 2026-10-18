@@ -185,4 +185,10 @@ private val WakeSound.resource: Int
         WakeSound.ALARM_BELL -> R.raw.alarm_bell
         WakeSound.DIGITAL_BEEPS -> R.raw.digital_beeps
         WakeSound.CUCKOO_CLOCK -> R.raw.cuckoo_clock
+        WakeSound.MORNING_MOOD -> R.raw.morning_mood
+        WakeSound.GYMNOPEDIE -> R.raw.gymnopedie
+        WakeSound.GOLDBERG_ARIA -> R.raw.goldberg_aria
+        WakeSound.THE_LARK -> R.raw.the_lark
+        WakeSound.FIGARO -> R.raw.figaro
+        WakeSound.ITALIAN_SYMPHONY -> R.raw.italian_symphony
     }

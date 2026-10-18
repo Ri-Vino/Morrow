@@ -21,10 +21,18 @@ class WakeSoundFilesTest {
     }
 
     @Test
-    fun everySoundIsMadeByTheGeneratorScript() {
-        val script = File(repo, "tools/make_sounds.py").readText()
-        val unmade = WakeSound.entries.map { it.name.lowercase() }.filterNot { "\"$it\"" in script }
+    fun everySoundIsMadeByAScript() {
+        val generated = File(repo, "tools/make_sounds.py").readText()
+        val recorded = File(repo, "tools/clip_recordings.py").readText()
+        val unmade = WakeSound.entries.map { it.name.lowercase() }.filterNot { "\"$it\"" in generated || "\"$it\"" in recorded }
         assertEquals(emptyList(), unmade)
+    }
+
+    @Test
+    fun everyRecordingIsCredited() {
+        val credits = File(repo, "shared/src/commonMain/composeResources/files/licenses/recordings.md").readText()
+        val uncredited = WakeSound.entries.filter { it.category == SoundCategory.CLASSICAL }.filterNot { "| ${it.displayName} |" in credits }
+        assertEquals(emptyList(), uncredited)
     }
 
     @Test

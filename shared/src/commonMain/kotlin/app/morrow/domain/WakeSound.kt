@@ -10,9 +10,13 @@ enum class SoundCategory(val displayName: String) {
     NATURE("Nature"),
     UPBEAT("Upbeat"),
     CLASSIC("Classic"),
+    CLASSICAL("Classical"),
 }
 
-/** The alarm's sound, in picker order. All are bundled with the app, made by tools/make_sounds.py. */
+/**
+ * The alarm's sound, in picker order. All are bundled with the app: most made by tools/make_sounds.py, the Classical
+ * ones cut from public domain recordings by tools/clip_recordings.py.
+ */
 enum class WakeSound(val displayName: String, val category: SoundCategory) {
     SOFT_PIANO("Soft piano", SoundCategory.GENTLE),
     WIND_CHIMES("Wind chimes", SoundCategory.GENTLE),
@@ -31,6 +35,12 @@ enum class WakeSound(val displayName: String, val category: SoundCategory) {
     ALARM_BELL("Alarm bell", SoundCategory.CLASSIC),
     DIGITAL_BEEPS("Digital beeps", SoundCategory.CLASSIC),
     CUCKOO_CLOCK("Cuckoo clock", SoundCategory.CLASSIC),
+    MORNING_MOOD("Morning Mood", SoundCategory.CLASSICAL),
+    GYMNOPEDIE("Gymnopédie No. 1", SoundCategory.CLASSICAL),
+    GOLDBERG_ARIA("Goldberg Aria", SoundCategory.CLASSICAL),
+    THE_LARK("The Lark", SoundCategory.CLASSICAL),
+    FIGARO("Figaro overture", SoundCategory.CLASSICAL),
+    ITALIAN_SYMPHONY("Italian Symphony", SoundCategory.CLASSICAL),
 }
 
 /** How long the alarm takes to rise from quiet to full volume. */

@@ -407,4 +407,10 @@ private val WakeSound.description: String
         WakeSound.ALARM_BELL -> "An old wind-up clock"
         WakeSound.DIGITAL_BEEPS -> "The classic four beeps"
         WakeSound.CUCKOO_CLOCK -> "A little wooden clock calling"
+        WakeSound.MORNING_MOOD -> "Grieg’s sunrise on flute and strings"
+        WakeSound.GYMNOPEDIE -> "Satie’s slow, dreamy piano"
+        WakeSound.GOLDBERG_ARIA -> "Bach’s gentle aria on piano"
+        WakeSound.THE_LARK -> "Haydn’s quick, sunny string quartet"
+        WakeSound.FIGARO -> "Mozart’s lively overture"
+        WakeSound.ITALIAN_SYMPHONY -> "Mendelssohn’s bright, bounding strings"
     }
