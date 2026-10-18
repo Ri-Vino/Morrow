@@ -29,6 +29,7 @@ import app.morrow.domain.Alarm
 import app.morrow.domain.GameStep
 import app.morrow.domain.MAX_DESCRIPTION_LENGTH
 import app.morrow.domain.MAX_NAME_LENGTH
+import app.morrow.domain.UNLIMITED_SNOOZES
 import app.morrow.domain.MissionType
 import app.morrow.domain.RingSound
 import app.morrow.domain.WakeSound
@@ -135,6 +136,32 @@ class EditScreenTest {
 
         compose.onNodeWithText("Gym").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Gym bag is by the door").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun aCustomSnoozeLengthAndNoLimitCanBePicked() {
+        show(alarm(hour = 7, minute = 0))
+
+        compose.onNodeWithContentDescription("Custom snooze length").performScrollTo().performClick()
+        compose.onNodeWithText("Snooze for").assertExists()
+        key("7")
+        compose.onNodeWithText("Set snooze").performClick()
+        compose.onNodeWithContentDescription("No limit").performScrollTo().performClick()
+
+        assertEquals(7 to UNLIMITED_SNOOZES, draft.snoozeMinutes to draft.snoozeLimit)
+        compose.onNodeWithText("7 min").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithContentDescription("Custom snooze length").assertIsSelected()
+        compose.onNodeWithContentDescription("No limit").assertIsSelected()
+        compose.onNodeWithText("Save alarm").performClick()
+        assertTrue(savedAlarm)
+    }
+
+    @Test
+    fun aQuickSnoozeLengthLeavesCustomUnselected() {
+        show(alarm(hour = 7, minute = 0).copy(snoozeMinutes = 10))
+
+        compose.onNodeWithContentDescription("Custom snooze length").performScrollTo().assertIsNotSelected()
+        compose.onNodeWithText("Custom").assertExists()
     }
 
     @Test

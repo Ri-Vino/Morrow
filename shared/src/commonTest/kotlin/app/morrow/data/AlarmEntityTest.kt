@@ -4,6 +4,7 @@ import app.morrow.domain.Alarm
 import app.morrow.domain.DefaultGames
 import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
+import app.morrow.domain.UNLIMITED_SNOOZES
 import kotlinx.datetime.DayOfWeek.MONDAY
 import kotlinx.datetime.DayOfWeek.SUNDAY
 import kotlin.test.Test
@@ -39,6 +40,17 @@ class AlarmEntityTest {
         val row = AlarmEntity(1, 7, 0, "Alarm", days = 0, games = "SUMS:3", enabled = true, description = "  ")
         assertNull(row.toAlarm().description)
         assertNull(AlarmEntity(1, 7, 0, "Alarm", days = 0, games = "SUMS:3", enabled = true).toAlarm().description)
+    }
+
+    @Test
+    fun anUnlimitedSnoozeAndACustomLengthRoundTrip() {
+        val alarm = Alarm(
+            id = 5, hour = 6, minute = 0, label = "Alarm", days = emptySet(), games = DefaultGames, enabled = true,
+            snoozeMinutes = 7, snoozeLimit = UNLIMITED_SNOOZES,
+        )
+        assertEquals(alarm, alarm.toEntity().toAlarm())
+        // A length past an hour is held to it.
+        assertEquals(60, AlarmEntity(1, 7, 0, "Alarm", days = 0, games = "SUMS:3", enabled = true, snoozeMinutes = 90).toAlarm().snoozeMinutes)
     }
 
     @Test

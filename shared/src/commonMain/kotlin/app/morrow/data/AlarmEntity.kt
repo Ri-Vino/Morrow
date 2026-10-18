@@ -8,6 +8,8 @@ import app.morrow.domain.DEFAULT_SNOOZE_LIMIT
 import app.morrow.domain.DEFAULT_SNOOZE_MINUTES
 import app.morrow.domain.DefaultGames
 import app.morrow.domain.Difficulty
+import app.morrow.domain.MAX_SNOOZE_MINUTES
+import app.morrow.domain.UNLIMITED_SNOOZES
 import app.morrow.domain.decodeGames
 import app.morrow.domain.decodeRingSound
 import app.morrow.domain.encode
@@ -69,7 +71,7 @@ internal fun AlarmEntity.toAlarm() = Alarm(
     // A sound this version doesn't know rings with the default.
     sound = decodeRingSound(sound),
     difficulty = Difficulty.entries.firstOrNull { it.name == difficulty },
-    snoozeMinutes = snoozeMinutes.coerceAtLeast(0),
-    snoozeLimit = snoozeLimit.coerceAtLeast(1),
+    snoozeMinutes = snoozeMinutes.coerceIn(0, MAX_SNOOZE_MINUTES),
+    snoozeLimit = snoozeLimit.coerceAtLeast(UNLIMITED_SNOOZES),
     description = description?.takeIf(String::isNotBlank),
 )

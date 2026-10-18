@@ -4,8 +4,10 @@ import app.morrow.domain.Alarm
 import app.morrow.domain.Difficulty
 import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
+import app.morrow.domain.MAX_SNOOZE_MINUTES
 import app.morrow.domain.OwnSound
 import app.morrow.domain.RingSound
+import app.morrow.domain.UNLIMITED_SNOOZES
 import app.morrow.domain.WakeSound
 import app.morrow.domain.clockZone
 import app.morrow.domain.nextOccurrence
@@ -195,11 +197,29 @@ fun editModel(
 /** The heading over the user's own sounds in the Alarm sound sheet. */
 const val OWN_SOUNDS = "Your sounds"
 
-fun snoozeText(minutes: Int, limit: Int): String = when {
-    minutes == 0 -> "No snoozing: only the games stop it."
-    limit == 1 -> "Once, for $minutes minutes."
-    else -> "Up to $limit times, $minutes minutes each."
+fun snoozeText(minutes: Int, limit: Int): String {
+    val length = if (minutes == 1) "1 minute" else "$minutes minutes"
+    return when {
+        minutes == 0 -> "No snoozing: only the games stop it."
+        limit == UNLIMITED_SNOOZES -> "As often as you like, $length each."
+        limit == 1 -> "Once, for $length."
+        else -> "Up to $limit times, $length each."
+    }
 }
+
+/**
+ * What's typed on the Custom snooze sheet after [digit] goes on the end of [typed]: a length of at most
+ * [MAX_SNOOZE_MINUTES], so a digit that would take it past that starts again.
+ */
+fun typeSnoozeMinutes(typed: String, digit: Int): String {
+    // A length never starts with a zero.
+    if (digit == 0 && typed.isEmpty()) return typed
+    val next = typed + digit
+    return if (next.length > 2 || next.toInt() > MAX_SNOOZE_MINUTES) digit.toString().takeIf { digit > 0 }.orEmpty() else next
+}
+
+/** The snooze length typed, or null until it's between 1 and [MAX_SNOOZE_MINUTES] minutes. */
+fun typedSnoozeMinutes(typed: String): Int? = typed.toIntOrNull()?.takeIf { it in 1..MAX_SNOOZE_MINUTES }
 
 /** What a difficulty means for a round. */
 val Difficulty.description: String

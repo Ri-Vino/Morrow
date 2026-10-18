@@ -82,10 +82,12 @@ import app.morrow.domain.DEFAULT_ALARM_NAME
 import app.morrow.domain.Difficulty
 import app.morrow.domain.MAX_DESCRIPTION_LENGTH
 import app.morrow.domain.MAX_NAME_LENGTH
+import app.morrow.domain.MAX_SNOOZE_MINUTES
 import app.morrow.domain.MissionType
 import app.morrow.domain.RingSound
 import app.morrow.domain.SnoozeChoices
 import app.morrow.domain.SnoozeLimitChoices
+import app.morrow.domain.UNLIMITED_SNOOZES
 import app.morrow.domain.WakeSound
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
@@ -142,6 +144,7 @@ fun EditScreen(
     var pickingZone by rememberSaveable { mutableStateOf(false) }
     var pickingSound by rememberSaveable { mutableStateOf(false) }
     var typingTime by rememberSaveable { mutableStateOf(false) }
+    var typingSnooze by rememberSaveable { mutableStateOf(false) }
     var confirmingDiscard by rememberSaveable { mutableStateOf(false) }
     val leave = { if (unsaved) confirmingDiscard = true else actions.onBack() }
     // Under the sheets' own back handlers, which close them first.
@@ -155,7 +158,10 @@ fun EditScreen(
             onPickZone = { pickingZone = true },
             onPickSound = { pickingSound = true },
             onTypeTime = { typingTime = true },
-            Modifier.semantics { if (addingGame || pickingZone || pickingSound || typingTime || confirmingDiscard) hideFromAccessibility() },
+            onTypeSnooze = { typingSnooze = true },
+            Modifier.semantics {
+                if (addingGame || pickingZone || pickingSound || typingTime || typingSnooze || confirmingDiscard) hideFromAccessibility()
+            },
         )
         if (confirmingDiscard) {
             DiscardSheet(
@@ -176,6 +182,16 @@ fun EditScreen(
                     actions.onChange(draft.at(minuteOfDay))
                 },
                 onClose = { typingTime = false },
+            )
+        }
+        if (typingSnooze) {
+            SnoozeSheet(
+                draft.snoozeMinutes,
+                onSet = { minutes ->
+                    typingSnooze = false
+                    actions.onChange(draft.copy(snoozeMinutes = minutes))
+                },
+                onClose = { typingSnooze = false },
             )
         }
         if (addingGame) {
@@ -242,6 +258,7 @@ private fun EditForm(
     onPickZone: () -> Unit,
     onPickSound: () -> Unit,
     onTypeTime: () -> Unit,
+    onTypeSnooze: () -> Unit,
     modifier: Modifier,
 ) {
     val colors = MorrowTheme.colors
@@ -299,14 +316,22 @@ private fun EditForm(
             }
             model.snooze?.let { snooze ->
                 Section("Snooze") {
-                    SegmentedControl(SnoozeChoices, snooze.minutes, ::snoozeChoiceName, { actions.onChange(draft.copy(snoozeMinutes = it)) })
+                    // Custom is selected whenever the length isn't one of the quick ones, and then names it.
+                    val custom = snooze.minutes !in SnoozeChoices
+                    SegmentedControl(
+                        SnoozeChoices + CUSTOM_SNOOZE,
+                        if (custom) CUSTOM_SNOOZE else snooze.minutes,
+                        { if (it == CUSTOM_SNOOZE) (if (custom) "${snooze.minutes} min" else "Custom") else snoozeChoiceName(it) },
+                        { if (it == CUSTOM_SNOOZE) onTypeSnooze() else actions.onChange(draft.copy(snoozeMinutes = it)) },
+                        description = { if (it == CUSTOM_SNOOZE) "Custom snooze length" else snoozeChoiceName(it) },
+                    )
                     if (snooze.minutes > 0) {
                         SegmentedControl(
                             SnoozeLimitChoices,
                             snooze.limit,
                             ::snoozeLimitName,
                             { actions.onChange(draft.copy(snoozeLimit = it)) },
-                            description = { if (it == 1) "Once" else "Up to $it times" },
+                            description = { snoozeLimitDescription(it) },
                         )
                     }
                     BasicText(snooze.text, style = MorrowTheme.type.body.copy(color = colors.muted))
@@ -437,9 +462,54 @@ private fun TimeSheet(hour: Int, minute: Int, onSet: (Int) -> Unit, onClose: () 
     }
 }
 
+/** A snooze length typed on the sheet's own keypad, from 1 to [MAX_SNOOZE_MINUTES] minutes. */
+@Composable
+private fun SnoozeSheet(current: Int, onSet: (Int) -> Unit, onClose: () -> Unit) {
+    val colors = MorrowTheme.colors
+    val type = MorrowTheme.type
+    // Starts empty: the first digit typed is the first of the new length.
+    var typed by rememberSaveable { mutableStateOf("") }
+    val minutes = typedSnoozeMinutes(typed)
+    Sheet("Snooze for", onClose) {
+        BasicText("Snooze for", style = type.title.copy(color = colors.text), modifier = Modifier.semantics { heading() })
+        EntryReadout(
+            parts = listOf(
+                ReadoutPart(typed.ifEmpty { "0" }, waiting = if (typed.isEmpty()) 1 else 0, name = "Minutes", unit = "min"),
+            ),
+        )
+        BasicText(
+            if (typed.isEmpty() && current > 0) "Now $current min. Type 1 to $MAX_SNOOZE_MINUTES minutes." else "Type 1 to $MAX_SNOOZE_MINUTES minutes.",
+            style = type.body.copy(color = colors.muted, textAlign = TextAlign.Center),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Keypad(onDigit = { typed = typeSnoozeMinutes(typed, it) }) {
+            Gap()
+            Digit("0") { typed = typeSnoozeMinutes(typed, 0) }
+            Key("Delete digit", { typed = typed.dropLast(1) }) { MorrowIcon(Icons.DeleteDigit, colors.muted, size = 28.dp) }
+        }
+        PillButton(
+            text = "Set snooze",
+            onClick = { minutes?.let(onSet) },
+            background = if (minutes != null) colors.accent else colors.surface2,
+            content = if (minutes != null) colors.onAccent else colors.muted,
+            modifier = Modifier.fillMaxWidth().semantics { if (minutes == null) disabled() },
+            height = 56.dp,
+        )
+    }
+}
+
 private fun snoozeChoiceName(minutes: Int) = if (minutes == 0) "Off" else "$minutes min"
 
-private fun snoozeLimitName(times: Int) = "$times×"
+private fun snoozeLimitName(times: Int) = if (times == UNLIMITED_SNOOZES) "∞" else "$times×"
+
+private fun snoozeLimitDescription(times: Int) = when (times) {
+    UNLIMITED_SNOOZES -> "No limit"
+    1 -> "Once"
+    else -> "Up to $times times"
+}
+
+/** Stands for the Custom chip among the snooze lengths, which are never negative. */
+private const val CUSTOM_SNOOZE = -1
 
 @Composable
 private fun Section(title: String, aside: String? = null, content: @Composable () -> Unit) {

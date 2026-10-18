@@ -382,6 +382,22 @@ class EditModelTest {
     }
 
     @Test
+    fun aSnoozeLengthIsTypedDigitByDigitUpToAnHour() {
+        fun typed(vararg digits: Int) = digits.fold("") { typed, digit -> typeSnoozeMinutes(typed, digit) }
+        assertEquals("7", typed(7))
+        assertEquals("45", typed(4, 5))
+        assertEquals("60", typed(6, 0))
+        // A zero can't start a length, and a digit that would pass an hour starts the length again.
+        assertEquals("", typed(0))
+        assertEquals("1", typed(6, 1))
+        assertEquals("9", typed(4, 5, 9))
+        assertEquals(null, typedSnoozeMinutes(""))
+        assertEquals(7, typedSnoozeMinutes("7"))
+        assertEquals(60, typedSnoozeMinutes("60"))
+        assertEquals(null, typedSnoozeMinutes("61"))
+    }
+
+    @Test
     fun snoozeSaysHowLongAndIsLeftOutWhereMorrowCantSnooze() {
         fun model(draft: Alarm, canSnooze: Boolean = true) =
             app.morrow.ui.edit.editModel(draft, at("2026-10-05T22:00"), london, canSnooze = canSnooze)
@@ -389,6 +405,8 @@ class EditModelTest {
         assertEquals(SnoozeRow(10, 5, "Up to 5 times, 10 minutes each."), model(alarm(7, 0).copy(snoozeMinutes = 10, snoozeLimit = 5)).snooze)
         assertEquals(SnoozeRow(15, 1, "Once, for 15 minutes."), model(alarm(7, 0).copy(snoozeMinutes = 15, snoozeLimit = 1)).snooze)
         assertEquals(SnoozeRow(0, 3, "No snoozing: only the games stop it."), model(alarm(7, 0).copy(snoozeMinutes = 0)).snooze)
+        assertEquals(SnoozeRow(7, 0, "As often as you like, 7 minutes each."), model(alarm(7, 0).copy(snoozeMinutes = 7, snoozeLimit = 0)).snooze)
+        assertEquals(SnoozeRow(1, 3, "Up to 3 times, 1 minute each."), model(alarm(7, 0).copy(snoozeMinutes = 1)).snooze)
         assertNull(model(alarm(7, 0), canSnooze = false).snooze)
     }
 

@@ -4,6 +4,7 @@ import kotlin.test.assertNull
 import app.morrow.domain.Alarm
 import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
+import app.morrow.domain.UNLIMITED_SNOOZES
 import app.morrow.domain.nextRing
 import app.morrow.theme.Illustration
 import app.morrow.ui.components.Icons
@@ -83,6 +84,16 @@ class RingModelTest {
         val often = alarm("Gym").copy(snoozeLimit = 10)
         assertEquals("Snooze 5 min · 4 left", snoozeLabel(often, snoozed = 6))
         assertNull(snoozeLabel(often, snoozed = 10))
+    }
+
+    @Test
+    fun anAlarmWithNoLimitCanStillSnoozeAfterManyAndKeepsNoCount() {
+        val always = alarm("Gym").copy(snoozeMinutes = 7, snoozeLimit = UNLIMITED_SNOOZES)
+        assertEquals("Snooze 7 min", snoozeLabel(always, snoozed = 0))
+        assertEquals("Snooze 7 min", snoozeLabel(always, snoozed = 1))
+        assertEquals("Snooze 7 min", snoozeLabel(always, snoozed = 25))
+        // Still off when its length is.
+        assertNull(snoozeLabel(always.copy(snoozeMinutes = 0), snoozed = 25))
     }
 
     @Test
