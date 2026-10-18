@@ -1,14 +1,16 @@
 """Makes Morrow's alarm sounds and the timers' Bell from scratch, so the app ships no recorded audio.
 
-Most alarm sounds are 16-second loops, the classic ones a second or two, and Bell a 4-second one; each wraps seamlessly.
+Most alarm sounds are 16-second loops, the classic bell and beeps a second or two, and Bell a 4-second one; each wraps seamlessly.
 Run from the repo root:
 
-    python tools/make_sounds.py
+    python tools/make_sounds.py                # every sound
+    python tools/make_sounds.py kalimba campfire  # just these
 
 Needs numpy, scipy and soundfile. Writes Ogg Vorbis files to androidApp/src/main/res/raw/, and CAF files to
 iosApp/iosApp/Sounds/ because iOS can't play Ogg and AlarmKit only takes CAF, WAV or AIFF under 30 seconds.
 """
 
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -356,6 +358,237 @@ def bell():
     return reverb(out, mix=0.3, size=1.1)
 
 
+def kalimba_note(freq, velocity):
+    """A kalimba tine: a clean, round fundamental with a short, bright "tink" from its bendy overtone, ringing a second or two."""
+    length = 3.0
+    n = int(length * RATE)
+    t = np.arange(n) / RATE
+    tone = np.sin(2 * np.pi * freq * t) * np.exp(-t / 1.1)
+    tone += 0.25 * np.sin(2 * np.pi * freq * 5.4 * t) * np.exp(-t / 0.09)
+    tone += 0.06 * np.sin(2 * np.pi * freq * 9.6 * t) * np.exp(-t / 0.03)
+    # The thumb's tiny knock, low and dull.
+    tone += 0.12 * np.sin(2 * np.pi * freq * 0.5 * t) * np.exp(-t / 0.02)
+    return velocity * np.minimum(1, t / 0.0015) * tone
+
+
+def kalimba(rng):
+    out = timeline()
+    midi = lambda m: 440 * 2 ** ((m - 69) / 12)
+    # A bright, turning figure in G major pentatonic over four bars, then the same with a lift at the end; a quick two
+    # notes then a held one, as thumbs play it.
+    bar = [67, 71, 74, 79, 78, 74, 71, 74]
+    lift = [69, 72, 76, 81, 79, 76, 72, 76]
+    figure = bar + lift + [67, 71, 74, 79, 83, 79, 74, 71] + [69, 72, 76, 81, 79, 74, 71, 67]
+    step = LOOP / 32
+    for i, note in enumerate(figure):
+        swing = 0.04 * step if i % 2 else 0.0
+        add(out, i * step + swing + rng.uniform(-0.01, 0.01), 0.3 * kalimba_note(midi(note), rng.uniform(0.6, 0.95)))
+        if i % 8 == 0:
+            add(out, i * step, 0.25 * kalimba_note(midi(note - 24), 0.8))
+    return reverb(out, mix=0.22, size=0.9)
+
+
+def choir_pad(rng):
+    """A soft choir on a slow chord change: each voice a handful of harmonics shaped to an open "ah", with a little
+    vibrato. Every frequency is a whole number of cycles per loop, so the pad joins up exactly."""
+    n = int(LOOP * RATE)
+    t = np.arange(n) / RATE
+    midi = lambda m: 440 * 2 ** ((m - 69) / 12)
+    formants = [(800, 90, 1.0), (1150, 110, 0.5), (2900, 200, 0.12)]
+    # Four chords of four seconds, each voice swelling in and out over its own stretch of the loop.
+    chords = [[50, 57, 62, 66, 69], [47, 54, 59, 62, 66], [43, 50, 55, 59, 62], [45, 52, 57, 61, 64]]
+    out = np.zeros(n)
+    for c, chord in enumerate(chords):
+        centre = (c * 4.0 + 2.0)
+        # A raised cosine four seconds each side of the chord's middle, so neighbours overlap and the sound never drops out.
+        phase = ((t - centre + LOOP / 2) % LOOP) - LOOP / 2
+        swell = np.where(np.abs(phase) < 4.0, 0.5 + 0.5 * np.cos(np.pi * phase / 4.0), 0.0)
+        for voice, note in enumerate(chord):
+            for detune in (-0.0016, 0.0, 0.0016):
+                base = midi(note) * (1 + detune)
+                base = round(base * LOOP) / LOOP
+                vib_cycles = int(round(LOOP * (4.6 + 0.3 * voice)))
+                # A whole number of cycles a loop, so the vibrato adds up to nothing and the pitch comes back to where it began.
+                vib = 0.0035 * np.sin(2 * np.pi * vib_cycles * t / LOOP + rng.uniform(0, 6.28))
+                ph = np.cumsum(base * (1 + vib)) * 2 * np.pi / RATE + rng.uniform(0, 2 * np.pi)
+                tone = np.zeros(n)
+                for k in range(1, 24):
+                    f = k * base
+                    if f > 5000:
+                        break
+                    gain = sum(g * np.exp(-0.5 * ((f - fc) / bw) ** 2) for fc, bw, g in formants) + 0.02
+                    tone += gain / k**0.6 * np.sin(k * ph)
+                out += swell * tone / 3 / (1 + 0.15 * voice)
+    # This pad has no tail to fold back, so the reverb runs over three loops end to end and keeps the middle one,
+    # which starts already ringing from the loop before.
+    return reverb(np.tile(out, 3), mix=0.4, size=1.5)[n : 2 * n]
+
+
+def pan_note(freq, velocity):
+    """A steel pan note: a ringing fundamental with its octave and twelfth, each doubled a hair apart so it shimmers."""
+    length = 1.8
+    n = int(length * RATE)
+    t = np.arange(n) / RATE
+    tone = np.zeros(n)
+    for ratio, level, decay, shimmer in [(1.0, 1.0, 0.75, 3.5), (2.0, 0.7, 0.55, 5.0), (3.0, 0.3, 0.3, 6.5), (4.02, 0.12, 0.12, 0.0)]:
+        f = freq * ratio
+        tone += level * 0.5 * (np.sin(2 * np.pi * f * t) + np.sin(2 * np.pi * (f + shimmer) * t)) * np.exp(-t / decay)
+    # The mallet's soft tap.
+    tone += 0.15 * np.sin(2 * np.pi * freq * 0.5 * t) * np.exp(-t / 0.015)
+    return velocity * np.minimum(1, t / 0.003) * tone
+
+
+def steel_pan(rng):
+    out = timeline()
+    midi = lambda m: 440 * 2 ** ((m - 69) / 12)
+    beat = 0.5  # 120 bpm, 32 beats a loop
+    # A lilting island tune over C, Am, F and G: eight-note phrases with the offbeat pushed.
+    melody = [
+        # (beat, midi)
+        (0, 76), (0.75, 79), (1.5, 76), (2, 74), (2.75, 72), (3.5, 74),
+        (4, 72), (4.75, 76), (5.5, 81), (6, 79), (6.75, 76), (7.5, 72),
+        (8, 77), (8.75, 81), (9.5, 77), (10, 74), (10.75, 72), (11.5, 74),
+        (12, 74), (12.75, 79), (13.5, 83), (14, 81), (14.5, 79), (15, 74),
+    ]
+    for bar in range(4):
+        for b, m in melody[bar * 6 : bar * 6 + 6]:
+            for rep in range(2):
+                start = (b + rep * 16) * beat
+                add(out, start + rng.uniform(-0.008, 0.008), 0.3 * pan_note(midi(m), rng.uniform(0.75, 1.0)))
+    # Rhythm chords: a stab on the offbeats and a low pan on each bar's first beat.
+    chords = [[60, 64, 67], [57, 60, 64], [60, 65, 69], [59, 62, 67]]
+    for bar in range(8):
+        chord = chords[bar // 2]
+        base = bar * 4
+        add(out, base * beat, 0.25 * pan_note(midi(chord[0] - 12), 0.9))
+        for b in (1.5, 3.0):
+            for note in chord:
+                add(out, (base + b) * beat, 0.1 * pan_note(midi(note), 0.7))
+    return reverb(out, mix=0.18, size=0.8)
+
+
+def rhodes_note(freq, velocity, length=3.0):
+    """An electric piano tine: a round fundamental that a bright bark fades out of, with a slow tremolo."""
+    n = int(length * RATE)
+    t = np.arange(n) / RATE
+    index = 1.8 * velocity * np.exp(-t / 0.25) + 0.12
+    tone = np.sin(2 * np.pi * freq * t + index * np.sin(2 * np.pi * freq * t))
+    tone += 0.12 * np.sin(2 * np.pi * freq * 14 * t) * np.exp(-t / 0.03)
+    return velocity * np.minimum(1, t / 0.004) * np.exp(-t / 1.6) * tone
+
+
+def lofi_keys(rng):
+    out = timeline()
+    midi = lambda m: 440 * 2 ** ((m - 69) / 12)
+    # Cmaj9, Am9, Dm9 and G13 as warm, rolled chords, a bass note under each, and a lazy swing.
+    chords = [[60, 64, 67, 71, 74], [57, 60, 64, 67, 71], [62, 65, 69, 72, 76], [55, 59, 65, 69, 76]]
+    basses = [36, 33, 38, 31]
+    for c, chord in enumerate(chords):
+        start = c * 4.0
+        for hit in (0.0, 1.5, 3.0):
+            vel = 0.8 if hit == 0.0 else 0.55
+            for i, note in enumerate(chord):
+                add(out, start + hit + i * 0.03 + rng.uniform(-0.01, 0.01), 0.12 * rhodes_note(midi(note), vel * rng.uniform(0.85, 1.0)))
+        add(out, start, 0.3 * rhodes_note(midi(basses[c]), 0.8, length=3.5))
+        add(out, start + 2.25, 0.2 * rhodes_note(midi(basses[c] + 7), 0.6))
+    # A dusty kick and brushed hat in a slow hip-hop pattern.
+    kick_n = int(0.25 * RATE)
+    kt = np.arange(kick_n) / RATE
+    kick = np.sin(2 * np.pi * (48 + 60 * np.exp(-kt / 0.03)) * kt) * np.exp(-kt / 0.09)
+    hat_n = int(0.05 * RATE)
+    ht = np.arange(hat_n) / RATE
+    hat = rng.standard_normal(hat_n) * np.exp(-ht / 0.012)
+    hat = hat - lowpass(hat, 5000)
+    for bar in range(8):
+        base = bar * 2.0
+        add(out, base, 0.35 * kick)
+        add(out, base + 1.25, 0.2 * kick)
+        for h in range(4):
+            add(out, base + h * 0.5 + (0.04 if h % 2 else 0.0), (0.05 if h % 2 == 0 else 0.03) * hat)
+    mixed = wrap(reverb(out, mix=0.2, size=0.9))
+    # Lo-fi: rolled-off highs and a quiet bed of vinyl crackle and hiss.
+    mixed = lowpass(lowpass(mixed, 4200), 6000)
+    crackle = np.zeros(len(mixed))
+    for _ in range(int(LOOP * 14)):
+        i = rng.integers(0, len(mixed) - 200)
+        crackle[i : i + 120] += rng.uniform(0.01, 0.05) * rng.standard_normal(120) * np.exp(-np.arange(120) / 18)
+    hiss = 0.004 * coloured_noise(rng, LOOP, 0.8)
+    return mixed + crackle * np.max(np.abs(mixed)) * 0.3 + hiss * np.max(np.abs(mixed))
+
+
+def campfire(rng):
+    """A fire settling and snapping, a deep glow of rumble beneath, and a few crickets chirping in the dark around it."""
+    n = int(LOOP * RATE)
+    t = np.arange(n) / RATE
+    # The glow: brown noise, breathing slowly (an exact number of times a loop), with a hint of hiss on top.
+    rumble = lowpass(coloured_noise(rng, LOOP, 2.0), 380)
+    breath = 0.75 + 0.25 * np.sin(2 * np.pi * 3 * t / LOOP + 1.0)
+    hiss = lowpass(coloured_noise(rng, LOOP, 0.5), 3500)
+    hiss = hiss - lowpass(hiss, 1200)
+    out = timeline()
+    out[:n] += 0.7 * rumble * breath + 0.1 * hiss * breath
+    # Crackles: tiny bursts of filtered noise, a few of them louder wood snaps with a short low thump.
+    for _ in range(int(LOOP * 22)):
+        length = int(rng.uniform(0.002, 0.012) * RATE)
+        burst = rng.standard_normal(length) * np.exp(-np.arange(length) / (length / 4))
+        burst = burst - lowpass(burst, 800)
+        add(out, rng.uniform(0, LOOP), rng.uniform(0.05, 0.4) * burst)
+    for _ in range(9):
+        length = int(0.05 * RATE)
+        k = np.arange(length) / RATE
+        snap = rng.standard_normal(length) * np.exp(-k / 0.006)
+        snap = snap - lowpass(snap, 600)
+        thump = np.sin(2 * np.pi * rng.uniform(90, 150) * k) * np.exp(-k / 0.02)
+        add(out, rng.uniform(0.2, LOOP - 0.3), 0.5 * snap + 0.3 * thump)
+    out = reverb(out, mix=0.12, size=0.7)
+    # Crickets: three of them, each chirping in threes at its own pace and pitch.
+    crickets = timeline()
+    for pitch, period, offset, level in [(4300, 1.9, 0.3, 0.05), (4700, 2.3, 1.1, 0.04), (3900, 2.9, 0.7, 0.035)]:
+        pulse_n = int(0.028 * RATE)
+        pt = np.arange(pulse_n) / RATE
+        pulse = np.sin(2 * np.pi * pitch * pt) * np.sin(np.pi * pt / 0.028) ** 2
+        s = offset
+        while s < LOOP:
+            for k in range(3):
+                add(crickets, s + k * 0.045, level * pulse)
+            s += period
+    return out + reverb(crickets, mix=0.2, size=0.6)
+
+
+def cuckoo_call(rng, low=False):
+    """One "cuc-koo": two soft, hollow notes falling a minor third."""
+    n = int(0.62 * RATE)
+    t = np.arange(n) / RATE
+    first = 780.0 if not low else 700.0
+    second = first * 0.79
+    freq = np.where(t < 0.25, first * (1 - 0.04 * np.clip(t / 0.25, 0, 1)), second * (1 - 0.05 * np.clip((t - 0.25) / 0.35, 0, 1)))
+    phase = 2 * np.pi * np.cumsum(freq) / RATE
+    tone = np.sin(phase) + 0.22 * np.sin(2 * phase) + 0.05 * np.sin(3 * phase)
+    note1 = np.clip(np.minimum(t / 0.025, (0.2 - t) / 0.04), 0, 1)
+    note2 = np.clip(np.minimum((t - 0.25) / 0.03, (0.6 - t) / 0.1), 0, 1)
+    return tone * (note1 + 0.9 * note2)
+
+
+def cuckoo_clock(rng):
+    """A little wooden cuckoo clock: a soft tick and tock all the way round, and the cuckoo calling three times, twice a loop."""
+    out = timeline()
+    tick_n = int(0.04 * RATE)
+    k = np.arange(tick_n) / RATE
+    for i in range(int(LOOP / 0.5)):
+        # Tick and tock a little apart in pitch, as a pendulum clock's are.
+        f = 1500 if i % 2 == 0 else 1150
+        tick = np.sin(2 * np.pi * f * k) * np.exp(-k / 0.006) + 0.5 * rng.standard_normal(tick_n) * np.exp(-k / 0.002)
+        add(out, i * 0.5, 0.12 * tick)
+    for start in (0.4, 8.4):
+        # The little door clicks open, the cuckoo calls, and the door closes.
+        click = rng.standard_normal(int(0.02 * RATE)) * np.exp(-np.arange(int(0.02 * RATE)) / (0.003 * RATE))
+        add(out, start - 0.12, 0.2 * click)
+        for call in range(3):
+            add(out, start + call * 1.15, 0.55 * cuckoo_call(rng))
+        add(out, start + 3 * 1.15, 0.15 * click)
+    return reverb(out, mix=0.25, size=0.8)
+
+
 def finish(name, signal, loop=LOOP, peak=0.89):
     looped = wrap(signal, loop)
     looped -= looped.mean()
@@ -370,16 +603,33 @@ def finish(name, signal, loop=LOOP, peak=0.89):
     print(f"{name}.caf: {loop:.0f} s, {(IOS_OUT / f'{name}.caf').stat().st_size // 1024} KB")
 
 
+SOUNDS = {
+    "birdsong": lambda: finish("birdsong", birdsong(np.random.default_rng(7))),
+    "wind_chimes": lambda: finish("wind_chimes", wind_chimes(np.random.default_rng(11))),
+    "soft_piano": lambda: finish("soft_piano", soft_piano(np.random.default_rng(3))),
+    "bell": lambda: finish("bell", bell(), BELL_LOOP),
+    "music_box": lambda: finish("music_box", music_box(np.random.default_rng(5))),
+    "singing_bowl": lambda: finish("singing_bowl", singing_bowl(np.random.default_rng(13))),
+    "ocean_waves": lambda: finish("ocean_waves", ocean_waves(np.random.default_rng(17))),
+    "gentle_rain": lambda: finish("gentle_rain", gentle_rain(np.random.default_rng(19))),
+    "marimba": lambda: finish("marimba", marimba(np.random.default_rng(23))),
+    "sunrise_arpeggio": lambda: finish("sunrise_arpeggio", sunrise_arpeggio(np.random.default_rng(29))),
+    "alarm_bell": lambda: finish("alarm_bell", alarm_bell(), 2.0),
+    "digital_beeps": lambda: finish("digital_beeps", digital_beeps(), 1.0, peak=0.45),
+    "kalimba": lambda: finish("kalimba", kalimba(np.random.default_rng(31))),
+    "morning_choir": lambda: finish("morning_choir", choir_pad(np.random.default_rng(37))),
+    "campfire": lambda: finish("campfire", campfire(np.random.default_rng(41))),
+    "steel_pan": lambda: finish("steel_pan", steel_pan(np.random.default_rng(43))),
+    "lofi_keys": lambda: finish("lofi_keys", lofi_keys(np.random.default_rng(47))),
+    "cuckoo_clock": lambda: finish("cuckoo_clock", cuckoo_clock(np.random.default_rng(53))),
+}
+
+
 if __name__ == "__main__":
-    finish("birdsong", birdsong(np.random.default_rng(7)))
-    finish("wind_chimes", wind_chimes(np.random.default_rng(11)))
-    finish("soft_piano", soft_piano(np.random.default_rng(3)))
-    finish("bell", bell(), BELL_LOOP)
-    finish("music_box", music_box(np.random.default_rng(5)))
-    finish("singing_bowl", singing_bowl(np.random.default_rng(13)))
-    finish("ocean_waves", ocean_waves(np.random.default_rng(17)))
-    finish("gentle_rain", gentle_rain(np.random.default_rng(19)))
-    finish("marimba", marimba(np.random.default_rng(23)))
-    finish("sunrise_arpeggio", sunrise_arpeggio(np.random.default_rng(29)))
-    finish("alarm_bell", alarm_bell(), 2.0)
-    finish("digital_beeps", digital_beeps(), 1.0, peak=0.45)
+    # With names, makes just those sounds; without, all of them.
+    wanted = sys.argv[1:] or list(SOUNDS)
+    unknown = [name for name in wanted if name not in SOUNDS]
+    if unknown:
+        sys.exit(f"Unknown sound {', '.join(unknown)}. Choose from: {', '.join(SOUNDS)}")
+    for name in wanted:
+        SOUNDS[name]()

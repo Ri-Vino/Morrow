@@ -172,11 +172,17 @@ private val WakeSound.resource: Int
         WakeSound.WIND_CHIMES -> R.raw.wind_chimes
         WakeSound.MUSIC_BOX -> R.raw.music_box
         WakeSound.SINGING_BOWL -> R.raw.singing_bowl
+        WakeSound.KALIMBA -> R.raw.kalimba
+        WakeSound.MORNING_CHOIR -> R.raw.morning_choir
         WakeSound.BIRDSONG -> R.raw.birdsong
         WakeSound.OCEAN_WAVES -> R.raw.ocean_waves
         WakeSound.GENTLE_RAIN -> R.raw.gentle_rain
+        WakeSound.CAMPFIRE -> R.raw.campfire
         WakeSound.MARIMBA -> R.raw.marimba
         WakeSound.SUNRISE_ARPEGGIO -> R.raw.sunrise_arpeggio
+        WakeSound.STEEL_PAN -> R.raw.steel_pan
+        WakeSound.LOFI_KEYS -> R.raw.lofi_keys
         WakeSound.ALARM_BELL -> R.raw.alarm_bell
         WakeSound.DIGITAL_BEEPS -> R.raw.digital_beeps
+        WakeSound.CUCKOO_CLOCK -> R.raw.cuckoo_clock
     }

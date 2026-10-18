@@ -18,13 +18,19 @@ enum class WakeSound(val displayName: String, val category: SoundCategory) {
     WIND_CHIMES("Wind chimes", SoundCategory.GENTLE),
     MUSIC_BOX("Music box", SoundCategory.GENTLE),
     SINGING_BOWL("Singing bowl", SoundCategory.GENTLE),
+    KALIMBA("Kalimba", SoundCategory.GENTLE),
+    MORNING_CHOIR("Morning choir", SoundCategory.GENTLE),
     BIRDSONG("Birdsong", SoundCategory.NATURE),
     OCEAN_WAVES("Ocean waves", SoundCategory.NATURE),
     GENTLE_RAIN("Gentle rain", SoundCategory.NATURE),
+    CAMPFIRE("Campfire", SoundCategory.NATURE),
     MARIMBA("Marimba", SoundCategory.UPBEAT),
     SUNRISE_ARPEGGIO("Sunrise synth", SoundCategory.UPBEAT),
+    STEEL_PAN("Steel pan", SoundCategory.UPBEAT),
+    LOFI_KEYS("Lo-fi keys", SoundCategory.UPBEAT),
     ALARM_BELL("Alarm bell", SoundCategory.CLASSIC),
     DIGITAL_BEEPS("Digital beeps", SoundCategory.CLASSIC),
+    CUCKOO_CLOCK("Cuckoo clock", SoundCategory.CLASSIC),
 }
 
 /** How long the alarm takes to rise from quiet to full volume. */
