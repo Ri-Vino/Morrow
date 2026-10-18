@@ -19,18 +19,23 @@ import kotlin.coroutines.coroutineContext
  * The scenes' loops are slow, so after the first [fullRateFor] seconds it advances about 30 times a second
  * rather than at the screen's full refresh rate, which on a 120 Hz phone is a quarter of the frames. Every scene on
  * screen advances on the same frames, those that start a new 30th of a second, so two scenes together still redraw
- * 30 times a second rather than each on frames of its own.
+ * 30 times a second rather than each on frames of its own. Inside [RestingScenes] it holds still while the app goes
+ * untouched, and goes on from there afterwards; one with a [fullRateFor] intro never rests.
  */
 @Composable
 internal fun rememberSceneSeconds(still: Float = 0f, fullRateFor: Float = 0f): State<Float> {
     val seconds = remember { mutableFloatStateOf(0f) }
+    // How far the scene had got when it last stopped, so it goes on from there rather than jumping back to the start.
+    val reached = remember { Reached() }
     val reduceMotion = MorrowTheme.reduceMotion
-    LaunchedEffect(reduceMotion) {
+    val awake = fullRateFor > 0f || LocalScenesAwake.current
+    LaunchedEffect(reduceMotion, awake) {
         if (reduceMotion || (coroutineContext[MotionDurationScale]?.scaleFactor ?: 1f) == 0f) {
             seconds.floatValue = still
             return@LaunchedEffect
         }
-        val start = withFrameNanos { it }
+        if (!awake) return@LaunchedEffect
+        val start = withFrameNanos { it } - (reached.seconds * NANOS_PER_SECOND).toLong()
         val fullRateUntil = start + (fullRateFor * NANOS_PER_SECOND).toLong()
         var shownSlot = Long.MIN_VALUE
         while (true) {
@@ -40,6 +45,7 @@ internal fun rememberSceneSeconds(still: Float = 0f, fullRateFor: Float = 0f): S
                 val due = fullRate || slot != shownSlot
                 if (due) {
                     seconds.floatValue = (frame - start) / NANOS_PER_SECOND
+                    reached.seconds = seconds.floatValue
                     shownSlot = slot
                 }
                 due && !fullRate
@@ -51,6 +57,8 @@ internal fun rememberSceneSeconds(still: Float = 0f, fullRateFor: Float = 0f): S
     }
     return seconds
 }
+
+private class Reached(var seconds: Float = 0f)
 
 private const val NANOS_PER_SECOND = 1_000_000_000f
 

@@ -65,6 +65,7 @@ import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeClock
 import app.morrow.theme.ThemeKind
 import app.morrow.timers.TimerCoordinator
+import app.morrow.ui.components.RestingScenes
 import app.morrow.ui.components.screenChange
 import app.morrow.ui.components.skySceneState
 import app.morrow.ui.edit.EditActions
@@ -162,7 +163,7 @@ fun MorrowApp(
     val theme by services.themeClock.theme.collectAsState()
     val firstRunDone by services.settings.firstRunDone.collectAsState(initial = null)
     MorrowTheme(theme) {
-        Box(Modifier.fillMaxSize().background(MorrowTheme.colors.bg)) {
+        RestingScenes(Modifier.fillMaxSize().background(MorrowTheme.colors.bg)) {
             when (firstRunDone) {
                 null -> Unit // Settings are still loading; avoid flashing the wrong screen.
                 false -> FirstRun(services, theme, onSystemBarsChange)
