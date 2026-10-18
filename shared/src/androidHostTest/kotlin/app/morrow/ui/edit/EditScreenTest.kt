@@ -61,21 +61,23 @@ class EditScreenTest {
     private var draft by mutableStateOf(alarm())
     private var savedAlarm = false
     private var deleted = false
+    private var leftEdit = 0
 
-    private fun show(alarm: Alarm) {
+    private fun show(alarm: Alarm, unsaved: Boolean = false) {
         draft = alarm
         compose.setContent {
             MorrowTheme(ThemeKind.MORNING) {
                 EditScreen(
                     draft = draft,
                     model = editModel(draft, now, london),
+                    unsaved = unsaved,
                     zones = ZoneSheetData(
                         choices = zoneChoices(draft, saved, now, london, phoneCity = "London"),
                         find = { query -> searchChoices(catalog.filter { it.name.startsWith(query, ignoreCase = true) }, now, london) },
                     ),
                     actions = EditActions(
                         onChange = { draft = it },
-                        onBack = {},
+                        onBack = { leftEdit++ },
                         onDelete = { deleted = true },
                         onPreview = {},
                         onSave = { savedAlarm = true },
@@ -368,4 +370,30 @@ class EditScreenTest {
         days: Set<DayOfWeek> = DayOfWeek.entries.take(5).toSet(),
         games: List<GameStep> = listOf(GameStep(MissionType.SUMS, 3)),
     ) = Alarm(id, hour, minute, label = "Alarm", days = days, games = games, enabled = true)
+
+    @Test
+    fun backWithNothingChangedLeavesAtOnce() {
+        show(alarm(hour = 7, minute = 0))
+
+        compose.onNodeWithContentDescription("Back to alarms").performClick()
+
+        assertEquals(1, leftEdit)
+    }
+
+    @Test
+    fun backWithChangesAsksFirst() {
+        show(alarm(hour = 7, minute = 0), unsaved = true)
+
+        compose.onNodeWithContentDescription("Back to alarms").performClick()
+
+        assertEquals(0, leftEdit)
+        compose.onNodeWithText("Discard changes?").assertIsDisplayed()
+        compose.onNodeWithText("Keep editing").performClick()
+        compose.onNodeWithText("Discard changes?").assertDoesNotExist()
+        assertEquals(0, leftEdit)
+
+        compose.onNodeWithContentDescription("Back to alarms").performClick()
+        compose.onNodeWithText("Discard changes").performScrollTo().performClick()
+        assertEquals(1, leftEdit)
+    }
 }

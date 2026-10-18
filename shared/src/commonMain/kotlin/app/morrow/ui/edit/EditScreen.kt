@@ -128,21 +128,38 @@ fun EditScreen(
     modifier: Modifier = Modifier,
     /** Why the last sound brought in from the phone couldn't be used, shown in the Alarm sound sheet. */
     soundProblem: String? = null,
+    /** The draft differs from the alarm as it was opened, so leaving asks before throwing the changes away. */
+    unsaved: Boolean = false,
 ) {
     var addingGame by rememberSaveable { mutableStateOf(false) }
     var pickingZone by rememberSaveable { mutableStateOf(false) }
     var pickingSound by rememberSaveable { mutableStateOf(false) }
     var typingTime by rememberSaveable { mutableStateOf(false) }
+    var confirmingDiscard by rememberSaveable { mutableStateOf(false) }
+    val leave = { if (unsaved) confirmingDiscard = true else actions.onBack() }
+    // Under the sheets' own back handlers, which close them first.
+    PlatformBackHandler(enabled = unsaved) { confirmingDiscard = true }
     Box(modifier.fillMaxSize()) {
         // Behind a sheet, the form is hidden from TalkBack as well as dimmed.
         EditForm(
             draft, model, actions,
+            onBack = leave,
             onAddGame = { addingGame = true },
             onPickZone = { pickingZone = true },
             onPickSound = { pickingSound = true },
             onTypeTime = { typingTime = true },
-            Modifier.semantics { if (addingGame || pickingZone || pickingSound || typingTime) hideFromAccessibility() },
+            Modifier.semantics { if (addingGame || pickingZone || pickingSound || typingTime || confirmingDiscard) hideFromAccessibility() },
         )
+        if (confirmingDiscard) {
+            DiscardSheet(
+                isNew = !model.canDelete,
+                onDiscard = {
+                    confirmingDiscard = false
+                    actions.onBack()
+                },
+                onKeep = { confirmingDiscard = false },
+            )
+        }
         if (typingTime) {
             TimeSheet(
                 draft.hour,
@@ -193,11 +210,27 @@ fun EditScreen(
     }
 }
 
+/** Asked on the way out with changes not saved: throw them away, or go back to the form. */
+@Composable
+private fun DiscardSheet(isNew: Boolean, onDiscard: () -> Unit, onKeep: () -> Unit) {
+    val colors = MorrowTheme.colors
+    Sheet(title = "Discard changes?", onClose = onKeep) {
+        BasicText("Discard changes?", style = MorrowTheme.type.title.copy(color = colors.text), modifier = Modifier.semantics { heading() })
+        BasicText(
+            if (isNew) "This new alarm won’t be saved." else "The alarm stays as it was before you opened it.",
+            style = MorrowTheme.type.body.copy(color = colors.muted),
+        )
+        PillButton("Discard changes", onDiscard, colors.warn, colors.onWarn, Modifier.fillMaxWidth(), height = 56.dp)
+        SecondaryButton("Keep editing", onKeep)
+    }
+}
+
 @Composable
 private fun EditForm(
     draft: Alarm,
     model: EditModel,
     actions: EditActions,
+    onBack: () -> Unit,
     onAddGame: () -> Unit,
     onPickZone: () -> Unit,
     onPickSound: () -> Unit,
@@ -210,7 +243,7 @@ private fun EditForm(
             modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(start = 24.dp, end = 24.dp, top = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Header(model, actions)
+            Header(model, onBack, actions.onDelete)
             SkyDial(
                 minuteOfDay = draft.hour * 60 + draft.minute,
                 onMinuteChange = { actions.onChange(draft.at(it)) },
@@ -267,17 +300,17 @@ private fun EditForm(
 }
 
 @Composable
-private fun Header(model: EditModel, actions: EditActions) {
+private fun Header(model: EditModel, onBack: () -> Unit, onDelete: () -> Unit) {
     val colors = MorrowTheme.colors
     Row(verticalAlignment = Alignment.CenterVertically) {
-        RoundIconButton(Icons.Back, "Back to alarms", actions.onBack)
+        RoundIconButton(Icons.Back, "Back to alarms", onBack)
         BasicText(
             model.title,
             style = MorrowTheme.type.title.copy(color = colors.text, textAlign = TextAlign.Center),
             modifier = Modifier.weight(1f).semantics { heading() },
         )
         if (model.canDelete) {
-            RoundIconButton(Icons.Trash, "Delete alarm", actions.onDelete, tint = colors.muted)
+            RoundIconButton(Icons.Trash, "Delete alarm", onDelete, tint = colors.muted)
         } else {
             Box(Modifier.size(44.dp))
         }

@@ -382,8 +382,14 @@ private fun EditRoute(
 ) {
     val scope = rememberCoroutineScope()
     var draft by rememberSaveable(stateSaver = AlarmSaver) { mutableStateOf(null) }
+    // The alarm as it was opened, to tell whether leaving would lose changes.
+    var opened by rememberSaveable(stateSaver = AlarmSaver) { mutableStateOf(null) }
     LaunchedEffect(target) {
-        if (draft == null) draft = target.toLongOrNull()?.let { services.repository.get(it) } ?: newAlarmFor(target)
+        if (draft == null) {
+            val start = target.toLongOrNull()?.let { services.repository.get(it) } ?: newAlarmFor(target)
+            opened = start
+            draft = start
+        }
     }
     ThemeSystemBars(theme, onSystemBarsChange)
     PlatformBackHandler(onBack = onDone)
@@ -418,6 +424,7 @@ private fun EditRoute(
         draft = current,
         model = editModel(current, now, phoneZone, alarmSetup.sound, missions.difficulty, services.canSnooze, ownSounds),
         soundProblem = soundProblem,
+        unsaved = opened != null && current != opened,
         zones = ZoneSheetData(
             choices = zoneChoices(current, savedCities.map { it.city }, now, phoneZone, phoneCityName(savedCities, phoneZone, zoneCity)),
             find = { query -> searchChoices(services.catalog.search(query, limit = 8), Clock.System.now(), phoneZone) },
