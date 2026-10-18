@@ -73,6 +73,12 @@ class RingModelTest {
     }
 
     @Test
+    fun theTimeIsTheClocksNowNotTheAlarmsAsAfterASnooze() {
+        val snoozedTwice = LocalDateTime.parse("2026-10-05T06:15").toInstant(london)
+        assertEquals("06:15", app.morrow.ui.ring.ringModel(alarm("Gym"), snoozedTwice, london).time)
+    }
+
+    @Test
     fun blankLabelShowsOnlyTheGames() {
         assertEquals("Sums", ringModel(alarm("  ")).label)
     }

@@ -27,15 +27,15 @@ data class RingModel(
 )
 
 /**
- * The ringing screen for [alarm] ringing at [ringsAt]. The big time is the phone's, in [phoneZone]; an alarm on another
- * city's clock names its own time there instead of its games.
+ * The ringing screen for [alarm] at [now]. The big time is the phone's clock, in [phoneZone], which after a snooze is
+ * later than the alarm was set for; an alarm on another city's clock names its own time there instead of its games.
  */
-fun ringModel(alarm: Alarm, ringsAt: Instant, phoneZone: TimeZone): RingModel {
+fun ringModel(alarm: Alarm, now: Instant, phoneZone: TimeZone): RingModel {
     val first = alarm.games.first().type
     val city = alarm.zoneName()
     val about = if (city == null) gamesText(alarm.games) else "${hhmm(alarm.hour, alarm.minute)} in $city"
     return RingModel(
-        time = cityClock(ringsAt, phoneZone),
+        time = cityClock(now, phoneZone),
         label = listOf(alarm.label.trim(), about).filter(String::isNotEmpty).joinToString(" · "),
         missionIcon = if (city == null) Icons.forMission(first) else Icons.Globe,
         startLabel = "I’m up — start ${first.displayName.lowercase()}",

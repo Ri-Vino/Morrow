@@ -699,7 +699,7 @@ private val AlarmSaver = Saver<Alarm?, List<Any>>(
 )
 
 /** The current time, then again at the start of every minute. Collect it only while the screen is visible. */
-internal fun minuteTicks(clock: Clock = Clock.System): Flow<Instant> = flow {
+fun minuteTicks(clock: Clock = Clock.System): Flow<Instant> = flow {
     while (true) {
         val now = clock.now()
         emit(now)

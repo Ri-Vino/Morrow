@@ -2,7 +2,6 @@ package app.morrow.alarm
 
 import app.morrow.R
 import app.morrow.domain.Alarm
-import app.morrow.domain.occurrenceNear
 import app.morrow.ui.ring.snoozeLabel
 import android.app.Notification
 import android.app.NotificationChannel
@@ -39,7 +38,7 @@ internal object RingNotifications {
         }
         return Notification.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_alarm)
-            .setContentTitle(ringingTime(alarm))
+            .setContentTitle(ringingTime())
             .setContentText(alarm.label)
             .apply { if (snooze != null) addAction(snooze) }
             .setCategory(Notification.CATEGORY_ALARM)
@@ -78,10 +77,12 @@ internal object RingNotifications {
         Intent(context, RingActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
 
-    /** The phone's time the alarm rang at, which for an alarm on another city's clock isn't the time it was set for. */
-    private fun ringingTime(alarm: Alarm): String {
-        val zone = TimeZone.currentSystemDefault()
-        val at = alarm.occurrenceNear(Clock.System.now(), zone).toLocalDateTime(zone)
+    /**
+     * The phone's time the alarm rang at, which after a snooze, or for an alarm on another city's clock, isn't the time
+     * it was set for.
+     */
+    private fun ringingTime(): String {
+        val at = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
         return "%02d:%02d".format(at.hour, at.minute)
     }
 

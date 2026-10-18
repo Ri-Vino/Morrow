@@ -14,13 +14,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.LifecycleStartEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import app.morrow.MainActivity
 import app.morrow.debug.WithTestFontScale
-import app.morrow.domain.occurrenceNear
 import app.morrow.missions.AndroidCodeScanner
 import app.morrow.missions.AndroidMotionSensor
 import app.morrow.morrow
+import app.morrow.ui.minuteTicks
 import app.morrow.ui.mission.MissionServices
 import app.morrow.ui.mission.SequenceRoute
 import app.morrow.ui.morning.MorningRoute
@@ -111,10 +112,9 @@ class RingActivity : ComponentActivity() {
                         },
                     )
                     else -> {
-                        val model = remember(ringing) {
-                            val zone = TimeZone.currentSystemDefault()
-                            ringModel(ringing, ringing.occurrenceNear(Clock.System.now(), zone), zone)
-                        }
+                        // The phone's clock, ticking on, which after a snooze is later than the alarm was set for.
+                        val now by remember { minuteTicks() }.collectAsStateWithLifecycle(initialValue = Clock.System.now())
+                        val model = remember(ringing, now) { ringModel(ringing, now, TimeZone.currentSystemDefault()) }
                         val snooze = remember(ringing) { snoozeLabel(ringing, Ringing.snoozed) }
                         RingScreen(
                             model,
