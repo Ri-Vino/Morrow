@@ -89,8 +89,15 @@ class RingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        // The games turn the alarm down, or mute it for a while; the Bell for timers always rings out.
-        scope.launch { Ringing.gameLevel.collect { level -> if (mode == Mode.ALARM) sound.setLevel(level) } }
+        // The games turn the alarm down, or mute it for a while, and the vibration down to a light tap; the Bell for
+        // timers always rings out.
+        scope.launch {
+            Ringing.gameLevel.collect { level ->
+                if (mode != Mode.ALARM) return@collect
+                sound.setLevel(level)
+                startVibration(gentle = level < 1f)
+            }
+        }
     }
 
     override fun onBind(intent: Intent?) = null
@@ -344,8 +351,14 @@ class RingService : Service() {
         }
     }
 
-    private fun startVibration() {
-        val pattern = VibrationEffect.createWaveform(longArrayOf(0, 600, 800), 1)
+    /** Buzzes on and off until [quiet]; [gentle]ly, a short, light tap every two seconds, under the games. */
+    private fun startVibration(gentle: Boolean = false) {
+        val pattern = if (gentle) {
+            // A phone that can't vary its strength still buzzes only briefly.
+            VibrationEffect.createWaveform(longArrayOf(0, 120, 1880), intArrayOf(0, GENTLE_AMPLITUDE, 0), 1)
+        } else {
+            VibrationEffect.createWaveform(longArrayOf(0, 600, 800), 1)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             vibrator.vibrate(pattern, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_ALARM))
         } else {
@@ -394,6 +407,9 @@ class RingService : Service() {
         private const val EXTRA_ALARM_ID = "alarm_id"
         private const val NO_ALARM = -1L
         val RING_LIMIT = 10.minutes
+
+        /** Of 255, how hard the vibration taps under the games. */
+        private const val GENTLE_AMPLITUDE = 60
 
         /** How long the overlay stays after asking for the ring screen. */
         private val OVERLAY_HOLD = 2.seconds
