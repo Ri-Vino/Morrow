@@ -104,6 +104,14 @@ object Illustration {
 
     /** Home's frost on a cold day, haze on a hot one, and the leaves a strong wind blows past. */
     val frost = Color(0xFFF4FAFF)
+    /** The cold blue the frost's corners are tinted, and the shadow that picks its lines out of a light sky. */
+    val frostTint = Color(0xFFCFE4F7)
+    val frostShade = Color(0xFF7FA3C4)
+    /** Icicles hanging off the cottage's roof. */
+    val icicle = Color(0xFFDDEEFC)
+    /** What hills are frosted toward by day, and by night. */
+    val frostHillDay = Color(0xFFE7F0F8)
+    val frostHillNight = Color(0xFF3A4766)
     val heatGlow = Color(0xFFFFB36B)
     val heatHaze = Color(0xFFFFE2B8)
     val leafWarm = Color(0xFFD98A3D)

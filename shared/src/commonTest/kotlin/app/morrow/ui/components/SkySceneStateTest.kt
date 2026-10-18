@@ -1,5 +1,6 @@
 package app.morrow.ui.components
 
+import androidx.compose.ui.graphics.luminance
 import app.morrow.theme.Holiday
 import app.morrow.theme.Illustration
 import app.morrow.theme.SkyCurve
@@ -217,12 +218,16 @@ class SkySceneStateTest {
     @Test
     fun theColdBringsFrostAndPipWrapsUp() {
         val cold = skySceneState(7 * 60 + 40f, ThemeKind.MORNING, feel = Feel(Warmth.COLD, windy = false))
-        assertTrue(cold.pip.outside.scarf)
+        assertTrue(cold.pip.outside.scarf && cold.pip.outside.breath)
         assertTrue(!cold.pip.outside.beanie)
         val freezing = skySceneState(7 * 60 + 40f, ThemeKind.MORNING, feel = Feel(Warmth.FREEZING, windy = false))
         assertTrue(freezing.pip.outside.scarf && freezing.pip.outside.beanie && freezing.pip.outside.breath)
         assertTrue(freezing.climate.frost > cold.climate.frost)
         assertTrue(freezing.pip.outside.shiverEvery < cold.pip.outside.shiverEvery)
+        // The hills frost over, lighter by day.
+        val mild = skySceneState(7 * 60 + 40f, ThemeKind.MORNING)
+        assertTrue(freezing.hillBack.luminance() > mild.hillBack.luminance())
+        assertTrue(freezing.hillMid.luminance() > mild.hillMid.luminance())
     }
 
     @Test

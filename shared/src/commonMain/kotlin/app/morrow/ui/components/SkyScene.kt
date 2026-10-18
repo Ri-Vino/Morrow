@@ -21,8 +21,10 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
@@ -49,8 +51,9 @@ private const val SCENE_HEIGHT = 330f
 /**
  * The Home header: the sky for [minuteOfDay], stars, Pip as the sun or the sleeping moon, the [weather] over them, then
  * hills and the cottage, and frost, heat haze or blowing leaves as it [feel]s outside. A [holiday] brings bats and a
- * pumpkin, or a tree, fairy lights and snow, with fireworks and confetti in place of the snow at New Year. Its bottom
- * edge is drawn in the theme's background colour so the screen continues below it. Tapping Pip pokes it, and it answers in the way of the time of
+ * pumpkin, or a tree, fairy lights and snow, with fireworks and confetti in place of the snow at New Year. In the cold,
+ * the hilltops and the cottage's roof frost over and icicles hang from its eaves. Its bottom edge is drawn in the
+ * theme's background colour so the screen continues below it. Tapping Pip pokes it, and it answers in the way of the time of
  * day ([pipPoke]). Decorative.
  */
 @Composable
@@ -124,10 +127,15 @@ fun SkyScene(
         Canvas(Modifier.matchParentSize().graphicsLayer {}) {
             val t = seconds.value
             scale(size.width / SCENE_WIDTH, Offset.Zero) {
+                val frost = target.climate.frost
                 drawPath(HillBack, hillBack)
+                val rime = if (target.lightSky) frost else 0.4f * frost
+                if (frost > 0f) drawRime(HillBackCrest, rime)
                 drawCottage(house, windowLit, target.doorLit, target.smokeAlpha, t)
+                if (frost > 0f) drawIcyRoof(frost)
                 if (holiday?.christmas == true) drawRoofLights(t)
                 drawPath(HillMid, hillMid)
+                if (frost > 0f) drawRime(HillMidCrest, 0.8f * rime)
                 if (holiday?.halloween == true) drawPumpkin(t)
                 if (holiday?.christmas == true) drawTree()
                 drawPath(HillFront, ground)
@@ -135,7 +143,7 @@ fun SkyScene(
                 else if (holiday == Holiday.CHRISTMAS && target.weather?.snow != true) drawHolidaySnow(t)
             }
         }
-        ClimateLayer(target.climate, Modifier.matchParentSize())
+        ClimateLayer(target.climate, Modifier.matchParentSize(), lightSky = target.lightSky)
     }
 }
 
@@ -185,6 +193,19 @@ private fun DrawScope.drawCottage(
     }
 }
 
+/** Frost along the roof's edges and on the chimney, and icicles off the eaves, longer the colder it is ([frost]). */
+private fun DrawScope.drawIcyRoof(frost: Float) {
+    drawPath(RoofEdge, Illustration.frost, alpha = 0.9f, style = RoofFrostStroke)
+    drawRoundRect(Illustration.frost, Offset(81f, 218f), Size(10f, 3.2f), CornerRadius(1.6f), alpha = 0.9f)
+    scale(1f, 0.45f + 0.55f * frost, Offset(0f, 240f)) { drawPath(Icicles, Illustration.icicle, alpha = 0.95f) }
+}
+
+/** Rime along a hill's [crest]: a soft band of frost with a bright edge, as strong as [frost]. */
+private fun DrawScope.drawRime(crest: Path, frost: Float) {
+    drawPath(crest, Illustration.frost, alpha = 0.3f * frost, style = RimeStroke)
+    drawPath(crest, Illustration.frost, alpha = 0.8f * frost, style = CrestStroke)
+}
+
 /** Fireworks to suit the sky: bright on a dark one, warm-deep against a golden afternoon, deep on a pale day. */
 private fun fireworkSky(theme: ThemeKind, lightSky: Boolean): FireworkSky = when {
     !lightSky -> FireworkSky.NIGHT
@@ -211,4 +232,16 @@ private val HillMid = svgPath("M0 272 C80 254 160 264 240 270 C300 275 350 262 3
 // Runs a little past the bottom edge so no sky shows through the anti-aliased last row of pixels.
 private val HillFront = svgPath("M0 304 C100 290 220 302 390 292 L390 334 L0 334 Z")
 private val Roof = svgPath("M44 240 L72 216 L100 240 Z")
+private val RoofEdge = svgPath("M44.5 239.5 L72 216 L99.5 239.5")
+// Hanging from the eaves, which run along y 240 either side of the cottage's walls.
+private val Icicles = svgPath(
+    "M45 240 h3 l-1.5 5 zM48.5 240 h3 l-1.5 8 zM54 240 h3 l-1.5 4 zM59 240 h3.2 l-1.6 7 zM65 240 h3 l-1.5 4.5 z" +
+        "M71 240 h3.4 l-1.7 9 zM77 240 h3 l-1.5 4 zM83 240 h3 l-1.5 6.5 zM88.5 240 h3.2 l-1.6 8.5 zM94.5 240 h3 l-1.5 4.5 z",
+)
+// The tops of the back and middle hills, where frost catches.
+private val HillBackCrest = svgPath("M0 252 C70 224 140 228 210 242 C270 254 330 230 390 238")
+private val HillMidCrest = svgPath("M0 272 C80 254 160 264 240 270 C300 275 350 262 390 266")
+private val CrestStroke = Stroke(width = 1.4f, cap = StrokeCap.Round)
+private val RimeStroke = Stroke(width = 6f, cap = StrokeCap.Round)
+private val RoofFrostStroke = Stroke(width = 2.6f, cap = StrokeCap.Round, join = StrokeJoin.Round)
 private val Smoke = svgPath("M86 216 c-6 -8 6 -14 0 -22 c-6 -8 6 -14 0 -22 c-6 -8 6 -14 0 -22")

@@ -83,13 +83,16 @@ fun skySceneState(
     val look = weather?.let { weatherLook(it, lightSky, sunUp) }?.copy(windy = feel.windy)
     // Stars glimmer through thin cloud but hardly at all through a full cover.
     val overcast = (look?.cloudAlpha ?: 0f) > 0.95f
+    val climate = climateLook(feel, snowing = weather == Sky.SNOW)
+    // Frost whitens the hills by day and silvers them by night.
+    val frostHill = if (lightSky) Illustration.frostHillDay else Illustration.frostHillNight
     return SkySceneState(
         sky = sky,
         starAlpha = (-elevation * 2.5f).coerceIn(0f, 1f) * if (overcast) 0.2f else 1f,
         pipY = 238f - min(1f, abs(elevation)) * 150f,
         pip = pipFor(theme, sunUp, brightSky = weather == null || weather == Sky.CLEAR || weather == Sky.PARTLY_CLOUDY, feel, holiday),
-        hillBack = mix(sky, tints.hillTint, 0.38f),
-        hillMid = mix(sky, tints.hillTint, 0.64f),
+        hillBack = mix(sky, tints.hillTint, 0.38f).let { if (climate.frost > 0f) mix(it, frostHill, 0.4f * climate.frost) else it },
+        hillMid = mix(sky, tints.hillTint, 0.64f).let { if (climate.frost > 0f) mix(it, frostHill, 0.3f * climate.frost) else it },
         house = mix(sky, tints.houseTint, 0.8f),
         windowLit = if (night || holiday?.halloween == true) 1f else 0.12f,
         doorLit = if (night) 0.35f else 0f,
@@ -99,7 +102,7 @@ fun skySceneState(
         inkMuted = if (deepen == 0f) muted else mix(muted, ink, deepen),
         backing = wash.copy(alpha = washAlpha),
         weather = look,
-        climate = climateLook(feel, snowing = weather == Sky.SNOW),
+        climate = climate,
         holiday = holiday,
     )
 }

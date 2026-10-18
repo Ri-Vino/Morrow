@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import app.morrow.theme.Illustration
 import app.morrow.weather.Feel
@@ -23,7 +24,7 @@ fun pipOutside(feel: Feel): PipOutside = PipOutside(
         Warmth.COLD -> 6f
         else -> 0f
     },
-    breath = feel.warmth == Warmth.FREEZING,
+    breath = feel.warmth == Warmth.FREEZING || feel.warmth == Warmth.COLD,
     sweat = feel.warmth == Warmth.HOT || feel.warmth == Warmth.SCORCHING,
     fan = feel.warmth == Warmth.SCORCHING,
     windswept = feel.windy,
@@ -83,15 +84,20 @@ internal fun DrawScope.drawFan(seconds: Float) {
     }
 }
 
-/** Puffs of breath drifting out from Pip's mouth and fading, one every 3 s. None while [seconds] holds still at 0. */
+/**
+ * A puff of breath from Pip's mouth every 3 s, swelling as it drifts off up and to the left and fading away, with a
+ * smaller wisp leading it. Held mid-puff when [seconds] holds still at 0.
+ */
 internal fun DrawScope.drawBreath(seconds: Float) {
-    val p = seconds / 3f % 1f
-    if (p <= 0f || p > 0.7f) return
-    val spread = p / 0.7f
-    val alpha = 0.55f * (1f - spread)
-    for (i in 0..2) {
-        val at = Offset(-8f - 16f * spread - 5f * i, 14f + 4f * spread - 3f * i)
-        drawCircle(Illustration.breath, 2.5f + 4f * spread - i, at, alpha = alpha)
+    val p = if (seconds == 0f) 0.3f else seconds / 3f % 1f
+    if (p > 0.8f) return
+    val spread = p / 0.8f
+    val alpha = 0.75f * (if (spread < 0.15f) spread / 0.15f else 1f) * (1f - spread)
+    translate(-34f - 22f * spread, 12f - 8f * spread) {
+        scale(0.8f + 1f * spread, Offset.Zero) { drawPath(OutsidePaths.BreathPuff, Illustration.breath, alpha = alpha) }
+        translate(-10f - 6f * spread, -5f) {
+            scale(0.4f + 0.5f * spread, Offset.Zero) { drawPath(OutsidePaths.BreathPuff, Illustration.breath, alpha = alpha * 0.7f) }
+        }
     }
 }
 
@@ -108,4 +114,5 @@ private object OutsidePaths {
     val ScarfBandStripe = svgPath("M-22 21 Q0 38 22 21")
     val ScarfTail = svgPath("M12 27 L22 27 L27 50 L16 52 Z")
     val SweatDrop = svgPath("M0 -6 Q5 1 0 5 Q-5 1 0 -6 Z")
+    val BreathPuff = svgPath("M-7 3 C-10 3 -10 -2 -6 -2 C-6 -6 -1 -7 1 -4 C2 -8 8 -7 7 -2 C10 -2 10 3 7 3 Z")
 }

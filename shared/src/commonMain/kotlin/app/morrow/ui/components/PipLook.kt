@@ -26,7 +26,7 @@ data class PipOutside(
     val beanie: Boolean = false,
     /** How often he shivers, in seconds; 0 for never. */
     val shiverEvery: Float = 0f,
-    /** Puffs of breath in the freezing air. */
+    /** Puffs of breath in the cold air. */
     val breath: Boolean = false,
     val sweat: Boolean = false,
     /** Fans himself with a little paper fan. */
