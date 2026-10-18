@@ -1,11 +1,16 @@
 package app.morrow.ui.home
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -113,6 +118,8 @@ fun HomeScreen(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: 
     val colors = MorrowTheme.colors
     var menuOpen by rememberSaveable { mutableStateOf(false) }
     var quickSheet by rememberSaveable { mutableStateOf<QuickKind?>(null) }
+    // The temporary alarm being asked about, as it's switched off.
+    var removing by rememberSaveable { mutableStateOf<Long?>(null) }
     BoxWithConstraints(modifier.fillMaxSize().background(colors.bg)) {
         // In the design the content starts 262 of the scene's 330 units down, over the hills.
         val density = LocalDensity.current
@@ -145,7 +152,14 @@ fun HomeScreen(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: 
                     EmptyAlarms(actions.onNewAlarm)
                 } else {
                     Column(Modifier.animateContentSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        model.rows.forEach { row -> key(row.id) { AlarmRowView(row, actions) } }
+                        model.rows.forEach { row ->
+                            key(row.id) {
+                                AlarmRowView(row, actions, onSwitch = { on ->
+                                    // A temporary alarm has no "off" to come back to, so switching it off asks first.
+                                    if (row.temporary && !on) removing = row.id else actions.onToggle(row.id, on)
+                                })
+                            }
+                        }
                     }
                 }
             }
@@ -163,7 +177,6 @@ fun HomeScreen(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: 
         Column(
             modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
             horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (model.rows.isNotEmpty()) {
                 SunButton(
@@ -176,7 +189,28 @@ fun HomeScreen(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: 
                     },
                 )
             }
-            model.undo?.let { UndoBar(it, actions.onUndo, actions.onDismissUndo) }
+            // The bar grows in and shrinks away, so the button above it glides up and back down rather than jumping.
+            // It keeps its last words while it leaves, as the model has none by then.
+            val undo = model.undo
+            var undoText by remember { mutableStateOf(undo) }
+            if (undo != null) undoText = undo
+            AnimatedVisibility(
+                visible = undo != null,
+                enter = fadeIn(tween(UNDO_MOVE_MILLIS)) + expandVertically(tween(UNDO_MOVE_MILLIS), expandFrom = Alignment.Bottom),
+                exit = fadeOut(tween(UNDO_MOVE_MILLIS)) + shrinkVertically(tween(UNDO_MOVE_MILLIS), shrinkTowards = Alignment.Bottom),
+            ) {
+                undoText?.let { Box(Modifier.padding(top = 12.dp)) { UndoBar(it, actions.onUndo, actions.onDismissUndo) } }
+            }
+        }
+        model.rows.firstOrNull { it.id == removing }?.let { row ->
+            RemoveTemporarySheet(
+                row.time,
+                onRemove = {
+                    removing = null
+                    actions.onDelete(row.id)
+                },
+                onKeep = { removing = null },
+            )
         }
         quickSheet?.let { kind ->
             QuickAlarmSheet(
@@ -219,6 +253,9 @@ private fun UndoBar(text: String, onUndo: () -> Unit, onDismiss: () -> Unit) {
         }
     }
 }
+
+/** How long the bar takes to come and go, and the new-alarm button to move out of its way. */
+private const val UNDO_MOVE_MILLIS = 260
 
 /** Long enough to notice and reach for Undo; the bar can also be closed. */
 private const val UNDO_SHOWN_MILLIS = 10_000L
@@ -362,7 +399,7 @@ private fun SleepCardView(card: SleepCard, theme: ThemeKind, onTrySunrise: () ->
 }
 
 @Composable
-private fun AlarmRowView(row: AlarmRow, actions: HomeActions) {
+private fun AlarmRowView(row: AlarmRow, actions: HomeActions, onSwitch: (Boolean) -> Unit) {
     val colors = MorrowTheme.colors
     val shape = RoundedCornerShape(24.dp)
     // Only the big time fades for an alarm that's off, and only as far as large text stays readable (3:1). The
@@ -441,12 +478,12 @@ private fun AlarmRowView(row: AlarmRow, actions: HomeActions) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                MorrowIcon(Icons.forMission(row.firstGame), colors.hi, size = 14.dp, strokeWidth = 2.2f)
+                row.firstGame?.let { MorrowIcon(Icons.forMission(it), colors.hi, size = 14.dp, strokeWidth = 2.2f) }
                 BasicText(row.games, style = MorrowTheme.type.label.copy(color = colors.hi, letterSpacing = MorrowTheme.type.caption.letterSpacing))
             }
             MorrowToggle(
                 row.enabled,
-                { actions.onToggle(row.id, it) },
+                onSwitch,
                 contentDescription = "${row.details} at ${row.time}" + (row.zoneText?.let { ", $it" } ?: ""),
             )
         }

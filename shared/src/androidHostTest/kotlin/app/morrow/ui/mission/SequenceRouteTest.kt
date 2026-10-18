@@ -10,6 +10,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
@@ -68,6 +69,15 @@ class SequenceRouteTest {
     private var done = false
 
     @Test
+    fun anAlarmWithNoGamesIsDoneAtOnce() {
+        compose.setContent {
+            SequenceRoute(emptyList(), null, MissionServices(settings(), motion, scanner), onDone = { done = true })
+        }
+        assertFinishes()
+        compose.onAllNodes(hasText("WAKE-UP MISSION")).assertCountEquals(0)
+    }
+
+    @Test
     fun sumsAreDoneOnlyWhenEverySumIsRight() {
         start(GameStep(MissionType.SUMS, 3))
 
@@ -113,7 +123,7 @@ class SequenceRouteTest {
         start(GameStep(MissionType.SCAN, 1), settings = settings)
 
         scanner.codes.trySend("someone-elses-kettle")
-        compose.waitUntil { compose.onAllNodes(hasText("Not your kettle code")).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil { compose.onAllNodes(hasText("Not your code")).fetchSemanticsNodes().isNotEmpty() }
         assertNotDone()
 
         scanner.codes.trySend("kettle-7")

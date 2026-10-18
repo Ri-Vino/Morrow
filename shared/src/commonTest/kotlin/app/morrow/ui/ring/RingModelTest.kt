@@ -37,6 +37,14 @@ class RingModelTest {
     }
 
     @Test
+    fun anAlarmWithNoGamesJustSaysImUp() {
+        val model = ringModel(alarm("Work days").copy(games = emptyList()))
+        assertEquals("Work days", model.label)
+        assertEquals("I’m up", model.startLabel)
+        assertEquals(Icons.Check, model.missionIcon)
+    }
+
+    @Test
     fun aDescriptionIsShownUnderTheLabel() {
         val model = ringModel(alarm("Gym", MissionType.SHAKE).copy(description = "  Gym bag is by the door "))
         assertEquals("Gym · Shake", model.label)

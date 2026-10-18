@@ -6,12 +6,14 @@ import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.unit.dp
@@ -43,6 +45,7 @@ class HomeScreenTest {
     private val now = LocalDateTime(2026, 10, 6, 7, 40).toInstant(london)
     private var worldOpened = 0
     private val deleted = mutableListOf<Long>()
+    private val toggled = mutableListOf<Pair<Long, Boolean>>()
     private var undone = 0
     private var undoClosed = 0
     private var newAlarms = 0
@@ -60,7 +63,7 @@ class HomeScreenTest {
                     theme = ThemeKind.MORNING,
                     minuteOfDay = 7 * 60 + 40f,
                     actions = HomeActions(
-                        onToggle = { _, _ -> },
+                        onToggle = { id, on -> toggled += id to on },
                         onOpenAlarm = {},
                         onNewAlarm = { newAlarms++ },
                         onTrySunrise = {},
@@ -144,6 +147,52 @@ class HomeScreenTest {
         actions.single { it.label == "Delete" }.action()
 
         assertEquals(listOf(7L), deleted)
+    }
+
+    @Test
+    fun switchingAnOrdinaryAlarmOffJustTurnsItOff() {
+        show(null, alarms = listOf(work))
+
+        compose.onNode(isToggleable()).performSemanticsAction(SemanticsActions.OnClick)
+
+        assertEquals(listOf(7L to false), toggled)
+        compose.onNodeWithText("Remove alarm?").assertDoesNotExist()
+    }
+
+    @Test
+    fun switchingATemporaryAlarmOffAsksBeforeRemovingIt() {
+        show(null, alarms = listOf(work.copy(label = "Nap", temporary = true)))
+
+        compose.onNode(isToggleable()).performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("Remove alarm?").assertIsDisplayed()
+        // Nothing has happened to it yet.
+        assertTrue(toggled.isEmpty() && deleted.isEmpty())
+
+        compose.onNodeWithText("Remove alarm").performClick()
+
+        assertEquals(listOf(7L), deleted)
+        assertTrue(toggled.isEmpty(), "A removed alarm isn't switched off first")
+    }
+
+    @Test
+    fun keepingATemporaryAlarmOnLeavesItAlone() {
+        show(null, alarms = listOf(work.copy(label = "Nap", temporary = true)))
+
+        compose.onNode(isToggleable()).performSemanticsAction(SemanticsActions.OnClick)
+        compose.onNodeWithText("Keep it on").performClick()
+
+        compose.onNodeWithText("Remove alarm?").assertDoesNotExist()
+        assertTrue(toggled.isEmpty() && deleted.isEmpty())
+    }
+
+    @Test
+    fun switchingATemporaryAlarmBackOnDoesntAsk() {
+        show(null, alarms = listOf(work.copy(label = "Nap", temporary = true, enabled = false)))
+
+        compose.onNode(isToggleable()).performSemanticsAction(SemanticsActions.OnClick)
+
+        assertEquals(listOf(7L to true), toggled)
+        compose.onNodeWithText("Remove alarm?").assertDoesNotExist()
     }
 
     @Test

@@ -22,7 +22,7 @@ val MissionType.gameTitle: String
         MissionType.UNSCRAMBLE -> "Unscramble"
         MissionType.BREATHE -> "Slow breaths"
         MissionType.SHAKE -> "Shake it off"
-        MissionType.SCAN -> "Kettle hunt"
+        MissionType.SCAN -> "Code hunt"
     }
 
 /** One line about the game, in the Add a game sheet. */
@@ -33,7 +33,7 @@ val MissionType.gameDescription: String
         MissionType.UNSCRAMBLE -> "Tap the words back into the right order."
         MissionType.BREATHE -> "Hold Pip for slow breaths. The gentlest way up."
         MissionType.SHAKE -> "Shake your phone to get the blood moving."
-        MissionType.SCAN -> "Walk to the kettle and scan its code. Tea’s on."
+        MissionType.SCAN -> "Walk to your QR code or barcode and scan it. Up you get."
     }
 
 /** What a step asks for, such as "3 sums" or "30 shakes". */
@@ -45,12 +45,13 @@ fun roundsText(step: GameStep): String {
         MissionType.TYPE, MissionType.UNSCRAMBLE -> counted("sentence")
         MissionType.BREATHE -> counted("slow breath")
         MissionType.SHAKE -> "${n * SHAKES_PER_ROUND} shakes"
-        MissionType.SCAN -> "Your kettle code"
+        MissionType.SCAN -> "Your code"
     }
 }
 
-/** The games' names in play order, such as "Sums, Breathe and Scan". */
+/** The games' names in play order, such as "Sums, Breathe and Scan", or "No games". */
 fun gamesText(games: List<GameStep>): String {
     val names = games.map { it.type.displayName }
+    if (names.isEmpty()) return "No games"
     return if (names.size < 2) names.joinToString("") else names.dropLast(1).joinToString(", ") + " and " + names.last()
 }

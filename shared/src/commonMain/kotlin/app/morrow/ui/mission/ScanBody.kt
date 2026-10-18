@@ -140,7 +140,7 @@ internal fun ScanWindow(scanner: CodeScanner, found: Boolean, wrong: Int, onCode
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 MorrowIcon(Icons.Close, Illustration.mistake, size = 16.dp, strokeWidth = 3f)
-                BasicText("Not your kettle code", style = MorrowTheme.type.bodyStrong.copy(color = Illustration.onBadge))
+                BasicText("Not your code", style = MorrowTheme.type.bodyStrong.copy(color = Illustration.onBadge))
             }
         }
     }

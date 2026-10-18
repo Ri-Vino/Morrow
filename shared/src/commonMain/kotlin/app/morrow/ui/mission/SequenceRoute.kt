@@ -70,6 +70,11 @@ fun SequenceRoute(
     // Starts again if the games change, as when the ringing alarm's own games replace the placeholder's.
     var steps by rememberSaveable(games, stateSaver = StepsSaver) { mutableStateOf(games) }
     var index by rememberSaveable(games) { mutableIntStateOf(0) }
+    // An alarm with no games is done as soon as it's asked to play them.
+    if (steps.isEmpty()) {
+        LaunchedEffect(Unit) { onDone() }
+        return
+    }
     val loaded = saved?.let { setup -> difficulty?.let { setup.copy(difficulty = it) } ?: setup } ?: return
     val current = steps[index]
     val step = Step(steps, index, mute, onFinished = { if (index == steps.lastIndex) onDone() else index++ })

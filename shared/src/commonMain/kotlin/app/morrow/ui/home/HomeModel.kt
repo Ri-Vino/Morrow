@@ -50,10 +50,18 @@ data class HomeModel(
     val holiday: Holiday? = null,
 )
 
-/** The line Home shows, with Undo, once [alarm] has been deleted. */
-fun deletedNote(alarm: Alarm): String =
-    if (alarm.temporary) "${alarm.label} at ${hhmm(alarm.hour, alarm.minute)} is done, so it’s gone"
-    else "${hhmm(alarm.hour, alarm.minute)} alarm deleted"
+/**
+ * The line Home shows, with Undo, once [alarm] has been deleted. A temporary alarm [done] ringing deleted itself; one
+ * that wasn't was removed by the user.
+ */
+fun deletedNote(alarm: Alarm, done: Boolean = false): String {
+    val time = hhmm(alarm.hour, alarm.minute)
+    return when {
+        alarm.temporary && done -> "${alarm.label} at $time is done, so it’s gone"
+        alarm.temporary -> "${alarm.label} at $time removed"
+        else -> "$time alarm deleted"
+    }
+}
 
 /** The weather where you are, as Home shows it. */
 data class HomeWeather(
@@ -74,15 +82,17 @@ data class AlarmRow(
     val id: Long,
     val time: String,
     val details: String,
-    /** For the row's icon. */
-    val firstGame: MissionType,
-    /** The first game, and how many more follow, such as "Sums +1". */
+    /** For the row's icon; null for an alarm with no games. */
+    val firstGame: MissionType?,
+    /** The first game, and how many more follow, such as "Sums +1", or "No games". */
     val games: String,
     val enabled: Boolean,
     /** Whether the sun is up at the alarm's time, for its little sun or moon icon. */
     val sunUp: Boolean,
     /** For an alarm on another city's clock, that city and when it rings here, like "New York time · 14:00 here". */
     val zoneText: String? = null,
+    /** A nap or "in X minutes" alarm, which deletes itself once done, and is removed rather than switched off. */
+    val temporary: Boolean = false,
 )
 
 fun homeModel(
@@ -117,11 +127,13 @@ fun homeModel(
                 id = alarm.id,
                 time = hhmm(alarm.hour, alarm.minute),
                 details = "${alarm.label} · ${if (alarm.temporary) "Temporary" else describeDays(alarm.days)}",
-                firstGame = alarm.games.first().type,
-                games = alarm.games.first().type.displayName + if (alarm.games.size > 1) " +${alarm.games.size - 1}" else "",
+                firstGame = alarm.games.firstOrNull()?.type,
+                games = alarm.games.firstOrNull()?.type?.displayName?.plus(if (alarm.games.size > 1) " +${alarm.games.size - 1}" else "")
+                    ?: "No games",
                 enabled = alarm.enabled,
                 sunUp = sunElevation((alarm.hour * 60 + alarm.minute).toFloat()) >= 0,
                 zoneText = alarm.zoneName()?.let { city -> "$city time · ${cityClock(alarm.nextRing(now, zone), zone)} here" },
+                temporary = alarm.temporary,
             )
         },
         weather = weather,

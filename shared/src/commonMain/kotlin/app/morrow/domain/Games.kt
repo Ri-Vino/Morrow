@@ -29,8 +29,16 @@ const val SHAKES_PER_ROUND = 10
 /** What a new alarm plays, and the fallback whenever an alarm's games can't be read. */
 val DefaultGames = listOf(GameStep(MissionType.SUMS, 3))
 
-/** Games as stored, for example "SUMS:3,BREATHE:2". */
-fun encodeGames(games: List<GameStep>): String = games.joinToString(",") { "${it.type.name}:${it.rounds}" }
+/** What an alarm with no games is stored as, so it can be told from games this version can't read. */
+private const val NO_GAMES = "NONE"
+
+/** Games as stored, for example "SUMS:3,BREATHE:2", or "NONE" for an alarm that has none. */
+fun encodeGames(games: List<GameStep>): String =
+    if (games.isEmpty()) NO_GAMES else games.joinToString(",") { "${it.type.name}:${it.rounds}" }
+
+/** An alarm's games as stored: [DefaultGames] when the text holds none this version can play, unless it says there are none. */
+fun readGames(text: String): List<GameStep> =
+    if (text == NO_GAMES) emptyList() else decodeGames(text).distinctBy { it.type }.ifEmpty { DefaultGames }
 
 /**
  * Reads [encodeGames]' text. Steps of a game this version doesn't know are left out, and rounds are kept within

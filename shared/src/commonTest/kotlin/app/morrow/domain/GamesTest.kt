@@ -38,8 +38,17 @@ class GamesTest {
     }
 
     @Test
-    fun anAlarmPlaysAtLeastOneGameAndEachOnlyOnce() {
-        assertFailsWith<IllegalArgumentException> { alarm(emptyList()) }
+    fun anAlarmWithNoGamesIsStoredAsSuchNotAsUnreadable() {
+        assertEquals("NONE", encodeGames(emptyList()))
+        assertEquals(emptyList(), readGames(encodeGames(emptyList())))
+        assertEquals(DefaultGames, readGames("JUGGLE:2"))
+        assertEquals(DefaultGames, readGames(""))
+        assertEquals(listOf(GameStep(MissionType.SUMS, 3)), readGames("SUMS:3,SUMS:2"))
+    }
+
+    @Test
+    fun anAlarmPlaysEachGameOnlyOnce() {
+        alarm(emptyList())
         assertFailsWith<IllegalArgumentException> { alarm(listOf(GameStep(MissionType.SUMS, 3), GameStep(MissionType.SUMS, 2))) }
         alarm(listOf(GameStep(MissionType.SUMS, 3), GameStep(MissionType.BREATHE, 2)))
     }

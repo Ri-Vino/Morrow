@@ -103,10 +103,8 @@ fun SettingsScreen(
         if (pickingSound) {
             SoundPickerSheet(
                 choices.sound,
-                onPick = { sound ->
-                    actions.onSound(sound)
-                    actions.onHearSound(sound)
-                },
+                onPick = actions.onSound,
+                onHear = actions.onHearSound,
                 onClose = {
                     pickingSound = false
                     actions.onStopSound()
@@ -395,9 +393,9 @@ private fun ColumnScope.VoiceSettings(voice: VoiceSection, onHearSample: () -> U
     Note("Reads timer notes and the morning weather. It uses your phone’s own voices, so nothing is sent anywhere.")
 }
 
-/** Every sound under its kind; picking one makes it the default and plays it, until the sheet closes. */
+/** Every sound under its kind; picking one makes it the default, and its speaker plays it until the sheet closes. */
 @Composable
-private fun SoundPickerSheet(selected: WakeSound, onPick: (WakeSound) -> Unit, onClose: () -> Unit) {
+private fun SoundPickerSheet(selected: WakeSound, onPick: (WakeSound) -> Unit, onHear: (WakeSound) -> Unit, onClose: () -> Unit) {
     val colors = MorrowTheme.colors
     BottomSheet(title = "Default alarm sound", onClose = onClose) {
         BasicText(
@@ -405,12 +403,17 @@ private fun SoundPickerSheet(selected: WakeSound, onPick: (WakeSound) -> Unit, o
             style = MorrowTheme.type.title.copy(color = colors.text),
             modifier = Modifier.semantics { heading() },
         )
-        Note("Tap one to hear it.")
+        Note("Tap the speaker to hear one.")
         WakeSound.entries.groupBy { it.category }.forEach { (category, sounds) ->
             GroupLabel(category.displayName)
             Card {
                 sounds.forEachIndexed { i, sound ->
-                    RadioRow(sound.displayName, selected = sound == selected, divider = i > 0) { onPick(sound) }
+                    RadioRow(
+                        sound.displayName,
+                        selected = sound == selected,
+                        divider = i > 0,
+                        onHear = { onHear(sound) },
+                    ) { onPick(sound) }
                 }
             }
         }
@@ -437,27 +440,45 @@ private fun VoicePickerSheet(voice: VoiceSection, onPick: (String?) -> Unit, onC
 }
 
 @Composable
-private fun RadioRow(label: String, selected: Boolean, divider: Boolean, detail: String? = null, onClick: () -> Unit) {
+private fun RadioRow(
+    label: String,
+    selected: Boolean,
+    divider: Boolean,
+    detail: String? = null,
+    /** A speaker at the end of the row that plays what the row is, without picking it. */
+    onHear: (() -> Unit)? = null,
+    onClick: () -> Unit,
+) {
     val colors = MorrowTheme.colors
     if (divider) Box(Modifier.fillMaxWidth().height(1.dp).background(colors.line))
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .selectable(selected, role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Box(
-            Modifier.size(24.dp).border(2.dp, if (selected) colors.hi else colors.muted, CircleShape),
-            contentAlignment = Alignment.Center,
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .heightIn(min = 56.dp)
+                .selectable(selected, role = Role.RadioButton, onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            if (selected) Box(Modifier.size(12.dp).background(colors.hi, CircleShape))
+            Box(
+                Modifier.size(24.dp).border(2.dp, if (selected) colors.hi else colors.muted, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (selected) Box(Modifier.size(12.dp).background(colors.hi, CircleShape))
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                BasicText(label, style = MorrowTheme.type.bodyLarge.copy(color = colors.text))
+                detail?.let { BasicText(it, style = MorrowTheme.type.body.copy(color = colors.muted)) }
+            }
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            BasicText(label, style = MorrowTheme.type.bodyLarge.copy(color = colors.text))
-            detail?.let { BasicText(it, style = MorrowTheme.type.body.copy(color = colors.muted)) }
+        if (onHear != null) {
+            Box(
+                modifier = Modifier.size(48.dp).pressable(onHear, onClickLabel = "Hear $label"),
+                contentAlignment = Alignment.Center,
+            ) {
+                MorrowIcon(Icons.Speaker, colors.hi, size = 22.dp, strokeWidth = 2.2f, contentDescription = "Hear $label")
+            }
         }
     }
 }

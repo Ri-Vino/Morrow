@@ -42,7 +42,7 @@ fun scanModel(state: ScanState, cameraAllowed: Boolean, overall: Float = state.p
     pipLine = when {
         state.found -> pipLine(overall)
         !cameraAllowed -> "I can’t see a thing without the camera!"
-        state.wrong > 0 -> "Hmm, that’s not our kettle."
+        state.wrong > 0 -> "Hmm, that’s not our code."
         else -> pipLine(overall)
     },
 )
@@ -73,10 +73,10 @@ fun breatheHint(state: BreatheState): String = when (state.note) {
 
 fun scanText(state: ScanState, cameraAllowed: Boolean): String = when {
     state.found -> "That’s the one. Tea’s on."
-    !cameraAllowed -> "Pip needs the camera to find your kettle code. The alarm keeps singing until a mission is done."
-    state.savedCode == null -> "Point the camera at the code on your kettle, and Pip will remember it for next time."
-    state.wrong > 0 -> "That’s a different code. Look for the sticker you saved on your kettle."
-    else -> "Walk to the kitchen and point the camera at the code on your kettle."
+    !cameraAllowed -> "Pip needs the camera to find your code. The alarm keeps singing until a mission is done."
+    state.savedCode == null -> "Point the camera at any QR code or barcode, and Pip will remember it for next time."
+    state.wrong > 0 -> "That’s a different code. Look for the one you saved."
+    else -> "Walk over to your code and point the camera at it."
 }
 
 private val NumberWords = listOf("No", "One", "Two", "Three", "Four", "Five")

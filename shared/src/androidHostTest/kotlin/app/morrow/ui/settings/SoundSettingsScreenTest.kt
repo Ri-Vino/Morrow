@@ -5,6 +5,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelectable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -91,8 +92,12 @@ class SoundSettingsScreenTest {
         compose.onNodeWithText("Ocean waves").performScrollTo().performClick()
 
         compose.waitUntil(timeoutMillis = 5_000) { runBlocking { settings.alarmSetup.first().sound } == WakeSound.OCEAN_WAVES }
-        assertEquals(listOf(WakeSound.OCEAN_WAVES), played)
         compose.onNode(hasText("Ocean waves") and isSelectable()).assertIsSelected()
+        // Picking a sound is silent; its speaker plays it.
+        assertEquals(emptyList(), played)
+        compose.onNodeWithContentDescription("Hear Birdsong").performScrollTo().performClick()
+        assertEquals(listOf(WakeSound.BIRDSONG), played)
+        assertEquals(WakeSound.OCEAN_WAVES, runBlocking { settings.alarmSetup.first().sound })
 
         compose.onNodeWithText("Done").performScrollTo().performClick()
         compose.onNodeWithText("NATURE").assertDoesNotExist()

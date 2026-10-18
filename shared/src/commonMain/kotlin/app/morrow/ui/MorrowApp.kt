@@ -41,6 +41,7 @@ import app.morrow.domain.decodeGames
 import app.morrow.domain.decodeRingSound
 import app.morrow.domain.encode
 import app.morrow.domain.encodeGames
+import app.morrow.domain.readGames
 import app.morrow.domain.newTemporaryAlarm
 import app.morrow.domain.nextAlarm
 import app.morrow.domain.nextRing
@@ -173,11 +174,14 @@ fun MorrowApp(
                     var previewing by rememberSaveable(stateSaver = AlarmSaver) { mutableStateOf(null) }
                     // The alarm last deleted, as it was saved, while Home offers to put it back.
                     var deleted by rememberSaveable(stateSaver = AlarmSaver) { mutableStateOf(null) }
+                    // Whether it went by itself, having rung, rather than the user deleting or removing it.
+                    var deletedItself by rememberSaveable { mutableStateOf(false) }
                     // A temporary alarm that deleted itself once done with is offered back the same way.
                     val doneWith by services.coordinator.deletedWhenDone.collectAsStateWithLifecycle()
                     LaunchedEffect(doneWith) {
                         doneWith?.let {
                             deleted = it
+                            deletedItself = true
                             services.coordinator.forgetDeletedWhenDone()
                         }
                     }
@@ -266,7 +270,11 @@ fun MorrowApp(
                                             onSettings = { inSettings = true },
                                             onOpenWorld = { tab = Tab.WORLD },
                                             deleted = deleted,
-                                            onDeleted = { deleted = it },
+                                            deletedItself = deletedItself,
+                                            onDeleted = {
+                                                deleted = it
+                                                deletedItself = false
+                                            },
                                         )
                                     }
                                 }
@@ -275,7 +283,10 @@ fun MorrowApp(
                                 EditRoute(
                                     services, theme, shown.target, onSystemBarsChange,
                                     onPreview = { previewing = it },
-                                    onDeleted = { deleted = it },
+                                    onDeleted = {
+                                        deleted = it
+                                        deletedItself = false
+                                    },
                                     onDone = {
                                         editing = null
                                         screens.removeState(EDIT)
@@ -350,6 +361,8 @@ private fun Home(
     onNewTemporary: () -> Unit,
     /** The alarm just deleted, which Home offers to put back. */
     deleted: Alarm?,
+    /** [deleted] was a temporary alarm that deleted itself once done with, not one the user removed. */
+    deletedItself: Boolean,
     /** An alarm was deleted, as it was saved; null once it's put back or the offer has gone. */
     onDeleted: (Alarm?) -> Unit,
 ) {
@@ -371,7 +384,7 @@ private fun Home(
 
     val loaded = alarms ?: return
     HomeScreen(
-        model = homeModel(loaded, now, zone, missing, intention, weather, seasonal).copy(undo = deleted?.let(::deletedNote)),
+        model = homeModel(loaded, now, zone, missing, intention, weather, seasonal).copy(undo = deleted?.let { deletedNote(it, deletedItself) }),
         theme = theme,
         minuteOfDay = minute,
         actions = HomeActions(
@@ -500,10 +513,8 @@ private fun EditRoute(
                                 if (added == null) {
                                     picker.delete(picked.path)
                                 } else {
-                                    // Picked for this alarm straight away, and played, as tapping a sound does.
+                                    // Picked for this alarm straight away; its speaker plays it.
                                     draft = current.copy(sound = RingSound.Own(added.id))
-                                    services.alarmSound.stop()
-                                    services.alarmSound.playFile(added.path, alarmSetup.sound, SOUND_SAMPLE_RAMP)
                                 }
                             }
                             is PickedSound.Failed -> soundProblem = picked.reason
@@ -772,7 +783,7 @@ private val AlarmSaver = Saver<Alarm?, List<Any>>(
             minute = saved[2] as Int,
             label = saved[3] as String,
             days = (saved[4] as String).split(",").filter(String::isNotEmpty).map(DayOfWeek::valueOf).toSet(),
-            games = decodeGames(saved[5] as String).ifEmpty { DefaultGames },
+            games = readGames(saved[5] as String),
             enabled = saved[6] as Boolean,
             timeZone = (saved.getOrNull(7) as String?)?.ifEmpty { null },
             zoneLabel = (saved.getOrNull(8) as String?)?.ifEmpty { null },

@@ -15,7 +15,7 @@ data class ScanState(
     override val progress: Float get() = if (found) 1f else 0f
 }
 
-/** Find the code saved on the kettle and scan it. */
+/** Find the code the user saved, such as one on the kettle, and scan it. */
 class ScanMission(savedCode: String?) : Mission<ScanState> {
 
     private val mutableState = MutableStateFlow(ScanState(savedCode, found = false, wrong = 0))

@@ -34,15 +34,19 @@ data class RingModel(
  * later than the alarm was set for; an alarm on another city's clock names its own time there instead of its games.
  */
 fun ringModel(alarm: Alarm, now: Instant, phoneZone: TimeZone): RingModel {
-    val first = alarm.games.first().type
+    val first = alarm.games.firstOrNull()?.type
     val city = alarm.zoneName()
-    val about = if (city == null) gamesText(alarm.games) else "${hhmm(alarm.hour, alarm.minute)} in $city"
+    val about = when {
+        city != null -> "${hhmm(alarm.hour, alarm.minute)} in $city"
+        first == null -> ""
+        else -> gamesText(alarm.games)
+    }
     return RingModel(
         time = cityClock(now, phoneZone),
         label = listOf(alarm.label.trim(), about).filter(String::isNotEmpty).joinToString(" · "),
         description = alarm.description?.trim()?.takeIf(String::isNotEmpty),
-        missionIcon = if (city == null) Icons.forMission(first) else Icons.Globe,
-        startLabel = "I’m up — start ${first.displayName.lowercase()}",
+        missionIcon = if (city != null) Icons.Globe else first?.let(Icons::forMission) ?: Icons.Check,
+        startLabel = if (first == null) "I’m up" else "I’m up — start ${first.displayName.lowercase()}",
     )
 }
 

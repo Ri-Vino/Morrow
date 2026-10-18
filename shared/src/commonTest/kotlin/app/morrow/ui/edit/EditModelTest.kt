@@ -124,7 +124,7 @@ class EditModelTest {
         val rows = editModel(games(SHAKE to 3, SUMS to 1, BREATHE to 5, SCAN to 1), nowMinute = 600).games
         assertEquals(listOf(1, 2, 3, 4), rows.map { it.step })
         assertEquals(listOf("Shake", "Sums", "Breathe", "Scan"), rows.map { it.name })
-        assertEquals(listOf("30 shakes", "1 sum", "5 slow breaths", "Your kettle code"), rows.map { it.roundsText })
+        assertEquals(listOf("30 shakes", "1 sum", "5 slow breaths", "Your code"), rows.map { it.roundsText })
         assertEquals(listOf(true, true, true, false), rows.map { it.counted })
         assertEquals(listOf(true, false, true, false), rows.map { it.canFewer })
         assertEquals(listOf(true, true, false, false), rows.map { it.canMore })
@@ -134,11 +134,19 @@ class EditModelTest {
     }
 
     @Test
-    fun theOnlyGameCantBeRemoved() {
+    fun theOnlyGameCanBeRemovedToLeaveNone() {
         val row = editModel(alarm(7, 0), nowMinute = 600).games.single()
-        assertFalse(row.removable)
+        assertTrue(row.removable)
         assertFalse(row.canMoveUp || row.canMoveDown)
         assertEquals("3 sums", row.roundsText)
+    }
+
+    @Test
+    fun anAlarmWithNoGamesSaysOneTapTurnsItOff() {
+        val model = editModel(alarm(7, 0).withoutGame(SUMS), nowMinute = 600)
+        assertEquals(emptyList(), model.games)
+        assertEquals(Estimate("No games: one tap turns it off", tooLong = false), model.estimate)
+        assertTrue(model.canAddGame)
     }
 
     @Test
@@ -188,10 +196,10 @@ class EditModelTest {
     }
 
     @Test
-    fun removingKeepsAtLeastOneGame() {
+    fun removingTheLastGameLeavesNone() {
         val draft = games(SUMS to 3, BREATHE to 2)
         assertEquals(listOf(GameStep(BREATHE, 2)), draft.withoutGame(SUMS).games)
-        assertEquals(listOf(GameStep(BREATHE, 2)), draft.withoutGame(SUMS).withoutGame(BREATHE).games)
+        assertEquals(emptyList(), draft.withoutGame(SUMS).withoutGame(BREATHE).games)
     }
 
     @Test

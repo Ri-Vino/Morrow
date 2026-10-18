@@ -6,14 +6,13 @@ import androidx.room.PrimaryKey
 import app.morrow.domain.Alarm
 import app.morrow.domain.DEFAULT_SNOOZE_LIMIT
 import app.morrow.domain.DEFAULT_SNOOZE_MINUTES
-import app.morrow.domain.DefaultGames
 import app.morrow.domain.Difficulty
 import app.morrow.domain.MAX_SNOOZE_MINUTES
 import app.morrow.domain.UNLIMITED_SNOOZES
-import app.morrow.domain.decodeGames
 import app.morrow.domain.decodeRingSound
 import app.morrow.domain.encode
 import app.morrow.domain.encodeGames
+import app.morrow.domain.readGames
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.isoDayNumber
 
@@ -68,7 +67,7 @@ internal fun AlarmEntity.toAlarm() = Alarm(
     label = label,
     // A temporary alarm never repeats, so days on one would be a mistake: they're dropped rather than refused.
     days = if (temporary) emptySet() else DayOfWeek.entries.filterTo(mutableSetOf()) { days and (1 shl (it.isoDayNumber - 1)) != 0 },
-    games = decodeGames(games).distinctBy { it.type }.ifEmpty { DefaultGames },
+    games = readGames(games),
     enabled = enabled,
     timeZone = timeZone,
     zoneLabel = zoneLabel,

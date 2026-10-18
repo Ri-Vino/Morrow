@@ -69,7 +69,7 @@ class MissionModelTest {
 
         val wrong = looking.copy(wrong = 1)
         assertEquals("Try again", scanModel(wrong, cameraAllowed = true).count)
-        assertEquals("Hmm, that’s not our kettle.", scanModel(wrong, cameraAllowed = true).pipLine)
+        assertEquals("Hmm, that’s not our code.", scanModel(wrong, cameraAllowed = true).pipLine)
 
         val off = scanModel(looking, cameraAllowed = false)
         assertEquals("Camera off", off.count)

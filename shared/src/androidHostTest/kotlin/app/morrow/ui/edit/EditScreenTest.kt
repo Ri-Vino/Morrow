@@ -70,6 +70,7 @@ class EditScreenTest {
     private var savedAlarm = false
     private var deleted = false
     private var leftEdit = 0
+    private val heard = mutableListOf<RingSound?>()
 
     private fun show(alarm: Alarm, unsaved: Boolean = false) {
         draft = alarm
@@ -88,6 +89,7 @@ class EditScreenTest {
                         onBack = { leftEdit++ },
                         onDelete = { deleted = true },
                         onPreview = {},
+                        onHearSound = { heard += it },
                         onSave = { savedAlarm = true },
                     ),
                 )
@@ -104,6 +106,11 @@ class EditScreenTest {
         compose.onNodeWithText("NATURE").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Ocean waves").performScrollTo().performClick()
 
+        assertEquals(RingSound.Bundled(WakeSound.OCEAN_WAVES), draft.sound)
+        // Picking is silent; the row's speaker plays a sound without picking it.
+        assertEquals(emptyList(), heard)
+        compose.onNodeWithContentDescription("Hear Birdsong").performScrollTo().performClick()
+        assertEquals(listOf<RingSound?>(RingSound.Bundled(WakeSound.BIRDSONG)), heard)
         assertEquals(RingSound.Bundled(WakeSound.OCEAN_WAVES), draft.sound)
     }
 
@@ -264,13 +271,19 @@ class EditScreenTest {
     }
 
     @Test
-    fun aGameCanBeRemovedUnlessItsTheLastOne() {
+    fun everyGameCanBeRemovedLeavingAnAlarmThatOneTapTurnsOff() {
         show(alarm(games = listOf(GameStep(MissionType.SUMS, 3), GameStep(MissionType.SHAKE, 2))))
+        compose.onNodeWithText("DIFFICULTY").assertExists()
 
         compose.onNodeWithContentDescription("Remove Sums").performScrollTo().performClick()
-
         assertEquals(listOf(GameStep(MissionType.SHAKE, 2)), draft.games)
-        compose.onNodeWithContentDescription("Remove Shake").assertDoesNotExist()
+
+        compose.onNodeWithContentDescription("Remove Shake").performScrollTo().performClick()
+        assertEquals(emptyList(), draft.games)
+        compose.onNodeWithText("No games: one tap turns it off").performScrollTo().assertIsDisplayed()
+        // Difficulty is about the games, so it goes with them.
+        compose.onNodeWithText("DIFFICULTY").assertDoesNotExist()
+        compose.onNodeWithText("Add a game").assertExists()
     }
 
     @Test
@@ -295,7 +308,6 @@ class EditScreenTest {
         compose.onNodeWithContentDescription("More sums rounds").performClick()
 
         compose.onNodeWithText("About 2 min to finish").assertExists()
-        compose.onNodeWithContentDescription("Remove Sums").assertDoesNotExist()
     }
 
     @Test

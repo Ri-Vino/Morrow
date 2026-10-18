@@ -47,7 +47,7 @@ Pick one or more games and chain them into a sequence, for example 3 sums, then 
 | **Unscramble** | Put a jumbled word back together |
 | **Breathe** | Hold to breathe in and out slowly |
 | **Shake** | Shake the phone a number of times |
-| **Scan** | Scan a QR code or barcode you chose, such as one stuck on the kettle |
+| **Scan** | Scan any QR code or barcode you chose, such as one stuck on the kettle |
 
 Difficulty can be set to **Gentle**, **Normal** or **Tough**.
 

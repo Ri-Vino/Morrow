@@ -210,10 +210,8 @@ fun EditScreen(
                 problem = soundProblem,
                 onAdd = actions.onAddOwnSound,
                 onRemove = { choice -> (choice.sound as? RingSound.Own)?.let { actions.onRemoveOwnSound(it.id) } },
-                onPick = { choice ->
-                    actions.onChange(draft.copy(sound = choice.sound))
-                    actions.onHearSound(choice.sound)
-                },
+                onPick = { choice -> actions.onChange(draft.copy(sound = choice.sound)) },
+                onHear = { choice -> actions.onHearSound(choice.sound) },
                 onClose = {
                     pickingSound = false
                     actions.onStopSound()
@@ -316,9 +314,12 @@ private fun EditForm(
                 GameList(draft, model.games, actions.onChange)
                 EstimateRow(model, onAddGame)
             }
-            Section("Difficulty") {
-                SegmentedControl(Difficulty.entries, model.difficulty, Difficulty::displayName, { actions.onChange(draft.copy(difficulty = it)) })
-                BasicText(model.difficultyText, style = MorrowTheme.type.body.copy(color = colors.muted))
+            // Difficulty is how hard the games are, so there's nothing to set without any.
+            if (model.games.isNotEmpty()) {
+                Section("Difficulty") {
+                    SegmentedControl(Difficulty.entries, model.difficulty, Difficulty::displayName, { actions.onChange(draft.copy(difficulty = it)) })
+                    BasicText(model.difficultyText, style = MorrowTheme.type.body.copy(color = colors.muted))
+                }
             }
             model.snooze?.let { snooze ->
                 Section("Snooze") {
@@ -622,6 +623,8 @@ private fun GameList(draft: Alarm, rows: List<GameRow>, onChange: (Alarm) -> Uni
             }
         }
     }
+    // With no games the card would be an empty box; the estimate under it says what happens instead.
+    if (rows.isEmpty()) return
     Column(Modifier.fillMaxWidth().background(colors.surface, shape).border(1.dp, colors.line, shape)) {
         rows.forEach { row ->
             key(row.type) {
@@ -825,7 +828,7 @@ private fun SoundRowView(sound: SoundRow, onClick: () -> Unit) {
     }
 }
 
-/** Default and every sound; picking one plays it, and the sound stops when the sheet closes. */
+/** Default and every sound; a row's speaker plays it, and the sound stops when the sheet closes. */
 @Composable
 private fun SoundSheet(
     choices: List<SoundChoice>,
@@ -833,13 +836,14 @@ private fun SoundSheet(
     onAdd: (() -> Unit)?,
     onRemove: (SoundChoice) -> Unit,
     onPick: (SoundChoice) -> Unit,
+    onHear: (SoundChoice) -> Unit,
     onClose: () -> Unit,
 ) {
     val colors = MorrowTheme.colors
     val type = MorrowTheme.type
     Sheet("Alarm sound", onClose) {
         BasicText("Alarm sound", style = type.title.copy(color = colors.text), modifier = Modifier.semantics { heading() })
-        BasicText("Tap one to hear it.", style = type.body.copy(color = colors.muted))
+        BasicText("Tap the speaker to hear one.", style = type.body.copy(color = colors.muted))
         Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             groupedByRun(choices) { it.group }.forEach { (group, inGroup) ->
                 if (group != null) {
@@ -849,7 +853,7 @@ private fun SoundSheet(
                         modifier = Modifier.padding(start = 8.dp, top = 8.dp).semantics { heading() },
                     )
                 }
-                SoundCard(inGroup, onPick, onRemove)
+                SoundCard(inGroup, onPick, onHear, onRemove)
                 // Their own sounds come first; if there are none yet, the way to add one does.
                 if (onAdd != null && (group == OWN_SOUNDS || (group == null && choices.none { it.removable }))) {
                     SecondaryButton("Add a sound from your phone", onAdd)
@@ -869,7 +873,12 @@ private fun SoundSheet(
 
 /** One group of the Alarm sound sheet's choices, in a card. */
 @Composable
-private fun SoundCard(choices: List<SoundChoice>, onPick: (SoundChoice) -> Unit, onRemove: (SoundChoice) -> Unit) {
+private fun SoundCard(
+    choices: List<SoundChoice>,
+    onPick: (SoundChoice) -> Unit,
+    onHear: (SoundChoice) -> Unit,
+    onRemove: (SoundChoice) -> Unit,
+) {
     val colors = MorrowTheme.colors
     val type = MorrowTheme.type
     val shape = RoundedCornerShape(24.dp)
@@ -896,6 +905,12 @@ private fun SoundCard(choices: List<SoundChoice>, onPick: (SoundChoice) -> Unit,
                         BasicText(choice.name, style = type.button.copy(color = colors.text))
                         BasicText(choice.subtitle, style = type.body.copy(color = colors.muted))
                     }
+                }
+                Box(
+                    modifier = Modifier.size(48.dp).pressable({ onHear(choice) }, onClickLabel = "Hear ${choice.name}"),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    MorrowIcon(Icons.Speaker, colors.hi, size = 22.dp, strokeWidth = 2.2f, contentDescription = "Hear ${choice.name}")
                 }
                 if (choice.removable) {
                     Box(

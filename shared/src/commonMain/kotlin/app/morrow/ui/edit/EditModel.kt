@@ -71,7 +71,6 @@ data class GameRow(
     val counted: Boolean,
     val canFewer: Boolean,
     val canMore: Boolean,
-    /** The last game left can't be removed. */
     val removable: Boolean,
     val canMoveUp: Boolean,
     val canMoveDown: Boolean,
@@ -181,12 +180,12 @@ fun editModel(
                 counted = max > 1,
                 canFewer = step.rounds > 1,
                 canMore = step.rounds < max,
-                removable = games.size > 1,
+                removable = true,
                 canMoveUp = i > 0,
                 canMoveDown = i < games.lastIndex,
             )
         },
-        estimate = estimate(gamesSeconds(games)),
+        estimate = if (games.isEmpty()) Estimate("No games: one tap turns it off", tooLong = false) else estimate(gamesSeconds(games)),
         gameChoices = MissionType.entries.map { type ->
             GameChoice(type, type.displayName, type.gameDescription, added = games.any { it.type == type })
         },
@@ -337,9 +336,8 @@ fun Alarm.withRounds(type: MissionType, rounds: Int): Alarm =
 fun Alarm.withGame(type: MissionType): Alarm =
     if (games.any { it.type == type }) this else copy(games = games + GameStep(type))
 
-/** [type] taken out, unless it's the only game. */
-fun Alarm.withoutGame(type: MissionType): Alarm =
-    if (games.size == 1) this else copy(games = games.filter { it.type != type })
+/** [type] taken out; with the last one gone, the alarm has no games and one tap stops it. */
+fun Alarm.withoutGame(type: MissionType): Alarm = copy(games = games.filter { it.type != type })
 
 /** [type] moved [by] places, earlier when negative, stopping at either end. */
 fun Alarm.withGameMoved(type: MissionType, by: Int): Alarm {

@@ -59,12 +59,12 @@ fun KettleCodeScreen(scanner: CodeScanner, onSaved: (String) -> Unit, onCancel: 
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             BasicText(
-                "Pick your kettle code",
+                "Pick your code",
                 style = MorrowTheme.type.title.copy(color = colors.text),
                 modifier = Modifier.fillMaxWidth().semantics { heading() },
             )
             BasicText(
-                "Stick a QR code or barcode on your kettle. Any code works, even one cut from a packet. " +
+                "Any QR code or barcode works, even one cut from a packet. Stick it somewhere you have to walk to, like your kettle. " +
                     "To stop a Scan alarm, you’ll walk over and scan it.",
                 style = MorrowTheme.type.bodyLarge.copy(color = colors.muted),
             )
@@ -73,7 +73,7 @@ fun KettleCodeScreen(scanner: CodeScanner, onSaved: (String) -> Unit, onCancel: 
             }
             BasicText(
                 when {
-                    code != null -> "Saved. That’s your kettle code."
+                    code != null -> "Saved. That’s your code."
                     cameraAllowed -> "Point the camera at the code."
                     else -> "Pip needs the camera to read the code. It’s only used while scanning, and never saves a picture."
                 },

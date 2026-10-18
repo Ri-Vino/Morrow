@@ -165,6 +165,15 @@ class HomeModelTest {
     }
 
     @Test
+    fun theUndoLineSaysWhyATemporaryAlarmIsGone() {
+        val nap = Alarm(1, 7, 30, "Nap", emptySet(), listOf(GameStep(MissionType.SUMS)), enabled = true, temporary = true)
+        assertEquals("Nap at 07:30 removed", deletedNote(nap))
+        assertEquals("Nap at 07:30 is done, so it’s gone", deletedNote(nap, done = true))
+        assertEquals("07:30 alarm deleted", deletedNote(nap.copy(temporary = false)))
+        assertEquals("07:30 alarm deleted", deletedNote(nap.copy(temporary = false), done = true))
+    }
+
+    @Test
     fun rowsDescribeEachAlarm() {
         val model = home(
             "2026-10-06T21:40",
