@@ -8,17 +8,20 @@ import kotlin.time.Instant
 /** A cache younger than this is used as it is. */
 val RefreshAfter: Duration = 30.minutes
 
+/** Even asked to refresh, a cache younger than this is kept: Open-Meteo's current weather changes every 15 minutes. */
+val ManualRefreshAfter: Duration = 5.minutes
+
 /** How long to leave Open-Meteo alone after it answers 429. */
 val RateLimitBackoff: Duration = 1.hours
 
 private val FreshFor = 3.hours
 private val KeptFor = 24.hours
 
-/** True when there's no cache, it's older than [RefreshAfter], or it's from the future because the clock moved back. */
-fun needsRefresh(fetchedAt: Instant?, now: Instant): Boolean {
+/** True when there's no cache, it's older than [after], or it's from the future because the clock moved back. */
+fun needsRefresh(fetchedAt: Instant?, now: Instant, after: Duration = RefreshAfter): Boolean {
     if (fetchedAt == null) return true
     val age = now - fetchedAt
-    return age > RefreshAfter || age.isNegative()
+    return age > after || age.isNegative()
 }
 
 /** How old the weather is, which decides how it's labelled and whether temperatures show at all. */

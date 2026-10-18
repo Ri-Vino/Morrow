@@ -148,10 +148,36 @@ class WeatherRepositoryTest {
         val weather = weather()
         weather.refresh(RefreshReason.START)
 
+        clock.now = start + 6.minutes
         weather.refresh(RefreshReason.MANUAL)
 
         assertEquals(listOf(london, tokyoPlace), source.requests.last())
         assertEquals(2, source.requests.size)
+    }
+
+    @Test
+    fun refreshNowLeavesWhatWasFetchedInTheLastFiveMinutes() = runTest {
+        seedLondonAndTokyo()
+        val weather = weather()
+        weather.refresh(RefreshReason.START)
+
+        clock.now = start + 4.minutes
+        weather.refresh(RefreshReason.MANUAL)
+        weather.refresh(RefreshReason.MANUAL)
+
+        assertEquals(1, source.requests.size)
+    }
+
+    @Test
+    fun eachForecastIsDecodedOnceForEveryScreen() = runTest {
+        seedLondonAndTokyo()
+        val weather = weather()
+        weather.refresh(RefreshReason.START)
+
+        val first = weather.forecasts.first()
+        val again = weather.forecasts.first()
+
+        assertTrue(first.cities.getValue(tokyo.id).forecast === again.cities.getValue(tokyo.id).forecast, "decoded once")
     }
 
     @Test

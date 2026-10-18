@@ -9,7 +9,9 @@ import app.morrow.places.CityCatalog
 import app.morrow.places.CityRepository
 import app.morrow.platform.LocationProvider
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlin.concurrent.Volatile
@@ -43,7 +46,10 @@ enum class RefreshReason {
     /** Weather turned on, or "Where I am" / "Home city" changed. */
     SETTINGS,
 
-    /** Pulling World down, or the developer tools' "Refresh now": fetches every place, however fresh. */
+    /**
+     * Pulling World down, or the developer tools' "Refresh now": fetches every place, however fresh, except those
+     * fetched in the last [ManualRefreshAfter], whose forecast can't have changed yet.
+     */
     MANUAL,
 }
 
@@ -89,6 +95,8 @@ class WeatherRepository(
     private val clock: Clock,
     private val phoneZone: () -> String,
     private val scope: CoroutineScope,
+    /** Where [forecasts] reads and decodes the cache. */
+    private val work: CoroutineDispatcher = Dispatchers.Default,
 ) {
     private val refreshing = Mutex()
     @Volatile private var waiting: RefreshReason? = null
@@ -101,16 +109,24 @@ class WeatherRepository(
         resolveHere(mode, current = null, last = last, home = saved.firstOrNull { it.isHome }?.city)
     }.distinctUntilChanged()
 
+    // By place, when its forecast was fetched and what that decoded to, shared by every screen reading [forecasts].
+    private val decoded = HashMap<String, Pair<Long, Forecast?>>()
+    private val decoding = Mutex()
+
+    /**
+     * The weather everywhere it shows, read off the main thread. Each place's forecast is decoded once for each time
+     * it's fetched and kept for every screen, rather than again whenever a screen opens or anything changes.
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     val forecasts: Flow<WeatherState> = settings.weatherEnabled.distinctUntilChanged().flatMapLatest { enabled ->
         if (!enabled) {
             flowOf(WeatherState.Off)
         } else {
             combine(here, cities.cities, cache.observeAll()) { here, saved, rows ->
-                val byKey = rows.associateBy { it.placeKey }
+                val byKey = decodedAll(rows)
                 val now = clock.now()
                 fun weatherAt(place: Coordinates): PlaceWeather {
-                    val forecast = byKey[place.key]?.let(::decode)
+                    val forecast = byKey[place.key]
                     return PlaceWeather(place, forecast, weatherAge(forecast?.fetchedAt, now))
                 }
                 WeatherState(
@@ -120,6 +136,17 @@ class WeatherRepository(
                     cities = saved.associate { it.id to weatherAt(it.city.coordinates) },
                 )
             }
+        }
+    }
+        .flowOn(work)
+
+    /** Each cached row's forecast by place, decoding only rows fetched since they were last decoded. */
+    private suspend fun decodedAll(rows: List<WeatherCacheEntity>): Map<String, Forecast?> = decoding.withLock {
+        val keys = rows.mapTo(HashSet()) { it.placeKey }
+        decoded.keys.retainAll(keys)
+        rows.associate { row ->
+            val known = decoded[row.placeKey]?.takeIf { it.first == row.fetchedAt }
+            row.placeKey to (known ?: (row.fetchedAt to decode(row)).also { decoded[row.placeKey] = it }).second
         }
     }
 
@@ -243,11 +270,11 @@ class WeatherRepository(
         store(forecasts)
     }
 
-    /** The [places] whose cache is older than 30 minutes, or all of them when [force]d. */
+    /** The [places] whose cache is older than 30 minutes, or when [force]d, older than [ManualRefreshAfter]. */
     private suspend fun stale(places: List<Coordinates>, force: Boolean): List<Coordinates> {
         val fetchedAt = cache.getAll().associate { it.placeKey to Instant.fromEpochMilliseconds(it.fetchedAt) }
         val now = clock.now()
-        return places.filter { force || needsRefresh(fetchedAt[it.key], now) }
+        return places.filter { needsRefresh(fetchedAt[it.key], now, after = if (force) ManualRefreshAfter else RefreshAfter) }
     }
 
     private suspend fun download(places: List<Coordinates>): List<Forecast> = if (places.isEmpty()) emptyList() else source.forecast(places)
