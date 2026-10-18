@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -78,7 +79,8 @@ fun SkyScene(
     val haptics = LocalHapticFeedback.current
     val pipAt by rememberUpdatedState(pipY)
 
-    // The weather goes between Pip and the hills, so it's drawn on its own between the scene's back and front.
+    // The weather goes between Pip and the hills, so it's drawn on its own between the scene's back and front. Each
+    // part is its own layer, so a frame redraws just the scene and not the text and cards around it.
     Box(
         modifier
             .fillMaxWidth()
@@ -96,7 +98,7 @@ fun SkyScene(
                 }
             },
     ) {
-        Canvas(Modifier.matchParentSize()) {
+        Canvas(Modifier.matchParentSize().graphicsLayer {}) {
             val t = seconds.value
             val frame = pipPoke(theme, target.pip.moon, poke.value)
             val look = if (frame.delighted && !target.pip.moon) target.pip.copy(mood = PipMood.DELIGHTED) else target.pip
@@ -119,7 +121,7 @@ fun SkyScene(
             }
         }
         target.weather?.let { WeatherLayer(it, WeatherShapes.Home, Modifier.matchParentSize(), pipY = { pipY }) }
-        Canvas(Modifier.matchParentSize()) {
+        Canvas(Modifier.matchParentSize().graphicsLayer {}) {
             val t = seconds.value
             scale(size.width / SCENE_WIDTH, Offset.Zero) {
                 drawPath(HillBack, hillBack)

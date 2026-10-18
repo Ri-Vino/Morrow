@@ -17,7 +17,9 @@ import kotlin.coroutines.coroutineContext
  * Read it inside a draw block so only drawing, not composition, repeats each frame.
  *
  * The scenes' loops are slow, so after the first [fullRateFor] seconds it advances about 30 times a second
- * rather than at the screen's full refresh rate, which on a 120 Hz phone is a quarter of the frames.
+ * rather than at the screen's full refresh rate, which on a 120 Hz phone is a quarter of the frames. Every scene on
+ * screen advances on the same frames, those that start a new 30th of a second, so two scenes together still redraw
+ * 30 times a second rather than each on frames of its own.
  */
 @Composable
 internal fun rememberSceneSeconds(still: Float = 0f, fullRateFor: Float = 0f): State<Float> {
@@ -30,19 +32,21 @@ internal fun rememberSceneSeconds(still: Float = 0f, fullRateFor: Float = 0f): S
         }
         val start = withFrameNanos { it }
         val fullRateUntil = start + (fullRateFor * NANOS_PER_SECOND).toLong()
-        var shown = start
+        var shownSlot = Long.MIN_VALUE
         while (true) {
-            val showing = withFrameNanos { frame ->
-                val due = frame < fullRateUntil || frame - shown >= SLOW_FRAME_GAP_NANOS
+            val sleep = withFrameNanos { frame ->
+                val slot = frame / SLOW_FRAME_GAP_NANOS
+                val fullRate = frame < fullRateUntil
+                val due = fullRate || slot != shownSlot
                 if (due) {
                     seconds.floatValue = (frame - start) / NANOS_PER_SECOND
-                    shown = frame
+                    shownSlot = slot
                 }
-                due
+                due && !fullRate
             }
             // Sleeps through most of the gap rather than waking on every refresh. One 60 Hz frame is the most it can
-            // sleep without missing the next due frame.
-            if (showing && shown >= fullRateUntil) delay(SLOW_FRAME_SLEEP_MILLIS)
+            // sleep without missing the first frame of the next slot.
+            if (sleep) delay(SLOW_FRAME_SLEEP_MILLIS)
         }
     }
     return seconds
@@ -50,6 +54,6 @@ internal fun rememberSceneSeconds(still: Float = 0f, fullRateFor: Float = 0f): S
 
 private const val NANOS_PER_SECOND = 1_000_000_000f
 
-// 30 fps is a 33.3 ms gap; accepting 29 ms keeps 90, 120 and 144 Hz screens, whose frames don't land exactly on it, at about 30.
-private const val SLOW_FRAME_GAP_NANOS = 29_000_000L
+// 30 fps. Frames are timed from the same vsync for every scene, so slots of this length line their updates up.
+private const val SLOW_FRAME_GAP_NANOS = 33_333_333L
 private const val SLOW_FRAME_SLEEP_MILLIS = 16L
