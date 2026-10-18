@@ -131,6 +131,20 @@ object Illustration {
     val treeStar = Color(0xFFFFD166)
     val fairyLights = listOf(Color(0xFFEF476F), Color(0xFFFFD166), Color(0xFF06D6A0), Color(0xFF6FB7FF))
 
+    /**
+     * New Year's fireworks: bright on a dark sky, with white-hot sparks and gold glitter; deeper by day, so they still
+     * show on a pale blue or yellow sky; and rose, violet and teal against a golden afternoon.
+     */
+    val fireworksNight = listOf(Color(0xFFFF6F91), Color(0xFFFFD166), Color(0xFF6FE3FF), Color(0xFFC3A6FF), Color(0xFF7CF0B5))
+    val fireworksDay = listOf(Color(0xFFD6336C), Color(0xFF3558C9), Color(0xFF0F9488), Color(0xFF8E44AD), Color(0xFFE8590C))
+    val fireworksDusk = listOf(Color(0xFFB0124F), Color(0xFF5B3BB0), Color(0xFF0B7A7A), Color(0xFF8A1C7C), Color(0xFF1F4FB8))
+    val fireworkGlitterNight = Color(0xFFFFE6A3)
+    val fireworkGlitterDay = Color(0xFFC77800)
+    val fireworkCore = Color(0xFFFFFBF0)
+    val fireworkSmoke = Color(0xFFFFFFFF)
+    /** Confetti drifting down over Home at New Year. */
+    val confetti = listOf(Color(0xFFEF476F), Color(0xFFFFD166), Color(0xFF06D6A0), Color(0xFF4F8DFF), Color(0xFFB28DFF), Color(0xFFFF9F43))
+
     /** What a city card's back and front hills are mixed toward under snow. */
     val snowHillBack = Color(0xFFFFFFFF)
     val snowHillFront = Color(0xFFF4F7FA)

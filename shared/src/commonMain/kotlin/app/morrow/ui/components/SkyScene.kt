@@ -49,8 +49,8 @@ private const val SCENE_HEIGHT = 330f
 /**
  * The Home header: the sky for [minuteOfDay], stars, Pip as the sun or the sleeping moon, the [weather] over them, then
  * hills and the cottage, and frost, heat haze or blowing leaves as it [feel]s outside. A [holiday] brings bats and a
- * pumpkin, or a tree, fairy lights and snow, with fireworks at New Year. Its bottom edge is drawn in the theme's
- * background colour so the screen continues below it. Tapping Pip pokes it, and it answers in the way of the time of
+ * pumpkin, or a tree, fairy lights and snow, with fireworks and confetti in place of the snow at New Year. Its bottom
+ * edge is drawn in the theme's background colour so the screen continues below it. Tapping Pip pokes it, and it answers in the way of the time of
  * day ([pipPoke]). Decorative.
  */
 @Composable
@@ -105,7 +105,7 @@ fun SkyScene(
             scale(size.width / SCENE_WIDTH, Offset.Zero) {
                 drawRect(sky, size = Size(SCENE_WIDTH, SCENE_HEIGHT))
                 drawStars(target.starAlpha, t, frame.starBoost)
-                if (holiday == Holiday.NEW_YEAR) drawFireworks(target.starAlpha, t)
+                if (holiday == Holiday.NEW_YEAR) drawFireworks(fireworkSky(theme, target.lightSky), t)
                 translate(PIP_X, pipY) {
                     if (!target.pip.moon) drawHeatGlow(target.climate.heat, t)
                     withTransform({
@@ -131,7 +131,8 @@ fun SkyScene(
                 if (holiday?.halloween == true) drawPumpkin(t)
                 if (holiday?.christmas == true) drawTree()
                 drawPath(HillFront, ground)
-                if (holiday?.christmas == true && target.weather?.snow != true) drawHolidaySnow(t)
+                if (holiday == Holiday.NEW_YEAR) drawConfetti(t)
+                else if (holiday == Holiday.CHRISTMAS && target.weather?.snow != true) drawHolidaySnow(t)
             }
         }
         ClimateLayer(target.climate, Modifier.matchParentSize())
@@ -182,6 +183,13 @@ private fun DrawScope.drawCottage(
     if (doorLit > 0f) {
         drawRoundRect(Illustration.windowGlow, Offset(76f, 248f), Size(11f, 20f), CornerRadius(2f), alpha = doorLit)
     }
+}
+
+/** Fireworks to suit the sky: bright on a dark one, warm-deep against a golden afternoon, deep on a pale day. */
+private fun fireworkSky(theme: ThemeKind, lightSky: Boolean): FireworkSky = when {
+    !lightSky -> FireworkSky.NIGHT
+    theme == ThemeKind.AFTERNOON -> FireworkSky.DUSK
+    else -> FireworkSky.DAY
 }
 
 /** The window's candle dips twice every 3.5 s. */

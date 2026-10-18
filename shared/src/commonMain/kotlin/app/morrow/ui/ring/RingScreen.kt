@@ -48,12 +48,15 @@ import app.morrow.theme.Holiday
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
+import app.morrow.ui.components.FireworkShow
+import app.morrow.ui.components.FireworkSky
 import app.morrow.ui.components.Icons
 import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.components.PillButton
 import app.morrow.ui.components.PipLook
 import app.morrow.ui.components.PipMood
 import app.morrow.ui.components.drawFacePaint
+import app.morrow.ui.components.drawFireworks
 import app.morrow.ui.components.drawHolidayHat
 import app.morrow.ui.components.drawPip
 import app.morrow.ui.components.fadeUpIn
@@ -204,7 +207,8 @@ private const val HEIGHT = 844f
 
 /**
  * The sunrise in the design's 390 × 844 units, scaled to the screen's width and kept on its bottom edge.
- * [t] drives the looping parts (twinkles, halo, birds, notes); they stop when the sunrise is held finished.
+ * [t] drives the looping parts (twinkles, halo, birds, notes, and fireworks at New Year); they stop when the sunrise is
+ * held finished.
  */
 private fun DrawScope.drawSunrise(frame: SunriseFrame, t: Float, holiday: Holiday? = null) {
     val unit = size.width / WIDTH
@@ -226,6 +230,10 @@ private fun DrawScope.drawSunrise(frame: SunriseFrame, t: Float, holiday: Holida
             for (star in Stars) {
                 val twinkle = if (looping) 0.25f + 0.75f * EaseInOut.transform(pingPong((t - star.delay) / 1.6f)) else 1f
                 drawCircle(Illustration.starlight.copy(alpha = frame.starAlpha * twinkle), star.radius, Offset(star.x, star.y))
+            }
+
+            if (holiday == Holiday.NEW_YEAR) {
+                drawFireworks(FireworkSky.NIGHT, if (looping) t else 0f, FireworkShow.Ring, alpha = 0.55f + 0.45f * frame.starAlpha)
             }
 
             if (looping) Birds.forEach { drawBird(it, t) }

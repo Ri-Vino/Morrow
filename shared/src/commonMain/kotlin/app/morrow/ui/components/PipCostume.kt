@@ -7,10 +7,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.graphics.drawscope.scale
 import app.morrow.theme.Holiday
 import app.morrow.theme.Illustration
 import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.sin
 
 /**
@@ -41,11 +41,7 @@ internal fun DrawScope.drawHolidayHat(holiday: Holiday, seconds: Float) {
             drawRect(Illustration.witchBand, Offset(-17f, -30f), Size(34f, 6f))
             drawOval(Illustration.witchHat, Offset(-37f, -26f), Size(74f, 9f))
         }
-        holiday == Holiday.NEW_YEAR -> rotate(-14f, Offset(0f, -22f)) {
-            drawPath(CostumePaths.PartyCone, Illustration.partyHat)
-            drawPath(CostumePaths.PartyStripes, Illustration.partyStripe, style = Stroke(2.4f, cap = StrokeCap.Round))
-            drawCircle(Illustration.partyPompom, 5f, Offset(0f, -62f))
-        }
+        holiday == Holiday.NEW_YEAR -> rotate(-14f, Offset(0f, -22f)) { drawPartyHat(seconds) }
         else -> {
             drawPath(CostumePaths.SantaHat, Illustration.santaRed)
             drawRoundRect(Illustration.santaTrim, Offset(-29f, -20f), Size(58f, 9f), CornerRadius(4.5f))
@@ -56,17 +52,73 @@ internal fun DrawScope.drawHolidayHat(holiday: Holiday, seconds: Float) {
     }
 }
 
-/** A party blower from Pip's mouth, unrolling and curling back up every 1.6 s; fully out when [seconds] holds still. */
+/**
+ * A polka-dot party hat with a tinsel brim, a shine down one side, and a pompom of streamers on its tip that sways.
+ * Drawn upright; the caller tilts it.
+ */
+private fun DrawScope.drawPartyHat(seconds: Float) {
+    drawPath(CostumePaths.PartyCone, Illustration.partyHat)
+    drawPath(CostumePaths.PartyShine, Illustration.glint, alpha = 0.35f)
+    PartyDots.forEachIndexed { i, dot ->
+        drawCircle(if (i % 2 == 0) Illustration.partyStripe else Illustration.partyPompom, dot.radius, Offset(dot.x, dot.y))
+    }
+    drawRoundRect(Illustration.partyStripe, Offset(-15f, -25.5f), Size(30f, 5f), CornerRadius(2.5f))
+    repeat(7) { i -> drawCircle(Illustration.glint, 0.9f, Offset(-12f + 4f * i, -23f), alpha = 0.8f) }
+    rotate(8f * sin(2f * PI.toFloat() * seconds / 2.2f), PartyTip) {
+        PartyStreamers.forEachIndexed { i, end ->
+            drawLine(if (i % 2 == 0) Illustration.partyPompom else Illustration.partyStripe, PartyTip, end, strokeWidth = 2f, cap = StrokeCap.Round)
+        }
+        drawCircle(Illustration.partyPompom, 2.8f, PartyTip)
+    }
+}
+
+/** Dots on the party hat. */
+private val PartyDots = listOf(
+    Dot(-4f, -30f, 2.2f), Dot(5f, -36f, 2f), Dot(-2f, -44f, 1.8f), Dot(1f, -52f, 1.3f), Dot(6f, -28f, 1.5f),
+)
+
+private class Dot(val x: Float, val y: Float, val radius: Float)
+
+private val PartyTip = Offset(0f, -62f)
+
+// A fountain of streamers fanning up from the tip, long and short in turn.
+private val PartyStreamers = List(9) { k ->
+    val angle = -PI.toFloat() / 2f + (k - 4) * 0.36f
+    PartyTip + Offset(cos(angle), sin(angle)) * (6.5f + (k % 2) * 2f)
+}
+
+/**
+ * A party horn from Pip's mouth that unrolls from a coil and curls back up every 1.6 s, its fringed end shaking out when
+ * it's all the way out, as it is when [seconds] holds still.
+ */
 internal fun DrawScope.drawNoisemaker(seconds: Float) {
-    val out = if (seconds == 0f) 1f else 0.55f + 0.45f * (0.5f + 0.5f * sin(2f * PI.toFloat() * seconds / 1.6f))
-    scale(out, 1f, Offset(4f, 12f)) {
-        drawLine(Illustration.partyPompom, Offset(4f, 12f), Offset(28f, 16f), strokeWidth = 4f, cap = StrokeCap.Round)
-        for (x in listOf(10f, 17f, 24f)) {
-            drawLine(Illustration.partyStripe, Offset(x, 11.2f + (x - 4f) / 6f), Offset(x, 15.8f + (x - 4f) / 6f), strokeWidth = 1.6f)
+    val out = if (seconds == 0f) 1f else 0.5f + 0.5f * (0.5f + 0.5f * sin(2f * PI.toFloat() * seconds / 1.6f))
+    val length = 6f + 20f * out
+    val end = HornMouth + HornAlong * length
+    drawLine(Illustration.partyPompom, HornMouth, end, strokeWidth = 4f, cap = StrokeCap.Round)
+    for (f in HornStripes) {
+        val at = HornMouth + HornAlong * (length * f)
+        drawLine(Illustration.partyStripe, at - HornAcross * 2f, at + HornAcross * 2f, strokeWidth = 1.6f)
+    }
+    val coil = 5f * (1f - out)
+    if (coil > 0.6f) drawCircle(Illustration.partyPompom, coil, end + HornAcross * coil, style = HornCoil)
+    val fringe = ((out - 0.75f) / 0.25f).coerceIn(0f, 1f)
+    if (fringe > 0f) {
+        for (spread in HornFringe) {
+            val tip = end + (HornAlong + HornAcross * spread) * (4.5f * fringe)
+            drawLine(Illustration.partyStripe, end, tip, strokeWidth = 1.4f, cap = StrokeCap.Round, alpha = fringe)
         }
     }
-    drawCircle(Illustration.partyStripe, 2.6f, Offset(4f, 12f))
+    drawCircle(Illustration.partyStripe, 2.6f, HornMouth)
 }
+
+private val HornMouth = Offset(4f, 12f)
+/** Along the horn, out to Pip's right and a little down, and across it, downward. */
+private val HornAlong = Offset(0.986f, 0.164f)
+private val HornAcross = Offset(-0.164f, 0.986f)
+private val HornCoil = Stroke(3.2f)
+private val HornStripes = floatArrayOf(0.35f, 0.6f, 0.85f)
+private val HornFringe = floatArrayOf(-0.5f, 0f, 0.5f)
 
 /** Shapes in design units around Pip's centre; his face has a radius of 30. Built on first draw. */
 private object CostumePaths {
@@ -78,5 +130,5 @@ private object CostumePaths {
     val WitchCone = svgPath("M-18 -24 L2 -62 Q6 -72 14 -66 Q8 -64 7 -58 L18 -24 Z")
     val SantaHat = svgPath("M-26 -14 C-22 -42 12 -54 40 -36 C30 -32 26 -24 26 -14 Z")
     val PartyCone = svgPath("M-13 -22 L0 -62 L13 -22 Z")
-    val PartyStripes = svgPath("M-9 -33 L4 -31M-5 -44 L4 -42M-2 -54 L2 -53")
+    val PartyShine = svgPath("M-9.5 -27 L-2 -52 L-0.8 -50 L-7 -27 Z")
 }
