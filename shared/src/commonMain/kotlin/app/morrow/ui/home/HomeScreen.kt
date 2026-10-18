@@ -2,10 +2,13 @@ package app.morrow.ui.home
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -29,10 +32,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,15 +50,19 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
@@ -68,6 +79,9 @@ import app.morrow.ui.components.SkyScene
 import app.morrow.ui.components.pressable
 import app.morrow.ui.components.skySceneState
 import app.morrow.ui.components.weatherIcon
+import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class HomeActions(
     val onToggle: (id: Long, enabled: Boolean) -> Unit,
@@ -78,6 +92,12 @@ class HomeActions(
     val onFixPermissions: () -> Unit,
     /** The weather line under the greeting switches to the World tab. */
     val onOpenWorld: () -> Unit = {},
+    /** Swiping a row away, or TalkBack's "Delete" action on it. */
+    val onDelete: (id: Long) -> Unit = {},
+    /** Puts back the alarm named in [HomeModel.undo]. */
+    val onUndo: () -> Unit = {},
+    /** The undo line was closed, or its time ran out. */
+    val onDismissUndo: () -> Unit = {},
 )
 
 @Composable
@@ -117,24 +137,60 @@ fun HomeScreen(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: 
                 }
             }
         }
-        if (model.rows.isNotEmpty()) {
-            PillButton(
-                text = "New alarm",
-                onClick = actions.onNewAlarm,
-                background = colors.accent,
-                content = colors.onAccent,
-                icon = Icons.Plus,
-                height = 56.dp,
-                padding = PaddingValues(start = 16.dp, end = 24.dp),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .navigationBarsPadding()
-                    .padding(end = 24.dp, bottom = 16.dp)
-                    .shadow(14.dp, CircleShape, ambientColor = colors.shadow, spotColor = colors.shadow),
-            )
+        Column(
+            modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (model.rows.isNotEmpty()) {
+                PillButton(
+                    text = "New alarm",
+                    onClick = actions.onNewAlarm,
+                    background = colors.accent,
+                    content = colors.onAccent,
+                    icon = Icons.Plus,
+                    height = 56.dp,
+                    padding = PaddingValues(start = 16.dp, end = 24.dp),
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .shadow(14.dp, CircleShape, ambientColor = colors.shadow, spotColor = colors.shadow),
+                )
+            }
+            model.undo?.let { UndoBar(it, actions.onUndo, actions.onDismissUndo) }
         }
     }
 }
+
+/** "07:30 alarm deleted" with Undo, along the bottom for a while after a delete. */
+@Composable
+private fun UndoBar(text: String, onUndo: () -> Unit, onDismiss: () -> Unit) {
+    val colors = MorrowTheme.colors
+    val dismiss by rememberUpdatedState(onDismiss)
+    LaunchedEffect(text) {
+        delay(UNDO_SHOWN_MILLIS)
+        dismiss()
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(14.dp, RoundedCornerShape(20.dp), ambientColor = colors.shadow, spotColor = colors.shadow)
+            .background(colors.text, RoundedCornerShape(20.dp))
+            .padding(start = 20.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
+            .semantics { liveRegion = LiveRegionMode.Polite },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        BasicText(text, style = MorrowTheme.type.body.copy(color = colors.bg), modifier = Modifier.weight(1f).padding(vertical = 12.dp))
+        Box(Modifier.heightIn(min = 44.dp).pressable(onUndo).padding(horizontal = 12.dp), contentAlignment = Alignment.Center) {
+            BasicText("Undo", style = MorrowTheme.type.bodyStrong.copy(color = colors.bg))
+        }
+        Box(Modifier.size(44.dp).pressable(onDismiss, onClickLabel = "Close"), contentAlignment = Alignment.Center) {
+            MorrowIcon(Icons.Close, colors.bg, size = 18.dp, strokeWidth = 2.2f, contentDescription = "Close")
+        }
+    }
+}
+
+/** Long enough to notice and reach for Undo; the bar can also be closed. */
+private const val UNDO_SHOWN_MILLIS = 10_000L
 
 @Composable
 private fun Header(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: HomeActions, modifier: Modifier = Modifier) {
@@ -281,53 +337,92 @@ private fun AlarmRowView(row: AlarmRow, actions: HomeActions) {
     // Only the big time fades for an alarm that's off, and only as far as large text stays readable (3:1). The
     // smaller text keeps its colour; the switch says it's off.
     val alpha by animateFloatAsState(if (row.enabled) 1f else 0.6f, tween(350))
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(colors.surface, shape)
-            .border(1.dp, colors.line, shape)
-            .padding(start = 8.dp, top = 8.dp, bottom = 8.dp, end = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(20.dp))
-                .pressable({ actions.onOpenAlarm(row.id) }, onClickLabel = "Edit alarm")
-                .semantics(mergeDescendants = true) {}
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(Modifier.alpha(alpha), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BasicText(row.time, style = MorrowTheme.type.display.copy(color = colors.text))
-                MorrowIcon(if (row.sunUp) Icons.Sun else Icons.Moon, colors.hi)
-            }
-            BasicText(row.details, style = MorrowTheme.type.body.copy(color = colors.muted))
-            row.zoneText?.let { text ->
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    MorrowIcon(Icons.Globe, colors.hi, size = 14.dp, strokeWidth = 2.2f)
-                    BasicText(text, style = MorrowTheme.type.label.copy(color = colors.hi, letterSpacing = MorrowTheme.type.caption.letterSpacing))
-                }
+    // Swiped left past [SWIPE_TO_DELETE] of its width, the row goes and Home offers Undo; short of that it springs back.
+    val scope = rememberCoroutineScope()
+    val swipe = remember { Animatable(0f) }
+    var width by remember { mutableFloatStateOf(0f) }
+    Box(Modifier.fillMaxWidth().onSizeChanged { width = it.width.toFloat() }) {
+        if (swipe.value < 0f) {
+            Row(
+                modifier = Modifier.matchParentSize().background(colors.warn, shape).padding(end = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                MorrowIcon(Icons.Trash, colors.onWarn, strokeWidth = 2.4f)
+                BasicText("Delete", style = MorrowTheme.type.bodyStrong.copy(color = colors.onWarn))
             }
         }
         Row(
             modifier = Modifier
-                .background(colors.surface2, RoundedCornerShape(12.dp))
-                .padding(horizontal = 12.dp, vertical = 4.dp),
+                .fillMaxWidth()
+                .offset { IntOffset(swipe.value.roundToInt(), 0) }
+                .pointerInput(row.id) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            scope.launch {
+                                if (swipe.value < -width * SWIPE_TO_DELETE) {
+                                    swipe.animateTo(-width, tween(180))
+                                    actions.onDelete(row.id)
+                                } else {
+                                    swipe.animateTo(0f, spring(dampingRatio = 0.8f))
+                                }
+                            }
+                        },
+                        onDragCancel = { scope.launch { swipe.animateTo(0f) } },
+                    ) { change, dragged ->
+                        change.consume()
+                        scope.launch { swipe.snapTo((swipe.value + dragged).coerceIn(-width, 0f)) }
+                    }
+                }
+                .background(colors.surface, shape)
+                .border(1.dp, colors.line, shape)
+                .padding(start = 8.dp, top = 8.dp, bottom = 8.dp, end = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            MorrowIcon(Icons.forMission(row.firstGame), colors.hi, size = 14.dp, strokeWidth = 2.2f)
-            BasicText(row.games, style = MorrowTheme.type.label.copy(color = colors.hi, letterSpacing = MorrowTheme.type.caption.letterSpacing))
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(20.dp))
+                    .pressable({ actions.onOpenAlarm(row.id) }, onClickLabel = "Edit alarm")
+                    .semantics(mergeDescendants = true) {
+                        customActions = listOf(CustomAccessibilityAction("Delete") { actions.onDelete(row.id); true })
+                    }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Row(Modifier.alpha(alpha), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    BasicText(row.time, style = MorrowTheme.type.display.copy(color = colors.text))
+                    MorrowIcon(if (row.sunUp) Icons.Sun else Icons.Moon, colors.hi)
+                }
+                BasicText(row.details, style = MorrowTheme.type.body.copy(color = colors.muted))
+                row.zoneText?.let { text ->
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        MorrowIcon(Icons.Globe, colors.hi, size = 14.dp, strokeWidth = 2.2f)
+                        BasicText(text, style = MorrowTheme.type.label.copy(color = colors.hi, letterSpacing = MorrowTheme.type.caption.letterSpacing))
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .background(colors.surface2, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                MorrowIcon(Icons.forMission(row.firstGame), colors.hi, size = 14.dp, strokeWidth = 2.2f)
+                BasicText(row.games, style = MorrowTheme.type.label.copy(color = colors.hi, letterSpacing = MorrowTheme.type.caption.letterSpacing))
+            }
+            MorrowToggle(
+                row.enabled,
+                { actions.onToggle(row.id, it) },
+                contentDescription = "${row.details} at ${row.time}" + (row.zoneText?.let { ", $it" } ?: ""),
+            )
         }
-        MorrowToggle(
-            row.enabled,
-            { actions.onToggle(row.id, it) },
-            contentDescription = "${row.details} at ${row.time}" + (row.zoneText?.let { ", $it" } ?: ""),
-        )
     }
 }
+
+private const val SWIPE_TO_DELETE = 0.4f
 
 @Composable
 private fun EmptyAlarms(onNewAlarm: () -> Unit) {

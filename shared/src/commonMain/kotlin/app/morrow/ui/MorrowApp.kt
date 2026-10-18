@@ -72,6 +72,7 @@ import app.morrow.ui.firstrun.SetupScreen
 import app.morrow.ui.firstrun.WelcomeScreen
 import app.morrow.ui.home.HomeActions
 import app.morrow.ui.home.HomeScreen
+import app.morrow.ui.home.deletedNote
 import app.morrow.ui.home.homeModel
 import app.morrow.ui.home.homeWeather
 import app.morrow.ui.mission.MissionServices
@@ -162,6 +163,8 @@ fun MorrowApp(
                     val screens = rememberSaveableStateHolder()
                     var editing by rememberSaveable { mutableStateOf<String?>(null) }
                     var previewing by rememberSaveable(stateSaver = AlarmSaver) { mutableStateOf(null) }
+                    // The alarm last deleted, as it was saved, while Home offers to put it back.
+                    var deleted by rememberSaveable(stateSaver = AlarmSaver) { mutableStateOf(null) }
                     var inSettings by rememberSaveable { mutableStateOf(false) }
                     var addingCity by rememberSaveable { mutableStateOf(false) }
                     var pickingHome by rememberSaveable { mutableStateOf(false) }
@@ -244,6 +247,8 @@ fun MorrowApp(
                                             onPreview = { previewing = it },
                                             onSettings = { inSettings = true },
                                             onOpenWorld = { tab = Tab.WORLD },
+                                            deleted = deleted,
+                                            onDeleted = { deleted = it },
                                         )
                                     }
                                 }
@@ -252,6 +257,7 @@ fun MorrowApp(
                                 EditRoute(
                                     services, theme, shown.target, onSystemBarsChange,
                                     onPreview = { previewing = it },
+                                    onDeleted = { deleted = it },
                                     onDone = {
                                         editing = null
                                         screens.removeState(EDIT)
@@ -311,6 +317,10 @@ private fun Home(
     onPreview: (Alarm) -> Unit,
     onSettings: () -> Unit,
     onOpenWorld: () -> Unit,
+    /** The alarm just deleted, which Home offers to put back. */
+    deleted: Alarm?,
+    /** An alarm was deleted, as it was saved; null once it's put back or the offer has gone. */
+    onDeleted: (Alarm?) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val alarms by services.repository.alarms.collectAsStateWithLifecycle<List<Alarm>?>(initialValue = null)
@@ -328,7 +338,7 @@ private fun Home(
 
     val loaded = alarms ?: return
     HomeScreen(
-        model = homeModel(loaded, now, zone, missing, intention, weather),
+        model = homeModel(loaded, now, zone, missing, intention, weather).copy(undo = deleted?.let(::deletedNote)),
         theme = theme,
         minuteOfDay = minute,
         actions = HomeActions(
@@ -340,6 +350,20 @@ private fun Home(
             onSettings = onSettings,
             onFixPermissions = { missing.firstOrNull { it.required }?.let(services.permissions::request) },
             onOpenWorld = onOpenWorld,
+            onDelete = { id ->
+                scope.launch {
+                    val alarm = services.repository.get(id) ?: return@launch
+                    services.coordinator.delete(id)
+                    onDeleted(alarm)
+                }
+            },
+            // Saved again under its old id, and scheduled again if it was on.
+            onUndo = {
+                val alarm = deleted
+                onDeleted(null)
+                if (alarm != null) scope.launch { services.coordinator.save(alarm) }
+            },
+            onDismissUndo = { onDeleted(null) },
         ),
     )
 }
@@ -352,6 +376,8 @@ private fun EditRoute(
     target: String,
     onSystemBarsChange: (Boolean) -> Unit,
     onPreview: (Alarm) -> Unit,
+    /** The alarm was deleted, as it was last saved, so Home can offer to put it back. */
+    onDeleted: (Alarm) -> Unit,
     onDone: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -406,7 +432,9 @@ private fun EditRoute(
             onBack = onDone,
             onDelete = {
                 scope.launch {
+                    val saved = services.repository.get(current.id)
                     services.coordinator.delete(current.id)
+                    saved?.let(onDeleted)
                     onDone()
                 }
             },

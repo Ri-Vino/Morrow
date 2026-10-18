@@ -41,7 +41,12 @@ data class HomeModel(
     val rows: List<AlarmRow>,
     /** The weather line under the greeting, and the weather in the sky; null with weather off or none recent enough. */
     val weather: HomeWeather? = null,
+    /** What was just deleted, like "07:30 alarm deleted", while it can still be undone. */
+    val undo: String? = null,
 )
+
+/** The line Home shows, with Undo, once [alarm] has been deleted. */
+fun deletedNote(alarm: Alarm): String = "${hhmm(alarm.hour, alarm.minute)} alarm deleted"
 
 /** The weather where you are, as Home shows it. */
 data class HomeWeather(
