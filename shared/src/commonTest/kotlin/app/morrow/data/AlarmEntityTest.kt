@@ -36,6 +36,14 @@ class AlarmEntityTest {
     }
 
     @Test
+    fun aTemporaryAlarmRoundTripsAndNeverRepeats() {
+        val nap = Alarm(id = 5, hour = 14, minute = 20, label = "Nap", days = emptySet(), games = DefaultGames, enabled = true, temporary = true)
+        assertEquals(nap, nap.toEntity().toAlarm())
+        // Days on a temporary row would be a mistake; it reads back ringing once rather than failing.
+        assertEquals(nap, nap.toEntity().copy(days = 1).toAlarm())
+    }
+
+    @Test
     fun aBlankDescriptionReadsAsNone() {
         val row = AlarmEntity(1, 7, 0, "Alarm", days = 0, games = "SUMS:3", enabled = true, description = "  ")
         assertNull(row.toAlarm().description)

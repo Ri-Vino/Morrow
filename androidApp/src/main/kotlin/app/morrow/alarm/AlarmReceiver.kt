@@ -22,6 +22,8 @@ class AlarmReceiver : BroadcastReceiver() {
             ACTION_END_SNOOZE -> {
                 AndroidAlarmScheduler(context).cancelSnooze(alarmId)
                 context.getSystemService(NotificationManager::class.java).cancel(RingNotifications.snoozedId(alarmId))
+                // Called off, so it's done with: a temporary alarm deletes itself.
+                goAsync { context.morrow.coordinator.onFinished(alarmId) }
             }
         }
     }

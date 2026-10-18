@@ -39,6 +39,8 @@ data class AlarmEntity(
     @ColumnInfo(name = "snooze_limit", defaultValue = "3") val snoozeLimit: Int = DEFAULT_SNOOZE_LIMIT,
     /** Shown on the ring screen under [label], or null for none. */
     val description: String? = null,
+    /** Deleted once it has rung and been dealt with. */
+    @ColumnInfo(defaultValue = "0") val temporary: Boolean = false,
 )
 
 internal fun Alarm.toEntity() = AlarmEntity(
@@ -56,6 +58,7 @@ internal fun Alarm.toEntity() = AlarmEntity(
     snoozeMinutes = snoozeMinutes,
     snoozeLimit = snoozeLimit,
     description = description,
+    temporary = temporary,
 )
 
 internal fun AlarmEntity.toAlarm() = Alarm(
@@ -63,7 +66,8 @@ internal fun AlarmEntity.toAlarm() = Alarm(
     hour = hour,
     minute = minute,
     label = label,
-    days = DayOfWeek.entries.filterTo(mutableSetOf()) { days and (1 shl (it.isoDayNumber - 1)) != 0 },
+    // A temporary alarm never repeats, so days on one would be a mistake: they're dropped rather than refused.
+    days = if (temporary) emptySet() else DayOfWeek.entries.filterTo(mutableSetOf()) { days and (1 shl (it.isoDayNumber - 1)) != 0 },
     games = decodeGames(games).distinctBy { it.type }.ifEmpty { DefaultGames },
     enabled = enabled,
     timeZone = timeZone,
@@ -74,4 +78,5 @@ internal fun AlarmEntity.toAlarm() = Alarm(
     snoozeMinutes = snoozeMinutes.coerceIn(0, MAX_SNOOZE_MINUTES),
     snoozeLimit = snoozeLimit.coerceAtLeast(UNLIMITED_SNOOZES),
     description = description?.takeIf(String::isNotBlank),
+    temporary = temporary,
 )

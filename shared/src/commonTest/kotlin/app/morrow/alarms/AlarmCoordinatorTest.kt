@@ -252,6 +252,40 @@ class AlarmCoordinatorTest {
         coordinator.onRang(42)
         assertEquals(emptyMap(), scheduler.scheduled)
     }
+
+    @Test
+    fun aTemporaryAlarmDeletesItselfOnceDoneWithAndCanBeOfferedBack() = runTest {
+        val id = coordinator.save(alarm(7, 30).copy(temporary = true))
+        coordinator.onRang(id)
+        coordinator.onFinished(id)
+
+        assertNull(repository.get(id))
+        assertNull(scheduler.scheduled[id])
+        assertEquals(id, coordinator.deletedWhenDone.value?.id)
+        coordinator.forgetDeletedWhenDone()
+        assertNull(coordinator.deletedWhenDone.value)
+    }
+
+    @Test
+    fun anOrdinaryAlarmStaysOnceDoneWith() = runTest {
+        val id = coordinator.save(alarm(7, 30))
+        coordinator.onRang(id)
+        coordinator.onFinished(id)
+
+        assertEquals(false, repository.get(id)?.enabled)
+        assertNull(coordinator.deletedWhenDone.value)
+    }
+
+    @Test
+    fun catchingUpDeletesATemporaryAlarmTheSystemHasRung() = runTest {
+        val temporary = coordinator.save(alarm(7, 30).copy(temporary = true))
+        val once = coordinator.save(alarm(7, 45))
+        coordinator.catchUp(stillScheduled = emptySet())
+
+        assertNull(repository.get(temporary))
+        assertEquals(false, repository.get(once)?.enabled)
+        assertEquals(temporary, coordinator.deletedWhenDone.value?.id)
+    }
 }
 
 class FakeAlarmScheduler : AlarmScheduler {

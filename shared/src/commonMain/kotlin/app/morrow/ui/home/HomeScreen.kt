@@ -9,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -40,6 +41,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
 import app.morrow.theme.mix
+import app.morrow.ui.PlatformBackHandler
 import app.morrow.ui.components.Icons
 import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.components.MorrowToggle
@@ -99,11 +102,17 @@ class HomeActions(
     val onUndo: () -> Unit = {},
     /** The undo line was closed, or its time ran out. */
     val onDismissUndo: () -> Unit = {},
+    /** Held new alarm button's Temporary: Edit opens for a temporary alarm. */
+    val onNewTemporary: () -> Unit = {},
+    /** A temporary alarm in this many minutes, named as a nap or not, from the held button's sheet. */
+    val onQuickAlarm: (minutes: Int, nap: Boolean) -> Unit = { _, _ -> },
 )
 
 @Composable
 fun HomeScreen(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: HomeActions, modifier: Modifier = Modifier) {
     val colors = MorrowTheme.colors
+    var menuOpen by rememberSaveable { mutableStateOf(false) }
+    var quickSheet by rememberSaveable { mutableStateOf<QuickKind?>(null) }
     BoxWithConstraints(modifier.fillMaxSize().background(colors.bg)) {
         // In the design the content starts 262 of the scene's 330 units down, over the hills.
         val density = LocalDensity.current
@@ -141,26 +150,44 @@ fun HomeScreen(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: 
                 }
             }
         }
+        if (menuOpen) {
+            // Tapping anywhere else, or going back, closes the held button's choices.
+            PlatformBackHandler { menuOpen = false }
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(colors.bg.copy(alpha = 0.6f))
+                    .pointerInput(Unit) { detectTapGestures { menuOpen = false } },
+            )
+        }
         Column(
             modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
             horizontalAlignment = Alignment.End,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (model.rows.isNotEmpty()) {
-                PillButton(
-                    text = "New alarm",
-                    onClick = actions.onNewAlarm,
-                    background = colors.accent,
-                    content = colors.onAccent,
-                    icon = Icons.Plus,
-                    height = 56.dp,
-                    padding = PaddingValues(start = 16.dp, end = 24.dp),
-                    modifier = Modifier
-                        .padding(end = 8.dp)
-                        .shadow(14.dp, CircleShape, ambientColor = colors.shadow, spotColor = colors.shadow),
+                SunButton(
+                    open = menuOpen,
+                    onNewAlarm = actions.onNewAlarm,
+                    onOpenChange = { menuOpen = it },
+                    onPick = { kind ->
+                        menuOpen = false
+                        if (kind == QuickKind.TEMPORARY) actions.onNewTemporary() else quickSheet = kind
+                    },
                 )
             }
             model.undo?.let { UndoBar(it, actions.onUndo, actions.onDismissUndo) }
+        }
+        quickSheet?.let { kind ->
+            QuickAlarmSheet(
+                kind,
+                minuteOfDay,
+                onSet = { minutes ->
+                    quickSheet = null
+                    actions.onQuickAlarm(minutes, kind == QuickKind.NAP)
+                },
+                onClose = { quickSheet = null },
+            )
         }
     }
 }

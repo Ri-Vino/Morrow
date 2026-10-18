@@ -51,7 +51,9 @@ data class HomeModel(
 )
 
 /** The line Home shows, with Undo, once [alarm] has been deleted. */
-fun deletedNote(alarm: Alarm): String = "${hhmm(alarm.hour, alarm.minute)} alarm deleted"
+fun deletedNote(alarm: Alarm): String =
+    if (alarm.temporary) "${alarm.label} at ${hhmm(alarm.hour, alarm.minute)} is done, so it’s gone"
+    else "${hhmm(alarm.hour, alarm.minute)} alarm deleted"
 
 /** The weather where you are, as Home shows it. */
 data class HomeWeather(
@@ -114,7 +116,7 @@ fun homeModel(
             AlarmRow(
                 id = alarm.id,
                 time = hhmm(alarm.hour, alarm.minute),
-                details = "${alarm.label} · ${describeDays(alarm.days)}",
+                details = "${alarm.label} · ${if (alarm.temporary) "Temporary" else describeDays(alarm.days)}",
                 firstGame = alarm.games.first().type,
                 games = alarm.games.first().type.displayName + if (alarm.games.size > 1) " +${alarm.games.size - 1}" else "",
                 enabled = alarm.enabled,

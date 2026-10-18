@@ -33,14 +33,18 @@ import app.morrow.domain.DEFAULT_SNOOZE_MINUTES
 import app.morrow.domain.DefaultGames
 import app.morrow.domain.Difficulty
 import app.morrow.domain.MissionType
+import app.morrow.domain.NAP_NAME
+import app.morrow.domain.QUICK_ALARM_NAME
 import app.morrow.domain.RingSound
 import app.morrow.domain.WakeSound
 import app.morrow.domain.decodeGames
 import app.morrow.domain.decodeRingSound
 import app.morrow.domain.encode
 import app.morrow.domain.encodeGames
+import app.morrow.domain.newTemporaryAlarm
 import app.morrow.domain.nextAlarm
 import app.morrow.domain.nextRing
+import app.morrow.domain.quickAlarm
 import app.morrow.domain.tidied
 import app.morrow.places.City
 import app.morrow.places.CityCatalog
@@ -169,6 +173,14 @@ fun MorrowApp(
                     var previewing by rememberSaveable(stateSaver = AlarmSaver) { mutableStateOf(null) }
                     // The alarm last deleted, as it was saved, while Home offers to put it back.
                     var deleted by rememberSaveable(stateSaver = AlarmSaver) { mutableStateOf(null) }
+                    // A temporary alarm that deleted itself once done with is offered back the same way.
+                    val doneWith by services.coordinator.deletedWhenDone.collectAsStateWithLifecycle()
+                    LaunchedEffect(doneWith) {
+                        doneWith?.let {
+                            deleted = it
+                            services.coordinator.forgetDeletedWhenDone()
+                        }
+                    }
                     var inSettings by rememberSaveable { mutableStateOf(false) }
                     var addingCity by rememberSaveable { mutableStateOf(false) }
                     var pickingHome by rememberSaveable { mutableStateOf(false) }
@@ -249,6 +261,7 @@ fun MorrowApp(
                                         Home(
                                             services, theme, onSystemBarsChange,
                                             onEdit = { editing = it?.toString() ?: NEW_ALARM },
+                                            onNewTemporary = { editing = NEW_TEMPORARY },
                                             onPreview = { previewing = it },
                                             onSettings = { inSettings = true },
                                             onOpenWorld = { tab = Tab.WORLD },
@@ -333,6 +346,8 @@ private fun Home(
     onPreview: (Alarm) -> Unit,
     onSettings: () -> Unit,
     onOpenWorld: () -> Unit,
+    /** Edit opens for a new temporary alarm. */
+    onNewTemporary: () -> Unit,
     /** The alarm just deleted, which Home offers to put back. */
     deleted: Alarm?,
     /** An alarm was deleted, as it was saved; null once it's put back or the offer has gone. */
@@ -382,6 +397,12 @@ private fun Home(
                 if (alarm != null) scope.launch { services.coordinator.save(alarm) }
             },
             onDismissUndo = { onDeleted(null) },
+            onNewTemporary = onNewTemporary,
+            onQuickAlarm = { minutes, nap ->
+                scope.launch {
+                    services.coordinator.save(quickAlarm(minutes, Clock.System.now(), zone, if (nap) NAP_NAME else QUICK_ALARM_NAME))
+                }
+            },
         ),
     )
 }
@@ -695,6 +716,7 @@ internal fun TimerWakeRoute(
 }
 
 private const val NEW_ALARM = "new"
+private const val NEW_TEMPORARY = "new-temporary"
 private const val HOME = "home"
 private const val EDIT = "edit"
 private const val TIMERS = "timers"
@@ -707,8 +729,12 @@ internal fun newAlarmTarget(city: City): String = listOf(NEW_ALARM, city.timeZon
 
 private const val ZONED_TARGET_SEPARATOR = "|"
 
-/** A new alarm for an Edit target: on a city's clock when [newAlarmTarget] made it, else on the phone's. */
+/**
+ * A new alarm for an Edit target: a temporary one for [NEW_TEMPORARY], on a city's clock when [newAlarmTarget] made it,
+ * else on the phone's.
+ */
 private fun newAlarmFor(target: String): Alarm {
+    if (target == NEW_TEMPORARY) return newTemporaryAlarm(Clock.System.now(), TimeZone.currentSystemDefault())
     val parts = target.split(ZONED_TARGET_SEPARATOR, limit = 3)
     return if (parts.size == 3 && parts[0] == NEW_ALARM) newAlarm(timeZone = parts[1], city = parts[2]) else newAlarm()
 }
@@ -735,7 +761,7 @@ private val AlarmSaver = Saver<Alarm?, List<Any>>(
             listOf(
                 it.id, it.hour, it.minute, it.label, it.days.joinToString(",") { day -> day.name }, encodeGames(it.games), it.enabled,
                 it.timeZone.orEmpty(), it.zoneLabel.orEmpty(), it.sound?.encode().orEmpty(), it.difficulty?.name.orEmpty(), it.snoozeMinutes,
-                it.snoozeLimit, it.description.orEmpty(),
+                it.snoozeLimit, it.description.orEmpty(), it.temporary,
             )
         }
     },
@@ -755,6 +781,7 @@ private val AlarmSaver = Saver<Alarm?, List<Any>>(
             snoozeMinutes = saved.getOrNull(11) as Int? ?: DEFAULT_SNOOZE_MINUTES,
             snoozeLimit = saved.getOrNull(12) as Int? ?: DEFAULT_SNOOZE_LIMIT,
             description = (saved.getOrNull(13) as String?)?.ifEmpty { null },
+            temporary = saved.getOrNull(14) as Boolean? ?: false,
         )
     },
 )

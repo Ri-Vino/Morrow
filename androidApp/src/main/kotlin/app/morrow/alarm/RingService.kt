@@ -202,13 +202,16 @@ class RingService : Service() {
         AndroidAlarmScheduler(this).snooze(alarm.id, until, Ringing.snoozed + 1)
         getSystemService(NotificationManager::class.java)
             .notify(RingNotifications.snoozedId(alarm.id), RingNotifications.snoozed(this, alarm, until))
-        stopAlarm(gamesDone = false)
+        stopAlarm(gamesDone = false, snoozed = true)
     }
 
-    /** Games done, or the alarm's safety stop. */
-    private fun stopAlarm(gamesDone: Boolean) {
+    /** Games done, the alarm's safety stop, or a snooze, after which it rings again. */
+    private fun stopAlarm(gamesDone: Boolean, snoozed: Boolean = false) {
         if (mode != Mode.ALARM) return stopIfIdle()
         handler.removeCallbacks(alarmSafetyStop)
+        // Done with, unless it was only snoozed, so a temporary alarm can delete itself. Not cancelled as the service stops.
+        val ringing = Ringing.current.value
+        if (ringing != null && !snoozed) scope.launch { withContext(NonCancellable) { morrow.coordinator.onFinished(ringing.id) } }
         quiet()
         mode = Mode.IDLE
         Ringing.set(null)

@@ -29,8 +29,11 @@ data class Alarm(
     val snoozeLimit: Int = DEFAULT_SNOOZE_LIMIT,
     /** A line the ring screen shows under the name, such as "Gym bag is by the door"; null or blank means none. */
     val description: String? = null,
+    /** Rings once, then deletes itself once it's done with: a nap, or "in 20 minutes". It never repeats. */
+    val temporary: Boolean = false,
 ) {
     init {
+        require(!temporary || days.isEmpty()) { "a temporary alarm rings once, but had days $days" }
         require(hour in 0..23) { "hour must be 0..23, was $hour" }
         require(minute in 0..59) { "minute must be 0..59, was $minute" }
         require(games.isNotEmpty()) { "an alarm needs at least one game" }

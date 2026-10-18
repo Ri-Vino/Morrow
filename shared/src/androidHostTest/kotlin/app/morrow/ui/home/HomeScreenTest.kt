@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -44,6 +45,9 @@ class HomeScreenTest {
     private val deleted = mutableListOf<Long>()
     private var undone = 0
     private var undoClosed = 0
+    private var newAlarms = 0
+    private var newTemporary = 0
+    private val quick = mutableListOf<Pair<Int, Boolean>>()
 
     private val rain = HomeWeather(Sky.RAIN, night = false, text = "12° · Rain in London", label = "12° and rain in London. Open World")
     private val work = Alarm(7, 7, 30, "Work", emptySet(), listOf(GameStep(MissionType.SUMS)), enabled = true)
@@ -58,7 +62,7 @@ class HomeScreenTest {
                     actions = HomeActions(
                         onToggle = { _, _ -> },
                         onOpenAlarm = {},
-                        onNewAlarm = {},
+                        onNewAlarm = { newAlarms++ },
                         onTrySunrise = {},
                         onSettings = {},
                         onFixPermissions = {},
@@ -66,6 +70,8 @@ class HomeScreenTest {
                         onDelete = { deleted += it },
                         onUndo = { undone++ },
                         onDismissUndo = { undoClosed++ },
+                        onNewTemporary = { newTemporary++ },
+                        onQuickAlarm = { minutes, nap -> quick += minutes to nap },
                     ),
                 )
             }
@@ -167,5 +173,54 @@ class HomeScreenTest {
 
         val title = compose.onNodeWithText("Alarms").getBoundsInRoot()
         assertTrue(title.top < 360.dp, "The alarms start at ${title.top}, below the screen")
+    }
+
+    @Test
+    fun tappingTheSunMakesANormalAlarm() {
+        show(null, listOf(work))
+
+        compose.onNodeWithContentDescription("New alarm").performClick()
+
+        assertEquals(1, newAlarms)
+        compose.onNodeWithText("Temporary").assertDoesNotExist()
+    }
+
+    @Test
+    fun holdingTheSunOffersTheOtherKinds() {
+        show(null, listOf(work))
+
+        compose.onNodeWithContentDescription("New alarm").performTouchInput { longClick() }
+        compose.onNodeWithText("Temporary").assertIsDisplayed()
+        compose.onNodeWithText("Nap").assertIsDisplayed()
+        compose.onNodeWithText("In X min").performClick()
+
+        compose.onNodeWithText("Ring in").assertIsDisplayed()
+        compose.onNodeWithText("15").performClick()
+        compose.onNodeWithText("Ring at 07:55").performScrollTo().performClick()
+        assertEquals(listOf(15 to false), quick)
+        assertEquals(0, newAlarms)
+    }
+
+    @Test
+    fun aNapStartsAtTwentyMinutes() {
+        show(null, listOf(work))
+
+        compose.onNodeWithContentDescription("New alarm").performTouchInput { longClick() }
+        compose.onNodeWithText("Nap").performClick()
+        compose.onNodeWithText("Nap until 08:00").performScrollTo().performClick()
+
+        assertEquals(listOf(20 to true), quick)
+    }
+
+    @Test
+    fun temporaryOpensEditAndTheChoicesAreThereForScreenReaders() {
+        show(null, listOf(work))
+
+        val actions = compose.onNodeWithContentDescription("New alarm").fetchSemanticsNode().config[SemanticsActions.CustomActions]
+        assertEquals(listOf("Temporary alarm", "Nap", "Alarm in a few minutes"), actions.map { it.label })
+        actions.first().action()
+        compose.waitForIdle()
+
+        assertEquals(1, newTemporary)
     }
 }

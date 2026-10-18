@@ -13,7 +13,7 @@ import kotlinx.coroutines.IO
 
 @Database(
     entities = [AlarmEntity::class, SavedCityEntity::class, WeatherCacheEntity::class, CitySearchCacheEntity::class, TimerEntity::class, OwnSoundEntity::class],
-    version = 12,
+    version = 13,
 )
 @ConstructedBy(MorrowDatabaseConstructor::class)
 abstract class MorrowDatabase : RoomDatabase() {
@@ -42,7 +42,7 @@ fun buildMorrowDatabase(builder: RoomDatabase.Builder<MorrowDatabase>): MorrowDa
     builder
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(GamesMigration, CitiesMigration, ZonesMigration, WeatherMigration, TimersMigration, SoundsMigration, DifficultyMigration, SnoozeMigration, OwnSoundsMigration, SnoozeLimitMigration, DescriptionMigration)
+        .addMigrations(GamesMigration, CitiesMigration, ZonesMigration, WeatherMigration, TimersMigration, SoundsMigration, DifficultyMigration, SnoozeMigration, OwnSoundsMigration, SnoozeLimitMigration, DescriptionMigration, TemporaryMigration)
         .build()
 
 /** An alarm's one mission becomes its first and only game, with that game's usual rounds. */
@@ -158,5 +158,12 @@ internal object SnoozeLimitMigration : Migration(10, 11) {
 internal object DescriptionMigration : Migration(11, 12) {
     override fun migrate(connection: SQLiteConnection) {
         connection.execSQL("ALTER TABLE `alarms` ADD COLUMN `description` TEXT")
+    }
+}
+
+/** Alarms can be temporary, deleting themselves once done with. None is yet. */
+internal object TemporaryMigration : Migration(12, 13) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE `alarms` ADD COLUMN `temporary` INTEGER NOT NULL DEFAULT 0")
     }
 }
