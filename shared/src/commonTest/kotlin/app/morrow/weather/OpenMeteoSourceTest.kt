@@ -28,7 +28,7 @@ class OpenMeteoSourceTest {
         assertEquals(Coordinates(51.51, -0.13), forecast.place)
         assertEquals("Europe/London", forecast.timeZone)
         assertEquals(now, forecast.fetchedAt)
-        assertEquals(CurrentWeather(temperature = 11.4, sky = Sky.RAIN, isDay = true), forecast.now)
+        assertEquals(CurrentWeather(temperature = 11.4, sky = Sky.RAIN, isDay = true, wind = 24.5), forecast.now)
         assertEquals(DayWeather(high = 14.2, low = 7.9, rainChance = 80), forecast.today)
         assertEquals(DayWeather(high = 15.0, low = 8.4, rainChance = 20), forecast.tomorrow)
     }
@@ -39,8 +39,8 @@ class OpenMeteoSourceTest {
 
         assertEquals(12, hours.size)
         // 07:15 in London is in the 07:00 hour, index 7, which is 06:00 UTC in summer time.
-        assertEquals(HourWeather(Instant.parse("2026-10-11T06:00:00Z"), 8.7, Sky.RAIN, rainChance = 7), hours.first())
-        assertEquals(HourWeather(Instant.parse("2026-10-11T17:00:00Z"), 9.8, Sky.CLOUDY, rainChance = 18), hours.last())
+        assertEquals(HourWeather(Instant.parse("2026-10-11T06:00:00Z"), 8.7, Sky.RAIN, rainChance = 7, wind = 7.0), hours.first())
+        assertEquals(HourWeather(Instant.parse("2026-10-11T17:00:00Z"), 9.8, Sky.CLOUDY, rainChance = 18, wind = 18.0), hours.last())
         assertEquals((7..18).toList(), hours.map { it.rainChance })
         assertEquals(hours.sortedBy { it.time }, hours)
     }
@@ -74,8 +74,8 @@ class OpenMeteoSourceTest {
         assertEquals(
             listOf(
                 "https://api.open-meteo.com/v1/forecast?latitude=51.51,40.71,35.69&longitude=-0.13,-74.01,139.69" +
-                    "&current=temperature_2m,weather_code,is_day" +
-                    "&hourly=temperature_2m,weather_code,precipitation_probability" +
+                    "&current=temperature_2m,weather_code,is_day,wind_speed_10m" +
+                    "&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m" +
                     "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
                     "&forecast_days=2&timezone=auto",
             ),

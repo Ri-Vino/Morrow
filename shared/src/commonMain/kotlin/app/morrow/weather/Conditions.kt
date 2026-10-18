@@ -21,7 +21,7 @@ private val DaylightHours = 6..18
 fun Forecast.conditionsAt(now: Instant): CurrentWeather? {
     if (now - fetchedAt <= NowIsFreshFor) return this.now
     val hour = hours.firstOrNull { it.time <= now && now < it.time + 1.hours } ?: return null
-    return CurrentWeather(hour.temperature, hour.sky, isDay = isDaylight(hour.time))
+    return CurrentWeather(hour.temperature, hour.sky, isDay = isDaylight(hour.time), wind = hour.wind)
 }
 
 /**

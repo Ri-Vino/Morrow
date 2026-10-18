@@ -34,11 +34,11 @@ class FakeWeatherSource(private val now: () -> Instant) : WeatherSource {
     }
 }
 
-fun forecastFor(place: Coordinates, at: Instant, temperature: Double = 10.0, sky: Sky = Sky.CLEAR) = Forecast(
+fun forecastFor(place: Coordinates, at: Instant, temperature: Double = 10.0, sky: Sky = Sky.CLEAR, wind: Double? = null) = Forecast(
     place = place,
     timeZone = "Europe/London",
     fetchedAt = at,
-    now = CurrentWeather(temperature, sky, isDay = true),
+    now = CurrentWeather(temperature, sky, isDay = true, wind = wind),
     today = DayWeather(high = temperature + 4, low = temperature - 3, rainChance = 10),
-    hours = listOf(HourWeather(at, temperature, sky, rainChance = 10)),
+    hours = listOf(HourWeather(at, temperature, sky, rainChance = 10, wind = wind)),
 )

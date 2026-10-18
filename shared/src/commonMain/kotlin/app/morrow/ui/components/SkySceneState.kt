@@ -8,7 +8,9 @@ import app.morrow.theme.colors
 import app.morrow.theme.contrastRatio
 import app.morrow.theme.mix
 import app.morrow.theme.sunElevation
+import app.morrow.weather.Feel
 import app.morrow.weather.Sky
+import app.morrow.weather.Warmth
 import kotlin.math.abs
 import kotlin.math.min
 
@@ -38,10 +40,15 @@ data class SkySceneState(
     val backing: Color,
     /** What's drawn over the sky and Pip, or null for nothing. Pip stays in view, peeking over a cloud. */
     val weather: WeatherLook? = null,
+    /** How warm or cold it feels, and how windy, for [ClimateLayer]. */
+    val climate: ClimateLook = ClimateLook.None,
 )
 
-/** [dim] is the phone's dark mode: a day sky is toned down a little towards the dark ground, as photos are. */
-fun skySceneState(minuteOfDay: Float, theme: ThemeKind, weather: Sky? = null, dim: Boolean = false): SkySceneState {
+/**
+ * [dim] is the phone's dark mode: a day sky is toned down a little towards the dark ground, as photos are. [feel] is how
+ * it feels outside, for frost or heat haze, blowing leaves, and what Pip wears.
+ */
+fun skySceneState(minuteOfDay: Float, theme: ThemeKind, weather: Sky? = null, dim: Boolean = false, feel: Feel = Feel.Mild): SkySceneState {
     val elevation = sunElevation(minuteOfDay).toFloat()
     val sunUp = elevation >= 0f
     val night = theme == ThemeKind.NIGHT
@@ -61,14 +68,14 @@ fun skySceneState(minuteOfDay: Float, theme: ThemeKind, weather: Sky? = null, di
     // The muted ink deepens towards the full ink only as far as it must to stay readable.
     val muted = if (lightSky) inkTints.muted else Illustration.starlightMuted
     val deepen = leastStep { contrastRatio(mix(muted, ink, it), behindText) >= TEXT_CONTRAST }
-    val look = weather?.let { weatherLook(it, lightSky, sunUp) }
+    val look = weather?.let { weatherLook(it, lightSky, sunUp) }?.copy(windy = feel.windy)
     // Stars glimmer through thin cloud but hardly at all through a full cover.
     val overcast = (look?.cloudAlpha ?: 0f) > 0.95f
     return SkySceneState(
         sky = sky,
         starAlpha = (-elevation * 2.5f).coerceIn(0f, 1f) * if (overcast) 0.2f else 1f,
         pipY = 238f - min(1f, abs(elevation)) * 150f,
-        pip = pipFor(theme, sunUp, brightSky = weather == null || weather == Sky.CLEAR || weather == Sky.PARTLY_CLOUDY),
+        pip = pipFor(theme, sunUp, brightSky = weather == null || weather == Sky.CLEAR || weather == Sky.PARTLY_CLOUDY, feel),
         hillBack = mix(sky, tints.hillTint, 0.38f),
         hillMid = mix(sky, tints.hillTint, 0.64f),
         house = mix(sky, tints.houseTint, 0.8f),
@@ -80,6 +87,7 @@ fun skySceneState(minuteOfDay: Float, theme: ThemeKind, weather: Sky? = null, di
         inkMuted = if (deepen == 0f) muted else mix(muted, ink, deepen),
         backing = wash.copy(alpha = washAlpha),
         weather = look,
+        climate = climateLook(feel, snowing = weather == Sky.SNOW),
     )
 }
 
@@ -94,11 +102,19 @@ private inline fun leastStep(ok: (Float) -> Boolean): Float =
 
 private const val STEPS = 255
 
-/** Pip at noon wears shades only under a [brightSky]; otherwise its eyes are open, as in the morning. */
-private fun pipFor(theme: ThemeKind, sunUp: Boolean, brightSky: Boolean): PipLook = when {
-    !sunUp -> PipLook(PipMood.ASLEEP, moon = true, nightcap = true)
-    theme == ThemeKind.MORNING -> PipLook(PipMood.OPEN, rays = true)
-    theme == ThemeKind.NOON -> PipLook(if (brightSky) PipMood.SHADES else PipMood.OPEN, rays = true)
-    theme == ThemeKind.AFTERNOON -> PipLook(PipMood.HAPPY, rays = true)
-    else -> PipLook(PipMood.ASLEEP)
+/**
+ * Pip at noon wears shades only under a [brightSky]; otherwise its eyes are open, as in the morning. On a hot day he
+ * wears them whenever the sun is up, and [feel] dresses him for the weather.
+ */
+private fun pipFor(theme: ThemeKind, sunUp: Boolean, brightSky: Boolean, feel: Feel): PipLook {
+    val hot = feel.warmth == Warmth.HOT || feel.warmth == Warmth.SCORCHING
+    val look = when {
+        !sunUp -> PipLook(PipMood.ASLEEP, moon = true, nightcap = true)
+        hot -> PipLook(PipMood.SHADES, rays = true)
+        theme == ThemeKind.MORNING -> PipLook(PipMood.OPEN, rays = true)
+        theme == ThemeKind.NOON -> PipLook(if (brightSky) PipMood.SHADES else PipMood.OPEN, rays = true)
+        theme == ThemeKind.AFTERNOON -> PipLook(PipMood.HAPPY, rays = true)
+        else -> PipLook(PipMood.ASLEEP)
+    }
+    return look.copy(outside = pipOutside(feel))
 }

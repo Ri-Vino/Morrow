@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
+import app.morrow.weather.Feel
 import app.morrow.weather.Sky
 import kotlin.math.PI
 import kotlin.math.cos
@@ -45,12 +46,13 @@ private const val SCENE_HEIGHT = 330f
 
 /**
  * The Home header: the sky for [minuteOfDay], stars, Pip as the sun or the sleeping moon, the [weather] over them, then
- * hills and the cottage. Its bottom edge is drawn in the theme's background colour so the screen continues below it.
- * Tapping Pip pokes it, and it answers in the way of the time of day ([pipPoke]). Decorative.
+ * hills and the cottage, and frost, heat haze or blowing leaves as it [feel]s outside. Its bottom edge is drawn in the
+ * theme's background colour so the screen continues below it. Tapping Pip pokes it, and it answers in the way of the
+ * time of day ([pipPoke]). Decorative.
  */
 @Composable
-fun SkyScene(minuteOfDay: Float, theme: ThemeKind, modifier: Modifier = Modifier, weather: Sky? = null) {
-    val target = skySceneState(minuteOfDay, theme, weather, MorrowTheme.dim)
+fun SkyScene(minuteOfDay: Float, theme: ThemeKind, modifier: Modifier = Modifier, weather: Sky? = null, feel: Feel = Feel.Mild) {
+    val target = skySceneState(minuteOfDay, theme, weather, MorrowTheme.dim, feel)
     val slow = tween<Color>(durationMillis = 1200)
     val sky by animateColorAsState(target.sky, slow)
     val hillBack by animateColorAsState(target.hillBack, slow)
@@ -93,6 +95,7 @@ fun SkyScene(minuteOfDay: Float, theme: ThemeKind, modifier: Modifier = Modifier
                 drawRect(sky, size = Size(SCENE_WIDTH, SCENE_HEIGHT))
                 drawStars(target.starAlpha, t, frame.starBoost)
                 translate(PIP_X, pipY) {
+                    if (!target.pip.moon) drawHeatGlow(target.climate.heat, t)
                     withTransform({
                         translate(frame.dx, frame.dy)
                         rotate(frame.rotation, Offset.Zero)
@@ -114,6 +117,7 @@ fun SkyScene(minuteOfDay: Float, theme: ThemeKind, modifier: Modifier = Modifier
                 drawPath(HillFront, ground)
             }
         }
+        ClimateLayer(target.climate, Modifier.matchParentSize())
     }
 }
 

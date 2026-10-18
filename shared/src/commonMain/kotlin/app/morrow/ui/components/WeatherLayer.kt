@@ -56,6 +56,8 @@ data class WeatherLook(
     val fogColor: Color,
     /** A lightning bolt that flashes every few seconds. */
     val lightning: Boolean,
+    /** Clouds race and rain and snow slant across in a strong wind. */
+    val windy: Boolean = false,
 )
 
 /** The layer for [weather], or null for a clear sky, which has none. Rain is dark over a [lightSky] and pale otherwise. */
@@ -174,7 +176,13 @@ internal fun DrawScope.drawWeather(look: WeatherLook, shapes: WeatherShapes, sec
     val down = size.height / shapes.height
     val still = seconds == STILL
 
-    val cloudShift = if (still) 0f else swing(seconds, CLOUD_DRIFT_SECONDS, -6f, 8f)
+    val cloudShift = when {
+        still -> 0f
+        look.windy -> swing(seconds, WINDY_CLOUD_DRIFT_SECONDS, -14f, 22f)
+        else -> swing(seconds, CLOUD_DRIFT_SECONDS, -6f, 8f)
+    }
+    // How much further a wind blows each drop to the left as it falls.
+    val blown = if (look.windy) 3f else 1f
     for (cloud in shapes.clouds) {
         val y = if (cloud.underPip) pipY + cloud.y else cloud.y
         withTransform({
@@ -192,14 +200,15 @@ internal fun DrawScope.drawWeather(look: WeatherLook, shapes: WeatherShapes, sec
             if (!still) {
                 // Each streak falls 28 units at a slant in 0.9 s, fading in over the first 30% and out over the rest.
                 val p = phase(seconds - shapes.dropDelays[i], RAIN_SECONDS)
-                shift = Offset(4f - 8f * p, -14f + 28f * p)
+                shift = Offset(4f * blown - 8f * blown * p, -14f + 28f * p)
                 fade = if (p < 0.3f) 0.9f * p / 0.3f else 0.9f * (1f - p) / 0.7f
             }
             val start = Offset(top.x * across, top.y * down) + shift * down
+            val streak = if (look.windy) Offset(shapes.streak.x * blown, shapes.streak.y) else shapes.streak
             drawLine(
                 look.dropColor,
                 start,
-                start + shapes.streak * down,
+                start + streak * down,
                 strokeWidth = shapes.streakWidth * down,
                 cap = StrokeCap.Round,
                 alpha = shapes.dropAlpha * fade,
@@ -212,9 +221,10 @@ internal fun DrawScope.drawWeather(look: WeatherLook, shapes: WeatherShapes, sec
             var shift = Offset.Zero
             var fade = 1f
             if (!still) {
-                // Each flake drifts 36 down and 6 across in 3.4 s, fading in over the first 20% and out over the rest.
+                // Each flake drifts 36 down and 6 across in 3.4 s, or 40 back the way the wind blows, fading in over
+                // the first 20% and out over the rest.
                 val p = phase(seconds - shapes.flakeDelays[i], SNOW_SECONDS)
-                shift = Offset(6f * p, -10f + 36f * p)
+                shift = Offset((if (look.windy) -40f else 6f) * p, -10f + 36f * p)
                 fade = if (p < 0.2f) p / 0.2f else (1f - p) / 0.8f
             }
             drawCircle(Illustration.snowflake, shapes.flakeRadius * down, Offset(centre.x * across, centre.y * down) + shift * down, alpha = fade)
@@ -278,6 +288,7 @@ private const val STILL = -1f
 private const val RAIN_SECONDS = 0.9f
 private const val SNOW_SECONDS = 3.4f
 private const val CLOUD_DRIFT_SECONDS = 14f
+private const val WINDY_CLOUD_DRIFT_SECONDS = 5f
 private const val FOG_DRIFT_SECONDS = 9f
 private const val FLASH_SECONDS = 5f
 

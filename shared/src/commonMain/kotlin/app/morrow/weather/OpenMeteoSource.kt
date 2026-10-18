@@ -37,8 +37,8 @@ class OpenMeteoSource(private val http: HttpClient, private val clock: Clock) : 
     }
 
     internal companion object {
-        const val FIELDS = "current=temperature_2m,weather_code,is_day" +
-            "&hourly=temperature_2m,weather_code,precipitation_probability" +
+        const val FIELDS = "current=temperature_2m,weather_code,is_day,wind_speed_10m" +
+            "&hourly=temperature_2m,weather_code,precipitation_probability,wind_speed_10m" +
             "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
             "&forecast_days=2&timezone=auto"
 
@@ -67,6 +67,7 @@ private fun ForecastDto.toForecast(place: Coordinates, fetchedAt: Instant): Fore
                 temperature = temperature,
                 sky = skyForWmo(code),
                 rainChance = hourly.rainChance.getOrNull(i),
+                wind = hourly.wind.getOrNull(i),
             )
         }
         .take(OpenMeteoSource.HOURS)
@@ -80,6 +81,7 @@ private fun ForecastDto.toForecast(place: Coordinates, fetchedAt: Instant): Fore
             temperature = current.temperature ?: throw FetchException("No current temperature"),
             sky = skyForWmo(current.weatherCode ?: throw FetchException("No current weather code")),
             isDay = current.isDay != 0,
+            wind = current.wind,
         ),
         today = DayWeather(
             high = daily.high.getOrNull(todayIndex) ?: throw FetchException("No high for today"),
@@ -113,6 +115,7 @@ private class CurrentDto(
     @SerialName("temperature_2m") val temperature: Double? = null,
     @SerialName("weather_code") val weatherCode: Int? = null,
     @SerialName("is_day") val isDay: Int = 1,
+    @SerialName("wind_speed_10m") val wind: Double? = null,
 )
 
 @Serializable
@@ -121,6 +124,7 @@ private class HourlyDto(
     @SerialName("temperature_2m") val temperature: List<Double?>,
     @SerialName("weather_code") val weatherCode: List<Int?>,
     @SerialName("precipitation_probability") val rainChance: List<Int?> = emptyList(),
+    @SerialName("wind_speed_10m") val wind: List<Double?> = emptyList(),
 )
 
 @Serializable

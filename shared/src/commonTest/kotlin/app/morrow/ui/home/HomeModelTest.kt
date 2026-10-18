@@ -9,9 +9,11 @@ import app.morrow.weather.HerePlace
 import app.morrow.weather.HereSource
 import app.morrow.weather.HourWeather
 import app.morrow.weather.PlaceWeather
+import app.morrow.weather.Feel
 import app.morrow.weather.Sky
 import app.morrow.weather.Units
 import app.morrow.weather.WeatherAge
+import app.morrow.weather.Warmth
 import app.morrow.weather.WeatherState
 import app.morrow.weather.forecastFor
 import kotlinx.datetime.DayOfWeek
@@ -211,10 +213,17 @@ class HomeModelTest {
 
     private val place = Coordinates(51.51, -0.13)
 
-    private fun here(at: Instant, fetched: Instant = at - 5.minutes, sky: Sky = Sky.RAIN, name: String? = "London") = WeatherState(
+    private fun here(
+        at: Instant,
+        fetched: Instant = at - 5.minutes,
+        sky: Sky = Sky.RAIN,
+        name: String? = "London",
+        temperature: Double = 12.0,
+        wind: Double? = null,
+    ) = WeatherState(
         enabled = true,
         here = HerePlace(place, name, HereSource.LOCATION),
-        hereWeather = PlaceWeather(place, forecastFor(place, fetched, temperature = 12.0, sky = sky), WeatherAge.Fresh(5)),
+        hereWeather = PlaceWeather(place, forecastFor(place, fetched, temperature, sky, wind), WeatherAge.Fresh(5)),
         cities = emptyMap(),
     )
 
@@ -279,6 +288,13 @@ class HomeModelTest {
     @Test
     fun theLineHidesOnceAnOldForecastsHoursRunOut() {
         assertNull(line("2026-10-06T07:40", { here(it, fetched = it - 23.hours) }))
+    }
+
+    @Test
+    fun theLineSaysHowItFeelsForTheSky() {
+        assertEquals(Feel.Mild, line("2026-10-06T07:40")!!.feel)
+        assertEquals(Feel(Warmth.FREEZING, windy = true), line("2026-10-06T07:40", { here(it, temperature = -4.0, wind = 42.0) })!!.feel)
+        assertEquals(Feel(Warmth.SCORCHING, windy = false), line("2026-10-06T07:40", { here(it, temperature = 36.0, wind = 8.0) })!!.feel)
     }
 
     @Test

@@ -93,20 +93,37 @@ internal fun DrawScope.drawPip(look: PipLook, seconds: Float) {
             }
         }
     }
-    // Breathes in to 104.5% and out again every 4.5 s.
-    val breath = 1f + 0.0225f * (1f - cos(2f * PI.toFloat() * seconds / 4.5f))
-    scale(breath, Offset.Zero) {
-        if (look.moon) drawMoonFace(look.talking, seconds) else drawSunFace(look.mood, look.talking, seconds)
-        if (look.nightcap) drawNightcap()
+    val outside = look.outside
+    withTransform({
+        translate(shiverAt(outside.shiverEvery, seconds), 0f)
+        if (outside.windswept) rotate(leanAt(seconds), Offset.Zero)
+    }) {
+        // Breathes in to 104.5% and out again every 4.5 s.
+        val breath = 1f + 0.0225f * (1f - cos(2f * PI.toFloat() * seconds / 4.5f))
+        scale(breath, Offset.Zero) {
+            if (look.moon) {
+                drawMoonFace(look.talking, seconds)
+            } else {
+                drawSunFace(look.mood, look.talking, seconds, squint = outside.windswept)
+            }
+            if (outside.scarf) drawScarf(outside.windswept, seconds)
+            if (outside.sweat) drawSweat(seconds)
+            if (look.nightcap) drawNightcap() else if (outside.beanie) drawBeanie()
+        }
+        if (outside.fan) drawFan(seconds)
+        if (outside.breath) drawBreath(seconds)
     }
 }
 
-private fun DrawScope.drawSunFace(mood: PipMood, talking: Boolean, seconds: Float) {
+/** With [squint], open eyes narrow against the wind. */
+private fun DrawScope.drawSunFace(mood: PipMood, talking: Boolean, seconds: Float, squint: Boolean = false) {
     val ink = Illustration.sunInk
     drawCircle(Illustration.sun, 30f, Offset.Zero)
     drawCircle(Illustration.sunLight.copy(alpha = 0.75f), 10f, Offset(-9f, -10f))
     when (mood) {
-        PipMood.OPEN, PipMood.SHADES -> {
+        PipMood.OPEN, PipMood.SHADES -> if (squint && mood == PipMood.OPEN) {
+            drawPath(SquintEyes, ink, style = line(2.6f))
+        } else {
             drawCircle(ink, 3f, Offset(-9f, -3f))
             drawCircle(ink, 3f, Offset(9f, -3f))
         }
@@ -195,6 +212,7 @@ private val SunGlow = glow(Illustration.sunLight.copy(alpha = 0.55f))
 // Shapes from the design canvas, in design units around Pip's centre.
 private val HappyEyes = svgPath("M-15 -1 q5 -6 10 0M5 -1 q5 -6 10 0")
 private val ClosedEyes = svgPath("M-15 -2 q5 5 10 0M5 -2 q5 5 10 0")
+private val SquintEyes = svgPath("M-14 -6 l5 3 l-5 3M14 -6 l-5 3 l5 3")
 private val Smile = svgPath("M-5 10 q5 4 10 0")
 private val Grin = svgPath("M-7.5 7.5 q7.5 8.3 15 0Z")
 private val Tongue = svgPath("M-3.3 10.8 q3.3 2.5 6.7 0Z")

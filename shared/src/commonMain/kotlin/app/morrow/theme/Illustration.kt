@@ -93,6 +93,22 @@ object Illustration {
     val fogNight = Color(0xFFB9B3C3)
     val lightning = Color(0xFFFFE08A)
 
+    /** What Pip wears in the cold, and how he shows the heat. */
+    val scarf = Color(0xFFD9534F)
+    val scarfStripe = Color(0xFFFFF4E6)
+    val beanie = Color(0xFF3F7CAC)
+    val beanieTrim = Color(0xFFB9D7EE)
+    val sweat = Color(0xFF8FD3F4)
+    val fanPaper = Color(0xFFFFF4E6)
+    val breath = Color(0xFFFFFFFF)
+
+    /** Home's frost on a cold day, haze on a hot one, and the leaves a strong wind blows past. */
+    val frost = Color(0xFFF4FAFF)
+    val heatGlow = Color(0xFFFFB36B)
+    val heatHaze = Color(0xFFFFE2B8)
+    val leafWarm = Color(0xFFD98A3D)
+    val leafGreen = Color(0xFF8DB36B)
+
     /** What a city card's back and front hills are mixed toward under snow. */
     val snowHillBack = Color(0xFFFFFFFF)
     val snowHillFront = Color(0xFFF4F7FA)

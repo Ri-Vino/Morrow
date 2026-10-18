@@ -20,13 +20,14 @@ data class Forecast(
     val hours: List<HourWeather>,
 )
 
+/** [wind] is the wind speed in km/h, or null for a forecast cached before it was asked for. */
 @Serializable
-data class CurrentWeather(val temperature: Double, val sky: Sky, val isDay: Boolean)
+data class CurrentWeather(val temperature: Double, val sky: Sky, val isDay: Boolean, val wind: Double? = null)
 
 /** One day in the place's own time zone. [rainChance] is the highest chance of rain in the day, in percent, or null if unknown. */
 @Serializable
 data class DayWeather(val high: Double, val low: Double, val rainChance: Int?)
 
-/** One hour, starting at [time]. [rainChance] is in percent, or null if unknown. */
+/** One hour, starting at [time]. [rainChance] is in percent, or null if unknown; [wind] is in km/h, or null if unknown. */
 @Serializable
-data class HourWeather(val time: Instant, val temperature: Double, val sky: Sky, val rainChance: Int?)
+data class HourWeather(val time: Instant, val temperature: Double, val sky: Sky, val rainChance: Int?, val wind: Double? = null)

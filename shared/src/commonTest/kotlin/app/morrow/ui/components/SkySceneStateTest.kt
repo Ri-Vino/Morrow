@@ -6,7 +6,9 @@ import app.morrow.theme.ThemeKind
 import app.morrow.theme.colors
 import app.morrow.theme.contrastRatio
 import app.morrow.theme.mix
+import app.morrow.weather.Feel
 import app.morrow.weather.Sky
+import app.morrow.weather.Warmth
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -201,5 +203,47 @@ class SkySceneStateTest {
     fun darkModeLeavesTheNightSceneAlone() {
         val minute = 21 * 60 + 40f
         assertEquals(skySceneState(minute, ThemeKind.NIGHT), skySceneState(minute, ThemeKind.NIGHT, dim = true))
+    }
+
+    @Test
+    fun aMildStillDayAddsNothing() {
+        val s = skySceneState(7 * 60 + 40f, ThemeKind.MORNING, feel = Feel.Mild)
+        assertEquals(PipOutside(), s.pip.outside)
+        assertEquals(ClimateLook.None, s.climate)
+        assertEquals(skySceneState(7 * 60 + 40f, ThemeKind.MORNING), s)
+    }
+
+    @Test
+    fun theColdBringsFrostAndPipWrapsUp() {
+        val cold = skySceneState(7 * 60 + 40f, ThemeKind.MORNING, feel = Feel(Warmth.COLD, windy = false))
+        assertTrue(cold.pip.outside.scarf)
+        assertTrue(!cold.pip.outside.beanie)
+        val freezing = skySceneState(7 * 60 + 40f, ThemeKind.MORNING, feel = Feel(Warmth.FREEZING, windy = false))
+        assertTrue(freezing.pip.outside.scarf && freezing.pip.outside.beanie && freezing.pip.outside.breath)
+        assertTrue(freezing.climate.frost > cold.climate.frost)
+        assertTrue(freezing.pip.outside.shiverEvery < cold.pip.outside.shiverEvery)
+    }
+
+    @Test
+    fun theHeatPutsPipInShadesWheneverTheSunIsUp() {
+        val hot = skySceneState(7 * 60 + 40f, ThemeKind.MORNING, Sky.CLOUDY, feel = Feel(Warmth.HOT, windy = false))
+        assertEquals(PipMood.SHADES, hot.pip.mood)
+        assertTrue(hot.pip.outside.sweat && !hot.pip.outside.fan)
+        val scorching = skySceneState(12 * 60 + 30f, ThemeKind.NOON, feel = Feel(Warmth.SCORCHING, windy = false))
+        assertTrue(scorching.pip.outside.fan)
+        assertTrue(scorching.climate.heat > hot.climate.heat)
+        // The moon sleeps through a hot night in its nightcap.
+        val night = skySceneState(21 * 60 + 40f, ThemeKind.NIGHT, feel = Feel(Warmth.HOT, windy = false))
+        assertEquals(PipMood.ASLEEP, night.pip.mood)
+    }
+
+    @Test
+    fun windBlowsLeavesUnlessItsSnowing() {
+        val windy = Feel(Warmth.MILD, windy = true)
+        val rain = skySceneState(7 * 60 + 40f, ThemeKind.MORNING, Sky.RAIN, feel = windy)
+        assertTrue(rain.climate.leaves)
+        assertTrue(rain.weather!!.windy)
+        assertTrue(rain.pip.outside.windswept)
+        assertTrue(!skySceneState(7 * 60 + 40f, ThemeKind.MORNING, Sky.SNOW, feel = windy).climate.leaves)
     }
 }

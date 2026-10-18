@@ -38,9 +38,11 @@ import app.morrow.ui.components.Pip
 import app.morrow.ui.components.PipLook
 import app.morrow.ui.components.PipMood
 import app.morrow.ui.components.SkyScene
+import app.morrow.weather.Feel
 import app.morrow.weather.PlaceWeather
 import app.morrow.weather.RefreshReason
 import app.morrow.weather.WeatherAge
+import app.morrow.weather.Warmth
 import kotlinx.coroutines.launch
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.TimeZone
@@ -76,8 +78,11 @@ fun DebugScreen(permissions: PermissionGate, onBack: () -> Unit) {
         return
     }
 
+    var warmth by remember { mutableStateOf(Warmth.MILD) }
+    var windy by remember { mutableStateOf(false) }
+
     Column(modifier = Modifier.fillMaxSize().background(colors.bg).safeDrawingPadding()) {
-        SkyScene(sceneMinute.toFloat(), sceneTheme)
+        SkyScene(sceneMinute.toFloat(), sceneTheme, feel = Feel(warmth, windy))
         Column(
             modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -98,6 +103,12 @@ fun DebugScreen(permissions: PermissionGate, onBack: () -> Unit) {
                 DebugButton("−1 h") { hourOffset-- }
                 DebugButton("Now", selected = hourOffset == 0) { hourOffset = 0 }
                 DebugButton("+1 h") { hourOffset++ }
+            }
+            Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                for (kind in Warmth.entries) {
+                    DebugButton(kind.name.lowercase().replaceFirstChar(Char::uppercase), selected = warmth == kind) { warmth = kind }
+                }
+                DebugButton("Windy", selected = windy) { windy = !windy }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 for (mood in PipMood.entries) {

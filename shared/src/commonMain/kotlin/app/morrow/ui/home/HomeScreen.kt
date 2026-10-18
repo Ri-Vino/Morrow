@@ -79,6 +79,7 @@ import app.morrow.ui.components.SkyScene
 import app.morrow.ui.components.pressable
 import app.morrow.ui.components.skySceneState
 import app.morrow.ui.components.weatherIcon
+import app.morrow.weather.Feel
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -113,7 +114,7 @@ fun HomeScreen(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: 
         val overSky = minOf(maxWidth * (262f / 390f), maxHeight * CONTENT_TOP_LIMIT)
         val contentTop = maxOf(overSky, headerHeight + 16.dp)
         Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            SkyScene(minuteOfDay, theme, weather = model.weather?.sky)
+            SkyScene(minuteOfDay, theme, weather = model.weather?.sky, feel = model.weather?.feel ?: Feel.Mild)
             Header(model, theme, minuteOfDay, actions, Modifier.onSizeChanged { headerHeight = with(density) { it.height.toDp() } })
             Column(
                 modifier = Modifier

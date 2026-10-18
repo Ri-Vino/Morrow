@@ -14,10 +14,12 @@ import app.morrow.ui.formatDuration
 import app.morrow.ui.gamesText
 import app.morrow.ui.hhmm
 import app.morrow.ui.world.cityClock
+import app.morrow.weather.Feel
 import app.morrow.weather.Sky
 import app.morrow.weather.Units
 import app.morrow.weather.WeatherState
 import app.morrow.weather.conditionsAt
+import app.morrow.weather.feelOf
 import app.morrow.weather.forecastAt
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.TimeZone
@@ -57,6 +59,8 @@ data class HomeWeather(
     val text: String,
     /** What screen readers hear for the line, which opens World: "12° and rain in London. Open World". */
     val label: String,
+    /** How warm and windy it feels, for the sky's frost or haze and what Pip wears. */
+    val feel: Feel = Feel.Mild,
 )
 
 data class SleepCard(val lead: String, val big: String, val detail: String, val night: Boolean)
@@ -132,6 +136,7 @@ fun homeWeather(state: WeatherState?, now: Instant, zone: TimeZone, units: Units
         night = sunElevation(local.hour * 60f + local.minute) < 0,
         text = "$temperature · ${conditions.sky.displayName}$where",
         label = "$temperature and ${conditions.sky.displayName.lowercase()}$where. Open World",
+        feel = feelOf(conditions.temperature, conditions.wind),
     )
 }
 
