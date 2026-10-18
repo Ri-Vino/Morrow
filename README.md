@@ -266,4 +266,6 @@ Issues and pull requests are welcome. Before opening a pull request:
 
 ## License
 
-A license hasn't been chosen yet; until then all rights are reserved by the author. Please get in touch before reusing the code.
+Copyright 2026 [Rivino](https://github.com/Ri-Vino).
+
+Morrow is licensed under the [Apache License 2.0](LICENSE); see [NOTICE](NOTICE) for what it ships under other licences. The fonts, city data and recordings keep their own licences, listed under [Credits](#credits) and in the app under **Settings › Legal & about**, which also has Morrow's privacy policy and terms of service.

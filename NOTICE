@@ -1,0 +1,12 @@
+Morrow
+Copyright 2026 Rivino (https://github.com/Ri-Vino)
+
+Licensed under the Apache License, Version 2.0; see LICENSE.
+
+Morrow also ships these, under their own terms:
+
+- The Fraunces and Figtree fonts, under the SIL Open Font License 1.1.
+  Their licence texts are in shared/src/commonMain/composeResources/files/licenses/.
+- City data from GeoNames (https://www.geonames.org), under CC BY 4.0.
+- Classical recordings from Musopen, in the public domain. Each one is listed in
+  shared/src/commonMain/composeResources/files/licenses/recordings.md.
