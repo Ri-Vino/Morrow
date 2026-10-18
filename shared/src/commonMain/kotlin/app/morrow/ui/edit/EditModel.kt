@@ -3,7 +3,6 @@ package app.morrow.ui.edit
 import app.morrow.domain.Alarm
 import app.morrow.domain.Difficulty
 import app.morrow.domain.GameStep
-import app.morrow.domain.MAX_SNOOZES
 import app.morrow.domain.MissionType
 import app.morrow.domain.OwnSound
 import app.morrow.domain.RingSound
@@ -76,8 +75,8 @@ data class GameRow(
     val canMoveDown: Boolean,
 )
 
-/** How long the alarm snoozes for, in [minutes], 0 for not at all, and what that means. */
-data class SnoozeRow(val minutes: Int, val text: String)
+/** How long the alarm snoozes for, in [minutes], 0 for not at all, up to how many times in a row, and what that means. */
+data class SnoozeRow(val minutes: Int, val limit: Int, val text: String)
 
 /** The Time zone row: whose clock the alarm keeps. */
 data class ZoneRow(val title: String, val subtitle: String, val zoned: Boolean)
@@ -159,7 +158,7 @@ fun editModel(
             ?: SoundRow(defaultSound.displayName, "Default, as chosen in Settings", own = false),
         difficulty = difficulty,
         difficultyText = difficulty.description,
-        snooze = if (canSnooze) SnoozeRow(draft.snoozeMinutes, snoozeText(draft.snoozeMinutes)) else null,
+        snooze = if (canSnooze) SnoozeRow(draft.snoozeMinutes, draft.snoozeLimit, snoozeText(draft.snoozeMinutes, draft.snoozeLimit)) else null,
         soundChoices = listOf(SoundChoice(null, "Default", "${defaultSound.displayName}, as chosen in Settings", sound == null)) +
             ownSounds.map { mine ->
                 val ref = RingSound.Own(mine.id)
@@ -196,8 +195,11 @@ fun editModel(
 /** The heading over the user's own sounds in the Alarm sound sheet. */
 const val OWN_SOUNDS = "Your sounds"
 
-fun snoozeText(minutes: Int): String =
-    if (minutes == 0) "No snoozing: only the games stop it." else "Up to $MAX_SNOOZES times, $minutes minutes each."
+fun snoozeText(minutes: Int, limit: Int): String = when {
+    minutes == 0 -> "No snoozing: only the games stop it."
+    limit == 1 -> "Once, for $minutes minutes."
+    else -> "Up to $limit times, $minutes minutes each."
+}
 
 /** What a difficulty means for a round. */
 val Difficulty.description: String

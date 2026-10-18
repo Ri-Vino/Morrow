@@ -385,8 +385,10 @@ class EditModelTest {
     fun snoozeSaysHowLongAndIsLeftOutWhereMorrowCantSnooze() {
         fun model(draft: Alarm, canSnooze: Boolean = true) =
             app.morrow.ui.edit.editModel(draft, at("2026-10-05T22:00"), london, canSnooze = canSnooze)
-        assertEquals(SnoozeRow(5, "Up to 3 times, 5 minutes each."), model(alarm(7, 0)).snooze)
-        assertEquals(SnoozeRow(0, "No snoozing: only the games stop it."), model(alarm(7, 0).copy(snoozeMinutes = 0)).snooze)
+        assertEquals(SnoozeRow(5, 3, "Up to 3 times, 5 minutes each."), model(alarm(7, 0)).snooze)
+        assertEquals(SnoozeRow(10, 5, "Up to 5 times, 10 minutes each."), model(alarm(7, 0).copy(snoozeMinutes = 10, snoozeLimit = 5)).snooze)
+        assertEquals(SnoozeRow(15, 1, "Once, for 15 minutes."), model(alarm(7, 0).copy(snoozeMinutes = 15, snoozeLimit = 1)).snooze)
+        assertEquals(SnoozeRow(0, 3, "No snoozing: only the games stop it."), model(alarm(7, 0).copy(snoozeMinutes = 0)).snooze)
         assertNull(model(alarm(7, 0), canSnooze = false).snooze)
     }
 

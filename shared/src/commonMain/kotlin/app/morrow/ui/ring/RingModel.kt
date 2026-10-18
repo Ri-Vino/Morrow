@@ -7,7 +7,6 @@ import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.Easing
 import androidx.compose.ui.graphics.Color
 import app.morrow.domain.Alarm
-import app.morrow.domain.MAX_SNOOZES
 import app.morrow.domain.canSnooze
 import app.morrow.theme.Illustration
 import app.morrow.theme.mix
@@ -46,7 +45,7 @@ fun ringModel(alarm: Alarm, ringsAt: Instant, phoneZone: TimeZone): RingModel {
 /** The ring screen's Snooze button for [alarm], snoozed [snoozed] times already, or null when it can't snooze again. */
 fun snoozeLabel(alarm: Alarm, snoozed: Int): String? {
     if (!canSnooze(alarm, snoozed)) return null
-    val left = MAX_SNOOZES - snoozed
+    val left = alarm.snoozeLimit - snoozed
     return "Snooze ${alarm.snoozeMinutes} min" + if (snoozed > 0) " · $left left" else ""
 }
 

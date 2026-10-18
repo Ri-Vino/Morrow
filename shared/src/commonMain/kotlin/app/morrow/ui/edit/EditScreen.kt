@@ -78,6 +78,7 @@ import app.morrow.domain.Difficulty
 import app.morrow.domain.MissionType
 import app.morrow.domain.RingSound
 import app.morrow.domain.SnoozeChoices
+import app.morrow.domain.SnoozeLimitChoices
 import app.morrow.domain.WakeSound
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
@@ -235,6 +236,15 @@ private fun EditForm(
             model.snooze?.let { snooze ->
                 Section("Snooze") {
                     SegmentedControl(SnoozeChoices, snooze.minutes, ::snoozeChoiceName, { actions.onChange(draft.copy(snoozeMinutes = it)) })
+                    if (snooze.minutes > 0) {
+                        SegmentedControl(
+                            SnoozeLimitChoices,
+                            snooze.limit,
+                            ::snoozeLimitName,
+                            { actions.onChange(draft.copy(snoozeLimit = it)) },
+                            description = { if (it == 1) "Once" else "Up to $it times" },
+                        )
+                    }
                     BasicText(snooze.text, style = MorrowTheme.type.body.copy(color = colors.muted))
                 }
             }
@@ -364,6 +374,8 @@ private fun TimeSheet(hour: Int, minute: Int, onSet: (Int) -> Unit, onClose: () 
 }
 
 private fun snoozeChoiceName(minutes: Int) = if (minutes == 0) "Off" else "$minutes min"
+
+private fun snoozeLimitName(times: Int) = "$times×"
 
 @Composable
 private fun Section(title: String, aside: String? = null, content: @Composable () -> Unit) {

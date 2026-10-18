@@ -4,6 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import app.morrow.domain.Alarm
+import app.morrow.domain.DEFAULT_SNOOZE_LIMIT
 import app.morrow.domain.DEFAULT_SNOOZE_MINUTES
 import app.morrow.domain.DefaultGames
 import app.morrow.domain.Difficulty
@@ -33,6 +34,7 @@ data class AlarmEntity(
     /** A [Difficulty]'s name, or null for an alarm saved before each had its own. */
     val difficulty: String? = null,
     @ColumnInfo(name = "snooze_minutes", defaultValue = "5") val snoozeMinutes: Int = DEFAULT_SNOOZE_MINUTES,
+    @ColumnInfo(name = "snooze_limit", defaultValue = "3") val snoozeLimit: Int = DEFAULT_SNOOZE_LIMIT,
 )
 
 internal fun Alarm.toEntity() = AlarmEntity(
@@ -48,6 +50,7 @@ internal fun Alarm.toEntity() = AlarmEntity(
     sound = sound?.encode(),
     difficulty = difficulty?.name,
     snoozeMinutes = snoozeMinutes,
+    snoozeLimit = snoozeLimit,
 )
 
 internal fun AlarmEntity.toAlarm() = Alarm(
@@ -64,4 +67,5 @@ internal fun AlarmEntity.toAlarm() = Alarm(
     sound = decodeRingSound(sound),
     difficulty = Difficulty.entries.firstOrNull { it.name == difficulty },
     snoozeMinutes = snoozeMinutes.coerceAtLeast(0),
+    snoozeLimit = snoozeLimit.coerceAtLeast(1),
 )

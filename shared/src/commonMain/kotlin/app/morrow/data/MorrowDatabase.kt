@@ -13,7 +13,7 @@ import kotlinx.coroutines.IO
 
 @Database(
     entities = [AlarmEntity::class, SavedCityEntity::class, WeatherCacheEntity::class, CitySearchCacheEntity::class, TimerEntity::class, OwnSoundEntity::class],
-    version = 10,
+    version = 11,
 )
 @ConstructedBy(MorrowDatabaseConstructor::class)
 abstract class MorrowDatabase : RoomDatabase() {
@@ -42,7 +42,7 @@ fun buildMorrowDatabase(builder: RoomDatabase.Builder<MorrowDatabase>): MorrowDa
     builder
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(GamesMigration, CitiesMigration, ZonesMigration, WeatherMigration, TimersMigration, SoundsMigration, DifficultyMigration, SnoozeMigration, OwnSoundsMigration)
+        .addMigrations(GamesMigration, CitiesMigration, ZonesMigration, WeatherMigration, TimersMigration, SoundsMigration, DifficultyMigration, SnoozeMigration, OwnSoundsMigration, SnoozeLimitMigration)
         .build()
 
 /** An alarm's one mission becomes its first and only game, with that game's usual rounds. */
@@ -144,5 +144,12 @@ internal object OwnSoundsMigration : Migration(9, 10) {
             "CREATE TABLE IF NOT EXISTS `own_sounds` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, " +
                 "`path` TEXT NOT NULL, `added_at` INTEGER NOT NULL)",
         )
+    }
+}
+
+/** Each alarm sets how many times it can snooze, three to start with, as before. */
+internal object SnoozeLimitMigration : Migration(10, 11) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE `alarms` ADD COLUMN `snooze_limit` INTEGER NOT NULL DEFAULT 3")
     }
 }

@@ -63,6 +63,16 @@ class RingModelTest {
     }
 
     @Test
+    fun eachAlarmSetsHowManyTimesItSnoozes() {
+        val once = alarm("Gym").copy(snoozeLimit = 1)
+        assertEquals("Snooze 5 min", snoozeLabel(once, snoozed = 0))
+        assertNull(snoozeLabel(once, snoozed = 1))
+        val often = alarm("Gym").copy(snoozeLimit = 10)
+        assertEquals("Snooze 5 min · 4 left", snoozeLabel(often, snoozed = 6))
+        assertNull(snoozeLabel(often, snoozed = 10))
+    }
+
+    @Test
     fun blankLabelShowsOnlyTheGames() {
         assertEquals("Sums", ringModel(alarm("  ")).label)
     }

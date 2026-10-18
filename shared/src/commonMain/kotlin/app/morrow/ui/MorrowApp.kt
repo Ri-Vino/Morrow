@@ -27,6 +27,7 @@ import app.morrow.data.AlarmSetup
 import app.morrow.data.MorrowSettings
 import app.morrow.data.OwnSounds
 import app.morrow.domain.Alarm
+import app.morrow.domain.DEFAULT_SNOOZE_LIMIT
 import app.morrow.domain.DEFAULT_SNOOZE_MINUTES
 import app.morrow.domain.DefaultGames
 import app.morrow.domain.Difficulty
@@ -674,6 +675,7 @@ private val AlarmSaver = Saver<Alarm?, List<Any>>(
             listOf(
                 it.id, it.hour, it.minute, it.label, it.days.joinToString(",") { day -> day.name }, encodeGames(it.games), it.enabled,
                 it.timeZone.orEmpty(), it.zoneLabel.orEmpty(), it.sound?.encode().orEmpty(), it.difficulty?.name.orEmpty(), it.snoozeMinutes,
+                it.snoozeLimit,
             )
         }
     },
@@ -691,6 +693,7 @@ private val AlarmSaver = Saver<Alarm?, List<Any>>(
             sound = decodeRingSound(saved.getOrNull(9) as String?),
             difficulty = Difficulty.entries.firstOrNull { it.name == saved.getOrNull(10) },
             snoozeMinutes = saved.getOrNull(11) as Int? ?: DEFAULT_SNOOZE_MINUTES,
+            snoozeLimit = saved.getOrNull(12) as Int? ?: DEFAULT_SNOOZE_LIMIT,
         )
     },
 )
