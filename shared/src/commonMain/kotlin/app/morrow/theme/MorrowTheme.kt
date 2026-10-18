@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 private val LocalMorrowColors = staticCompositionLocalOf<MorrowColors> { error("No MorrowTheme in the composition") }
 private val LocalMorrowType = staticCompositionLocalOf<MorrowType> { error("No MorrowTheme in the composition") }
 private val LocalDim = staticCompositionLocalOf { false }
+private val LocalReduceMotion = staticCompositionLocalOf { false }
 
 object MorrowTheme {
     val colors: MorrowColors
@@ -24,6 +25,10 @@ object MorrowTheme {
     /** True when a day theme is showing its dim version because the phone is in dark mode. */
     val dim: Boolean
         @Composable @ReadOnlyComposable get() = LocalDim.current
+
+    /** True when the phone asks for less motion: looping scenes hold still, and slides become fades. */
+    val reduceMotion: Boolean
+        @Composable @ReadOnlyComposable get() = LocalReduceMotion.current
 }
 
 /**
@@ -31,7 +36,12 @@ object MorrowTheme {
  * follows the clock in dark mode; [dim] only swaps a day theme for its dark version.
  */
 @Composable
-fun MorrowTheme(kind: ThemeKind, dim: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+fun MorrowTheme(
+    kind: ThemeKind,
+    dim: Boolean = isSystemInDarkTheme(),
+    reduceMotion: Boolean = systemReducesMotion(),
+    content: @Composable () -> Unit,
+) {
     val dimmed = dim && kind != ThemeKind.NIGHT
     val target = kind.colors(dimmed)
     val colors = MorrowColors(
@@ -55,6 +65,7 @@ fun MorrowTheme(kind: ThemeKind, dim: Boolean = isSystemInDarkTheme(), content: 
         LocalMorrowColors provides colors,
         LocalMorrowType provides morrowType(),
         LocalDim provides dimmed,
+        LocalReduceMotion provides reduceMotion,
         LocalIndication provides PressShrink,
         content = content,
     )

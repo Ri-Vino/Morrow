@@ -17,12 +17,15 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import app.morrow.theme.MorrowTheme
 
 /** Goes from 0 to 1 as a sheet comes in, from the moment it's first shown. */
 @Composable
 fun rememberSheetEntrance(): State<Float> {
     val shown = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { shown.animateTo(1f, tween(SHEET_IN_MILLIS, easing = FastOutSlowInEasing)) }
+    val reduceMotion = MorrowTheme.reduceMotion
+    // With less motion the sheet is simply there, rather than sliding up.
+    LaunchedEffect(Unit) { if (reduceMotion) shown.snapTo(1f) else shown.animateTo(1f, tween(SHEET_IN_MILLIS, easing = FastOutSlowInEasing)) }
     return shown.asState()
 }
 
@@ -34,9 +37,10 @@ fun Modifier.fadingWith(entrance: State<Float>): Modifier = graphicsLayer { alph
 
 /**
  * From one screen to the next: going [forward], the new one slides in a little from the right as the old one drifts
- * left and fades; going back, the other way round.
+ * left and fades; going back, the other way round. With [reduceMotion] the screens only cross-fade.
  */
-fun <S> AnimatedContentTransitionScope<S>.screenChange(forward: Boolean): ContentTransform {
+fun <S> AnimatedContentTransitionScope<S>.screenChange(forward: Boolean, reduceMotion: Boolean = false): ContentTransform {
+    if (reduceMotion) return fadeIn(tween(SCREEN_FADE_MILLIS, delayMillis = SCREEN_FADE_DELAY_MILLIS)) togetherWith fadeOut(tween(SCREEN_FADE_MILLIS))
     val way = if (forward) 1 else -1
     val enter = fadeIn(tween(SCREEN_FADE_MILLIS, delayMillis = SCREEN_FADE_DELAY_MILLIS)) +
         slideInHorizontally(tween(SCREEN_SLIDE_MILLIS, easing = LinearOutSlowInEasing)) { width -> way * width / 6 }

@@ -169,6 +169,7 @@ fun MorrowApp(
                     var addingCity by rememberSaveable { mutableStateOf(false) }
                     var pickingHome by rememberSaveable { mutableStateOf(false) }
                     var tab by rememberSaveable(stateSaver = TabSaver) { mutableStateOf(Tab.ALARMS) }
+                    val reduceMotion = MorrowTheme.reduceMotion
                     val route = when {
                         waking != null -> Route.Wake(waking)
                         wakingTimers.isNotEmpty() -> Route.TimersWake(wakingTimers)
@@ -181,7 +182,7 @@ fun MorrowApp(
                     }
                     AnimatedContent(
                         targetState = route,
-                        transitionSpec = { screenChange(forward = targetState.depth >= initialState.depth) },
+                        transitionSpec = { screenChange(forward = targetState.depth >= initialState.depth, reduceMotion) },
                         contentKey = { it::class },
                         label = "screen",
                     ) { shown ->

@@ -97,9 +97,15 @@ fun TabBar(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier
     // pill stretches towards the tab picked and settles there.
     val start = remember { Animatable(selected.ordinal.toFloat()) }
     val end = remember { Animatable(selected.ordinal + 1f) }
+    val reduceMotion = MorrowTheme.reduceMotion
     LaunchedEffect(selected) {
         val right = selected.ordinal > start.value
         val target = selected.ordinal.toFloat()
+        if (reduceMotion) {
+            start.snapTo(target)
+            end.snapTo(target + 1f)
+            return@LaunchedEffect
+        }
         launch { start.animateTo(target, if (right) Trailing else Leading) }
         launch { end.animateTo(target + 1f, if (right) Leading else Trailing) }
     }
