@@ -19,7 +19,9 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -30,6 +32,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.morrow.missions.ShakeState
@@ -38,12 +43,22 @@ import app.morrow.theme.MorrowTheme
 import app.morrow.theme.mix
 import app.morrow.ui.components.SecondaryButton
 import app.morrow.ui.components.svgPath
+import kotlinx.coroutines.delay
 
+/**
+ * The shake game. Sums are offered in its place straight away on a phone with no motion sensor, and after
+ * [OFFER_SUMS_AFTER_MILLIS] on one with, for a morning when shaking is hard; waiting that long keeps it a wake-up.
+ */
 @Composable
 internal fun ShakeBody(state: ShakeState, sensorAvailable: Boolean, onSwitchToSums: () -> Unit) {
     val colors = MorrowTheme.colors
     val type = MorrowTheme.type
     val filled by animateFloatAsState(state.progress, tween(350, easing = CubicBezierEasing(0.3f, 1.4f, 0.5f, 1f)))
+    var offerSums by remember { mutableStateOf(!sensorAvailable) }
+    LaunchedEffect(Unit) {
+        delay(OFFER_SUMS_AFTER_MILLIS)
+        offerSums = true
+    }
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         ShakingPhone(state)
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -56,16 +71,19 @@ internal fun ShakeBody(state: ShakeState, sensorAvailable: Boolean, onSwitchToSu
             }
         }
         BasicText(
-            if (sensorAvailable) {
-                "Give your phone a good shake. The motion sensor switches off the moment you finish."
-            } else {
-                "This phone has no motion sensor, so Pip can’t count shakes."
+            when {
+                !sensorAvailable -> "This phone has no motion sensor, so Pip can’t count shakes."
+                offerSums -> "Can’t shake right now? Sums wake you up just as well."
+                else -> "Give your phone a good shake. The motion sensor switches off the moment you finish."
             },
             style = type.body.copy(color = colors.muted, textAlign = TextAlign.Center),
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
         )
-        if (!sensorAvailable) SecondaryButton("Switch to sums instead", onSwitchToSums)
+        if (offerSums) SecondaryButton("Switch to sums instead", onSwitchToSums)
     }
 }
+
+internal const val OFFER_SUMS_AFTER_MILLIS = 60_000L
 
 /** A phone with Pip on its screen, wobbling with each shake and warming up as the count rises. Decorative. */
 @Composable
