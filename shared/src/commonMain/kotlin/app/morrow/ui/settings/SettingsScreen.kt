@@ -82,6 +82,7 @@ class SettingsActions(
     val onHearSound: (WakeSound) -> Unit = {},
     val onStopSound: () -> Unit = {},
     val onHearSample: () -> Unit = {},
+    val onSeasonal: (Boolean) -> Unit = {},
 )
 
 @Composable
@@ -92,11 +93,13 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     weather: WeatherSection? = null,
     voice: VoiceSection? = null,
+    /** Whether seasonal looks are on, or null to leave the switch out. */
+    seasonal: Boolean? = null,
 ) {
     var pickingVoice by rememberSaveable { mutableStateOf(false) }
     var pickingSound by rememberSaveable { mutableStateOf(false) }
     Box(modifier.fillMaxSize()) {
-        SettingsContent(model, choices, actions, weather, voice, onPickVoice = { pickingVoice = true }, onPickSound = { pickingSound = true })
+        SettingsContent(model, choices, actions, weather, voice, seasonal, onPickVoice = { pickingVoice = true }, onPickSound = { pickingSound = true })
         if (pickingSound) {
             SoundPickerSheet(
                 choices.sound,
@@ -130,6 +133,7 @@ private fun SettingsContent(
     actions: SettingsActions,
     weather: WeatherSection?,
     voice: VoiceSection?,
+    seasonal: Boolean?,
     onPickVoice: () -> Unit,
     onPickSound: () -> Unit,
 ) {
@@ -182,6 +186,16 @@ private fun SettingsContent(
             Section("Volume ramp") {
                 SegmentedControl(VolumeRamp.entries, choices.ramp, VolumeRamp::displayName, actions.onRamp)
                 Note("Starts quiet and gets louder, so the sunrise does the waking.")
+            }
+            if (seasonal != null) {
+                Section("Looks") {
+                    ToggleRow(
+                        "Seasonal looks",
+                        "Halloween, Christmas and New Year touches on Home and when an alarm rings.",
+                        seasonal,
+                        actions.onSeasonal,
+                    )
+                }
             }
             Section("Permissions") {
                 Card(selectable = false) {

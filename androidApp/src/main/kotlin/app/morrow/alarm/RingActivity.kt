@@ -21,6 +21,7 @@ import app.morrow.debug.WithTestFontScale
 import app.morrow.missions.AndroidCodeScanner
 import app.morrow.missions.AndroidMotionSensor
 import app.morrow.morrow
+import app.morrow.theme.Holiday
 import app.morrow.ui.minuteTicks
 import app.morrow.ui.mission.MissionServices
 import app.morrow.ui.mission.SequenceRoute
@@ -120,10 +121,12 @@ class RingActivity : ComponentActivity() {
                         val now by remember { minuteTicks() }.collectAsStateWithLifecycle(initialValue = Clock.System.now())
                         val model = remember(ringing, now) { ringModel(ringing, now, TimeZone.currentSystemDefault()) }
                         val snooze = remember(ringing) { snoozeLabel(ringing, Ringing.snoozed) }
+                        val seasonal by morrow.settings.seasonalLooks.collectAsStateWithLifecycle(initialValue = true)
                         RingScreen(
                             model,
                             onStartMission = { stage = Stage.MISSION },
                             snooze = snooze?.let { RingSnooze(it) { RingService.snooze(this) } },
+                            holiday = Holiday.at(now, TimeZone.currentSystemDefault(), seasonal),
                         )
                     }
                 }

@@ -55,6 +55,7 @@ import app.morrow.platform.SoundPicker
 import app.morrow.platform.Speaker
 import app.morrow.platform.SpeechPurpose
 import app.morrow.platform.play
+import app.morrow.theme.Holiday
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeClock
 import app.morrow.theme.ThemeKind
@@ -348,12 +349,14 @@ private fun Home(
     val zone = TimeZone.currentSystemDefault()
     val minute = now.toLocalDateTime(zone).let { it.hour * 60 + it.minute }.toFloat()
     val weather = homeWeather(forecasts, now, zone, units)
-    val lightIcons = !skySceneState(minute, theme, weather?.sky, MorrowTheme.dim).lightSky
+    val seasonal by services.settings.seasonalLooks.collectAsStateWithLifecycle(initialValue = true)
+    val holiday = Holiday.at(now, zone, seasonal)
+    val lightIcons = !skySceneState(minute, theme, weather?.sky, MorrowTheme.dim, holiday = holiday).lightSky
     LaunchedEffect(lightIcons) { onSystemBarsChange(lightIcons) }
 
     val loaded = alarms ?: return
     HomeScreen(
-        model = homeModel(loaded, now, zone, missing, intention, weather).copy(undo = deleted?.let(::deletedNote)),
+        model = homeModel(loaded, now, zone, missing, intention, weather, seasonal).copy(undo = deleted?.let(::deletedNote)),
         theme = theme,
         minuteOfDay = minute,
         actions = HomeActions(
@@ -526,9 +529,11 @@ private fun RingPreviewRoute(services: MorrowServices, alarm: Alarm, onSystemBar
     // Leaving the app, or a real alarm taking over the screen, ends the sound for good.
     LifecycleStartEffect(Unit) { onStopOrDispose { soundOn = false } }
     val ringsAt = remember(alarm) { alarm.nextRing(Clock.System.now(), TimeZone.currentSystemDefault()) }
+    val seasonal by services.settings.seasonalLooks.collectAsStateWithLifecycle(initialValue = true)
     when (stage) {
         PreviewStage.RINGING -> RingScreen(
             model = ringModel(alarm, ringsAt, TimeZone.currentSystemDefault()),
+            holiday = Holiday.at(ringsAt, TimeZone.currentSystemDefault(), seasonal),
             onStartMission = { stage = PreviewStage.MISSION },
             preview = RingPreview(soundOn, onToggleSound = { soundOn = !soundOn }, onExit = onExit),
             // In a preview, snoozing just ends it.

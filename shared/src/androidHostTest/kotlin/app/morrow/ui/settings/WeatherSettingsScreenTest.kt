@@ -101,6 +101,17 @@ class WeatherSettingsScreenTest {
     }
 
     @Test
+    fun seasonalLooksAreOnUntilTurnedOff() {
+        show()
+        waitForText("Seasonal looks")
+
+        compose.onNodeWithText("Seasonal looks").performScrollTo().assertIsOn().performClick()
+
+        compose.waitUntil(timeoutMillis = 5_000) { runBlocking { !settings.seasonalLooks.first() } }
+        compose.onNodeWithText("Seasonal looks").assertIsOff()
+    }
+
+    @Test
     fun turningWeatherOffSavesItAndHidesItsChoices() {
         show()
         waitForText("Show the weather")

@@ -52,6 +52,7 @@ fun SettingsRoute(
     val homeName by remember(cities) { cities.cities.map { saved -> saved.firstOrNull { it.isHome }?.city?.name } }
         .collectAsStateWithLifecycle(initialValue = null)
     val readAloud by settings.readWeatherAloud.collectAsStateWithLifecycle(initialValue = null)
+    val seasonal by settings.seasonalLooks.collectAsStateWithLifecycle(initialValue = null)
     // The saved voice is null for the phone's default, so wrap it to tell "not loaded yet" from "default".
     val savedVoice by remember(settings) { settings.voiceId.map { SavedVoice(it) } }.collectAsStateWithLifecycle(initialValue = null)
     val voices by produceState<List<VoiceInfo>?>(initialValue = null, speaker) { value = speaker.voices() }
@@ -69,6 +70,7 @@ fun SettingsRoute(
         choices = SettingsChoices(sound.sound, sound.ramp),
         weather = weatherSection(enabled, mode, herePlace, homeName, shownUnits, readsAloud),
         voice = voiceSection(voice.id, voices),
+        seasonal = seasonal,
         actions = SettingsActions(
             onBack = onBack,
             onSound = { scope.launch { settings.setSound(it) } },
@@ -112,6 +114,7 @@ fun SettingsRoute(
                 }
             },
             onHearSample = { scope.launch { speaker.speak(VOICE_SAMPLE_PHRASE, SpeechPurpose.SAMPLE) } },
+            onSeasonal = { scope.launch { settings.setSeasonalLooks(it) } },
         ),
     )
 }

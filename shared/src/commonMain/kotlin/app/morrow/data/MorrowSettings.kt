@@ -143,6 +143,13 @@ class MorrowSettings internal constructor(private val store: DataStore<Preferenc
         }
     }
 
+    /** Whether Home and the ring screen dress up for Halloween, Christmas and New Year. On unless turned off. */
+    val seasonalLooks: Flow<Boolean> = store.data.map { it[SeasonalLooks] ?: true }
+
+    suspend fun setSeasonalLooks(on: Boolean) {
+        store.edit { it[SeasonalLooks] = on }
+    }
+
     /** After Open-Meteo answers 429, no weather requests until this time. */
     val weatherBackoffUntil: Flow<Instant?> = store.data.map { prefs -> prefs[WeatherBackoffUntil]?.let(Instant::fromEpochMilliseconds) }
 
@@ -167,6 +174,7 @@ class MorrowSettings internal constructor(private val store: DataStore<Preferenc
         val SoundKey = stringPreferencesKey("sound")
         val RampKey = stringPreferencesKey("volume_ramp")
         val KettleCode = stringPreferencesKey("kettle_code")
+        val SeasonalLooks = booleanPreferencesKey("seasonal_looks")
     }
 }
 

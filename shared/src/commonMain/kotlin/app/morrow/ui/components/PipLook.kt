@@ -1,10 +1,12 @@
 package app.morrow.ui.components
 
+import app.morrow.theme.Holiday
+
 enum class PipMood { ASLEEP, OPEN, HAPPY, SHADES, YAWNING, DELIGHTED }
 
 /**
  * How Pip looks. [moon] is Pip's night-time form. While [talking], his mouth opens and closes in place of the mood's own.
- * [outside] is what he wears and does for the weather.
+ * [outside] is what he wears and does for the weather, and [holiday] his costume, whose hat takes the place of any other.
  */
 data class PipLook(
     val mood: PipMood,
@@ -14,6 +16,7 @@ data class PipLook(
     val glow: Boolean = true,
     val talking: Boolean = false,
     val outside: PipOutside = PipOutside(),
+    val holiday: Holiday? = null,
 )
 
 /** What Pip wears and does for the weather outside. All off is a mild, still day. */

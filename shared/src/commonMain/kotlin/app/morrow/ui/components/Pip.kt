@@ -26,6 +26,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.rememberTextMeasurer
+import app.morrow.theme.Holiday
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
 import kotlin.math.PI
@@ -106,9 +107,16 @@ internal fun DrawScope.drawPip(look: PipLook, seconds: Float) {
             } else {
                 drawSunFace(look.mood, look.talking, seconds, squint = outside.windswept)
             }
+            val holiday = look.holiday
+            if (holiday != null) drawFacePaint(holiday)
             if (outside.scarf) drawScarf(outside.windswept, seconds)
             if (outside.sweat) drawSweat(seconds)
-            if (look.nightcap) drawNightcap() else if (outside.beanie) drawBeanie()
+            when {
+                holiday != null -> drawHolidayHat(holiday, seconds)
+                look.nightcap -> drawNightcap()
+                outside.beanie -> drawBeanie()
+            }
+            if (holiday == Holiday.NEW_YEAR && !look.moon && !look.talking) drawNoisemaker(seconds)
         }
         if (outside.fan) drawFan(seconds)
         if (outside.breath) drawBreath(seconds)

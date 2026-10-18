@@ -109,6 +109,28 @@ object Illustration {
     val leafWarm = Color(0xFFD98A3D)
     val leafGreen = Color(0xFF8DB36B)
 
+    /** Pip's holiday costumes: Halloween's witch hat and face paint, Christmas's Santa hat, New Year's party hat. */
+    val witchHat = Color(0xFF2E2238)
+    val witchBand = Color(0xFFF28C28)
+    val facePaint = Color(0xFF2B1712)
+    val eyeShadow = Color(0xFF7B4FB0)
+    val santaRed = Color(0xFFD33A3A)
+    val santaTrim = Color(0xFFFFFBF4)
+    val rosyCheek = Color(0xFFE85C5C)
+    val partyHat = Color(0xFF4FB3BF)
+    val partyStripe = Color(0xFFFFD166)
+    val partyPompom = Color(0xFFEF476F)
+
+    /** The holiday scenery on Home: a purple Halloween dusk, a pumpkin and bats; a tree and lights; fireworks. */
+    val halloweenSky = Color(0xFF4B2A63)
+    val pumpkin = Color(0xFFF28C28)
+    val pumpkinStem = Color(0xFF5B7A3A)
+    val pumpkinFace = Color(0xFFFFE08A)
+    val bat = Color(0xFF1E1528)
+    val tree = Color(0xFF2F6B4F)
+    val treeStar = Color(0xFFFFD166)
+    val fairyLights = listOf(Color(0xFFEF476F), Color(0xFFFFD166), Color(0xFF06D6A0), Color(0xFF6FB7FF))
+
     /** What a city card's back and front hills are mixed toward under snow. */
     val snowHillBack = Color(0xFFFFFFFF)
     val snowHillFront = Color(0xFFF4F7FA)

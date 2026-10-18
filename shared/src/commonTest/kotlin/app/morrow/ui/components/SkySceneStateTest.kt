@@ -1,5 +1,6 @@
 package app.morrow.ui.components
 
+import app.morrow.theme.Holiday
 import app.morrow.theme.Illustration
 import app.morrow.theme.SkyCurve
 import app.morrow.theme.ThemeKind
@@ -245,5 +246,24 @@ class SkySceneStateTest {
         assertTrue(rain.weather!!.windy)
         assertTrue(rain.pip.outside.windswept)
         assertTrue(!skySceneState(7 * 60 + 40f, ThemeKind.MORNING, Sky.SNOW, feel = windy).climate.leaves)
+    }
+
+    @Test
+    fun halloweenLeansThePurpleWayAndLightsTheCottage() {
+        val minute = 12 * 60 + 30f
+        val plain = skySceneState(minute, ThemeKind.NOON)
+        val spooky = skySceneState(minute, ThemeKind.NOON, holiday = Holiday.HALLOWEEN)
+        assertNotEquals(plain.sky, spooky.sky)
+        assertEquals(1f, spooky.windowLit)
+        assertEquals(Holiday.HALLOWEEN, spooky.pip.holiday)
+        assertEquals(Holiday.HALLOWEEN, spooky.holiday)
+    }
+
+    @Test
+    fun christmasLeavesTheSkyItsOwnColour() {
+        val minute = 12 * 60 + 30f
+        val festive = skySceneState(minute, ThemeKind.NOON, holiday = Holiday.CHRISTMAS)
+        assertEquals(skySceneState(minute, ThemeKind.NOON).sky, festive.sky)
+        assertEquals(Holiday.CHRISTMAS, festive.pip.holiday)
     }
 }

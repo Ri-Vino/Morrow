@@ -114,7 +114,7 @@ fun HomeScreen(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: 
         val overSky = minOf(maxWidth * (262f / 390f), maxHeight * CONTENT_TOP_LIMIT)
         val contentTop = maxOf(overSky, headerHeight + 16.dp)
         Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            SkyScene(minuteOfDay, theme, weather = model.weather?.sky, feel = model.weather?.feel ?: Feel.Mild)
+            SkyScene(minuteOfDay, theme, weather = model.weather?.sky, feel = model.weather?.feel ?: Feel.Mild, holiday = model.holiday)
             Header(model, theme, minuteOfDay, actions, Modifier.onSizeChanged { headerHeight = with(density) { it.height.toDp() } })
             Column(
                 modifier = Modifier
@@ -199,7 +199,7 @@ private const val UNDO_SHOWN_MILLIS = 10_000L
 @Composable
 private fun Header(model: HomeModel, theme: ThemeKind, minuteOfDay: Float, actions: HomeActions, modifier: Modifier = Modifier) {
     val colors = MorrowTheme.colors
-    val scene = skySceneState(minuteOfDay, theme, model.weather?.sky, MorrowTheme.dim)
+    val scene = skySceneState(minuteOfDay, theme, model.weather?.sky, MorrowTheme.dim, holiday = model.holiday)
     val ink by animateColorAsState(scene.ink, tween(1200))
     val inkMuted by animateColorAsState(scene.inkMuted, tween(1200))
     val backing by animateColorAsState(scene.backing, tween(1200))

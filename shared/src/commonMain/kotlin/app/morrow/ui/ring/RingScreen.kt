@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import app.morrow.domain.Alarm
 import app.morrow.domain.DefaultGames
+import app.morrow.theme.Holiday
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
@@ -52,6 +53,8 @@ import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.components.PillButton
 import app.morrow.ui.components.PipLook
 import app.morrow.ui.components.PipMood
+import app.morrow.ui.components.drawFacePaint
+import app.morrow.ui.components.drawHolidayHat
 import app.morrow.ui.components.drawPip
 import app.morrow.ui.components.fadeUpIn
 import app.morrow.ui.components.pressable
@@ -76,9 +79,11 @@ fun RingScreen(
     modifier: Modifier = Modifier,
     preview: RingPreview? = null,
     snooze: RingSnooze? = null,
+    /** Dresses Pip up for the season, or null for an ordinary day. */
+    holiday: Holiday? = null,
 ) {
     MorrowTheme(ThemeKind.NIGHT) {
-        RingContent(model, rememberSceneSeconds(still = SUNRISE_DONE, fullRateFor = SUNRISE_LENGTH), onStartMission, modifier, preview, snooze)
+        RingContent(model, rememberSceneSeconds(still = SUNRISE_DONE, fullRateFor = SUNRISE_LENGTH), onStartMission, modifier, preview, snooze, holiday)
     }
 }
 
@@ -90,12 +95,13 @@ private fun RingContent(
     modifier: Modifier = Modifier,
     preview: RingPreview? = null,
     snooze: RingSnooze? = null,
+    holiday: Holiday? = null,
 ) {
     val colors = MorrowTheme.colors
     val type = MorrowTheme.type
     val frame by remember(seconds) { derivedStateOf { sunriseFrame(seconds.value) } }
     Box(modifier.fillMaxSize().background(Illustration.sunriseBands.first().first)) {
-        Canvas(Modifier.fillMaxSize()) { drawSunrise(frame, seconds.value) }
+        Canvas(Modifier.fillMaxSize()) { drawSunrise(frame, seconds.value, holiday) }
 
         Column(
             modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(start = 24.dp, end = 24.dp, top = 64.dp),
@@ -200,7 +206,7 @@ private const val HEIGHT = 844f
  * The sunrise in the design's 390 × 844 units, scaled to the screen's width and kept on its bottom edge.
  * [t] drives the looping parts (twinkles, halo, birds, notes); they stop when the sunrise is held finished.
  */
-private fun DrawScope.drawSunrise(frame: SunriseFrame, t: Float) {
+private fun DrawScope.drawSunrise(frame: SunriseFrame, t: Float, holiday: Holiday? = null) {
     val unit = size.width / WIDTH
     val looping = t.isFinite()
     drawRect(frame.bands.first())
@@ -224,7 +230,7 @@ private fun DrawScope.drawSunrise(frame: SunriseFrame, t: Float) {
 
             if (looping) Birds.forEach { drawBird(it, t) }
 
-            translate(195f, 600f + 190f * (1f - frame.rise)) { drawRisingPip(frame, t, looping) }
+            translate(195f, 600f + 190f * (1f - frame.rise)) { drawRisingPip(frame, t, looping, holiday) }
 
             drawPath(HillRise, frame.hill)
             drawPath(HillFront, Illustration.ground)
@@ -236,7 +242,7 @@ private val BandRadii = listOf(520f, 340f, 200f)
 
 private val SettingMoon = PipLook(PipMood.ASLEEP, moon = true, glow = false)
 
-private fun DrawScope.drawRisingPip(frame: SunriseFrame, t: Float, looping: Boolean) {
+private fun DrawScope.drawRisingPip(frame: SunriseFrame, t: Float, looping: Boolean, holiday: Holiday?) {
     if (looping) {
         val pulse = EaseOut.transform((t / 3.2f) % 1f)
         drawCircle(Illustration.sunLight.copy(alpha = 0.6f * (1f - pulse)), 120f * (0.8f + 0.7f * pulse), Offset.Zero)
@@ -271,6 +277,13 @@ private fun DrawScope.drawRisingPip(frame: SunriseFrame, t: Float, looping: Bool
     drawCircle(Illustration.sunCheek.copy(alpha = 0.7f), 10f, Offset(40f, 14f))
     drawOval(ink.copy(alpha = frame.yawn), topLeft = Offset(-9f, 12f), size = Size(18f, 24f))
     drawPath(BigSmile, ink.copy(alpha = frame.smile), style = Stroke(5f, cap = StrokeCap.Round))
+    // The costume is drawn for Home's Pip, whose face is 30 across; this one is 72.
+    if (holiday != null) {
+        scale(72f / 30f, Offset.Zero) {
+            drawFacePaint(holiday)
+            drawHolidayHat(holiday, if (looping) t else 0f)
+        }
+    }
 
     if (looping) Notes.forEach { drawNote(it, t) }
 }

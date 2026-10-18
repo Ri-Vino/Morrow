@@ -4,6 +4,7 @@ import app.morrow.domain.Alarm
 import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
 import app.morrow.platform.AlarmPermission
+import app.morrow.theme.Holiday
 import app.morrow.weather.Coordinates
 import app.morrow.weather.HerePlace
 import app.morrow.weather.HereSource
@@ -295,6 +296,14 @@ class HomeModelTest {
         assertEquals(Feel.Mild, line("2026-10-06T07:40")!!.feel)
         assertEquals(Feel(Warmth.FREEZING, windy = true), line("2026-10-06T07:40", { here(it, temperature = -4.0, wind = 42.0) })!!.feel)
         assertEquals(Feel(Warmth.SCORCHING, windy = false), line("2026-10-06T07:40", { here(it, temperature = 36.0, wind = 8.0) })!!.feel)
+    }
+
+    @Test
+    fun homeDressesUpForTheSeasonOnlyWhenAskedTo() {
+        val halloween = LocalDateTime.parse("2026-10-31T07:40").toInstant(london)
+        assertEquals(Holiday.HALLOWEEN_NIGHT, homeModel(emptyList(), halloween, london, emptyList(), seasonal = true).holiday)
+        assertNull(homeModel(emptyList(), halloween, london, emptyList(), seasonal = false).holiday)
+        assertNull(home("2026-10-06T07:40").holiday)
     }
 
     @Test

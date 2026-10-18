@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import app.morrow.theme.Holiday
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
@@ -46,13 +47,21 @@ private const val SCENE_HEIGHT = 330f
 
 /**
  * The Home header: the sky for [minuteOfDay], stars, Pip as the sun or the sleeping moon, the [weather] over them, then
- * hills and the cottage, and frost, heat haze or blowing leaves as it [feel]s outside. Its bottom edge is drawn in the
- * theme's background colour so the screen continues below it. Tapping Pip pokes it, and it answers in the way of the
- * time of day ([pipPoke]). Decorative.
+ * hills and the cottage, and frost, heat haze or blowing leaves as it [feel]s outside. A [holiday] brings bats and a
+ * pumpkin, or a tree, fairy lights and snow, with fireworks at New Year. Its bottom edge is drawn in the theme's
+ * background colour so the screen continues below it. Tapping Pip pokes it, and it answers in the way of the time of
+ * day ([pipPoke]). Decorative.
  */
 @Composable
-fun SkyScene(minuteOfDay: Float, theme: ThemeKind, modifier: Modifier = Modifier, weather: Sky? = null, feel: Feel = Feel.Mild) {
-    val target = skySceneState(minuteOfDay, theme, weather, MorrowTheme.dim, feel)
+fun SkyScene(
+    minuteOfDay: Float,
+    theme: ThemeKind,
+    modifier: Modifier = Modifier,
+    weather: Sky? = null,
+    feel: Feel = Feel.Mild,
+    holiday: Holiday? = null,
+) {
+    val target = skySceneState(minuteOfDay, theme, weather, MorrowTheme.dim, feel, holiday)
     val slow = tween<Color>(durationMillis = 1200)
     val sky by animateColorAsState(target.sky, slow)
     val hillBack by animateColorAsState(target.hillBack, slow)
@@ -94,6 +103,7 @@ fun SkyScene(minuteOfDay: Float, theme: ThemeKind, modifier: Modifier = Modifier
             scale(size.width / SCENE_WIDTH, Offset.Zero) {
                 drawRect(sky, size = Size(SCENE_WIDTH, SCENE_HEIGHT))
                 drawStars(target.starAlpha, t, frame.starBoost)
+                if (holiday == Holiday.NEW_YEAR) drawFireworks(target.starAlpha, t)
                 translate(PIP_X, pipY) {
                     if (!target.pip.moon) drawHeatGlow(target.climate.heat, t)
                     withTransform({
@@ -105,6 +115,7 @@ fun SkyScene(minuteOfDay: Float, theme: ThemeKind, modifier: Modifier = Modifier
                     }
                     if (target.pip.mood == PipMood.ASLEEP) drawZs(zs, t, MoonZs)
                 }
+                if (holiday?.halloween == true) drawBats(t)
             }
         }
         target.weather?.let { WeatherLayer(it, WeatherShapes.Home, Modifier.matchParentSize(), pipY = { pipY }) }
@@ -113,8 +124,12 @@ fun SkyScene(minuteOfDay: Float, theme: ThemeKind, modifier: Modifier = Modifier
             scale(size.width / SCENE_WIDTH, Offset.Zero) {
                 drawPath(HillBack, hillBack)
                 drawCottage(house, windowLit, target.doorLit, target.smokeAlpha, t)
+                if (holiday?.christmas == true) drawRoofLights(t)
                 drawPath(HillMid, hillMid)
+                if (holiday?.halloween == true) drawPumpkin(t)
+                if (holiday?.christmas == true) drawTree()
                 drawPath(HillFront, ground)
+                if (holiday?.christmas == true && target.weather?.snow != true) drawHolidaySnow(t)
             }
         }
         ClimateLayer(target.climate, Modifier.matchParentSize())

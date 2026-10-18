@@ -32,6 +32,7 @@ import app.morrow.domain.DefaultGames
 import app.morrow.domain.nextAlarm
 import app.morrow.morrow
 import app.morrow.platform.PermissionGate
+import app.morrow.theme.Holiday
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
 import app.morrow.ui.components.Pip
@@ -80,9 +81,10 @@ fun DebugScreen(permissions: PermissionGate, onBack: () -> Unit) {
 
     var warmth by remember { mutableStateOf(Warmth.MILD) }
     var windy by remember { mutableStateOf(false) }
+    var holiday by remember { mutableStateOf<Holiday?>(null) }
 
     Column(modifier = Modifier.fillMaxSize().background(colors.bg).safeDrawingPadding()) {
-        SkyScene(sceneMinute.toFloat(), sceneTheme, feel = Feel(warmth, windy))
+        SkyScene(sceneMinute.toFloat(), sceneTheme, feel = Feel(warmth, windy), holiday = holiday)
         Column(
             modifier = Modifier.weight(1f).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -109,6 +111,12 @@ fun DebugScreen(permissions: PermissionGate, onBack: () -> Unit) {
                     DebugButton(kind.name.lowercase().replaceFirstChar(Char::uppercase), selected = warmth == kind) { warmth = kind }
                 }
                 DebugButton("Windy", selected = windy) { windy = !windy }
+            }
+            Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+                DebugButton("No holiday", selected = holiday == null) { holiday = null }
+                for (kind in Holiday.entries) {
+                    DebugButton(kind.name.lowercase().replace('_', ' ').replaceFirstChar(Char::uppercase), selected = holiday == kind) { holiday = kind }
+                }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 for (mood in PipMood.entries) {

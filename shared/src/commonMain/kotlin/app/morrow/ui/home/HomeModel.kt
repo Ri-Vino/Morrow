@@ -6,6 +6,7 @@ import app.morrow.domain.SleepMath
 import app.morrow.domain.nextAlarm
 import app.morrow.domain.nextRing
 import app.morrow.platform.AlarmPermission
+import app.morrow.theme.Holiday
 import app.morrow.theme.sunElevation
 import app.morrow.ui.degrees
 import app.morrow.ui.displayName
@@ -45,6 +46,8 @@ data class HomeModel(
     val weather: HomeWeather? = null,
     /** What was just deleted, like "07:30 alarm deleted", while it can still be undone. */
     val undo: String? = null,
+    /** The season the sky is dressed for, or null for an ordinary day. */
+    val holiday: Holiday? = null,
 )
 
 /** The line Home shows, with Undo, once [alarm] has been deleted. */
@@ -88,6 +91,8 @@ fun homeModel(
     intention: String? = null,
     /** From [homeWeather]. */
     weather: HomeWeather? = null,
+    /** Whether Settings' seasonal looks are on. */
+    seasonal: Boolean = false,
 ): HomeModel {
     val local = now.toLocalDateTime(zone)
     val minute = local.hour * 60 + local.minute
@@ -118,6 +123,7 @@ fun homeModel(
             )
         },
         weather = weather,
+        holiday = Holiday.at(now, zone, seasonal),
     )
 }
 
