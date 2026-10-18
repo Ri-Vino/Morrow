@@ -11,7 +11,7 @@ class SkyCurveTest {
 
     @Test
     fun keyframesAreExact() {
-        assertEquals(Color(0xFF1B1426), SkyCurve.at(0f))
+        assertEquals(Color(0xFF0F1630), SkyCurve.at(0f))
         assertEquals(Color(0xFFE0907A), SkyCurve.at(6 * 60 + 30f))
         assertEquals(Color(0xFFF9DFA6), SkyCurve.at(12 * 60f))
         assertEquals(Color(0xFF7A3A50), SkyCurve.at(19 * 60 + 20f))
@@ -19,8 +19,8 @@ class SkyCurveTest {
 
     @Test
     fun interpolatesBetweenKeyframesInSrgb() {
-        // Halfway between 05:00 #2A1B30 and 05:50 #5C2F48.
-        assertEquals(Color(0xFF43253C), SkyCurve.at(5 * 60 + 25f))
+        // Halfway between 05:00 #1C1F3C and 05:50 #5C2F48.
+        assertEquals(Color(0xFF3C2742), SkyCurve.at(5 * 60 + 25f))
     }
 
     @Test

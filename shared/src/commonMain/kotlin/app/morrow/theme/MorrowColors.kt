@@ -88,27 +88,28 @@ private val Afternoon = MorrowColors(
     houseTint = Color(0xFF7A3A24),
 )
 
+// Midnight blue lit by moonlight: cool surfaces, a periwinkle accent and silvery text, with no warm tones.
 private val Night = MorrowColors(
-    bg = Color(0xFF1F1411),
-    surface = Color(0xFF2B1D18),
-    surface2 = Color(0xFF3A2820),
-    line = Color(0xFF4A3429),
-    text = Color(0xFFFBEEDD),
-    muted = Color(0xFFCDB5A0),
-    accent = Color(0xFFF5A65B),
-    onAccent = Color(0xFF2B1712),
-    hi = Color(0xFFFFC97A),
-    warn = Color(0xFFFF8A75),
-    onWarn = Color(0xFF2B1712),
-    knobOff = Color(0xFFE7D3BD),
-    shadow = Color(10, 5, 3, alpha = 115),
-    hillTint = Color(0xFF1F1411),
-    houseTint = Color(0xFF1F1411),
+    bg = Color(0xFF0E1424),
+    surface = Color(0xFF161E33),
+    surface2 = Color(0xFF1F2942),
+    line = Color(0xFF2C3854),
+    text = Color(0xFFEAF0FB),
+    muted = Color(0xFFAEBAD3),
+    accent = Color(0xFF8FA8F0),
+    onAccent = Color(0xFF0D1426),
+    hi = Color(0xFFB9C9FF),
+    warn = Color(0xFFFF8A80),
+    onWarn = Color(0xFF2A0F12),
+    knobOff = Color(0xFFD5DDEE),
+    shadow = Color(2, 4, 12, alpha = 115),
+    hillTint = Color(0xFF0E1424),
+    houseTint = Color(0xFF0E1424),
 )
 
-// The dim day themes: each keeps its accent and hue on surfaces as dark as Night's. Morning stays cool slate, Noon
-// olive gold and Afternoon terracotta, so they never pass for Night. The hills and cottage step down from the sky
-// towards the dark ground.
+// The dim day themes: each keeps its accent on cool surfaces as dark as Night's. Morning stays slate blue, Noon
+// charcoal and Afternoon dusk violet, so none turns brown and none passes for Night's midnight blue. The hills and
+// cottage step down from the sky towards the dark ground.
 
 private val DimMorning = MorrowColors(
     bg = Color(0xFF0F1A24),
@@ -120,8 +121,8 @@ private val DimMorning = MorrowColors(
     accent = Color(0xFF5AA9E6),
     onAccent = Color(0xFF0D2338),
     hi = Color(0xFF8FCBF7),
-    warn = Color(0xFFFF8A75),
-    onWarn = Color(0xFF2B1712),
+    warn = Color(0xFFFF8A80),
+    onWarn = Color(0xFF2A0F12),
     knobOff = Color(0xFFD3E2EE),
     shadow = Color(2, 8, 14, alpha = 115),
     hillTint = Color(0xFF3A5952),
@@ -129,37 +130,37 @@ private val DimMorning = MorrowColors(
 )
 
 private val DimNoon = MorrowColors(
-    bg = Color(0xFF1B1810),
-    surface = Color(0xFF262218),
-    surface2 = Color(0xFF332D20),
-    line = Color(0xFF443C2B),
-    text = Color(0xFFFFF5E1),
-    muted = Color(0xFFD7C8A6),
+    bg = Color(0xFF12161C),
+    surface = Color(0xFF1B2028),
+    surface2 = Color(0xFF252B35),
+    line = Color(0xFF333B47),
+    text = Color(0xFFF3F5F8),
+    muted = Color(0xFFB8C0CC),
     accent = Color(0xFFF2B33D),
     onAccent = Color(0xFF2E2214),
     hi = Color(0xFFFFD37C),
-    warn = Color(0xFFFF8A75),
-    onWarn = Color(0xFF2B1712),
-    knobOff = Color(0xFFEADCC0),
-    shadow = Color(8, 6, 2, alpha = 115),
-    hillTint = Color(0xFF705831),
-    houseTint = Color(0xFF4E3920),
+    warn = Color(0xFFFF8A80),
+    onWarn = Color(0xFF2A0F12),
+    knobOff = Color(0xFFDCE1E8),
+    shadow = Color(2, 4, 8, alpha = 115),
+    hillTint = Color(0xFF4A5A44),
+    houseTint = Color(0xFF2E3640),
 )
 
 private val DimAfternoon = MorrowColors(
-    bg = Color(0xFF24140F),
-    surface = Color(0xFF311C15),
-    surface2 = Color(0xFF40261C),
-    line = Color(0xFF523226),
-    text = Color(0xFFFFEDE0),
-    muted = Color(0xFFE2BBA6),
+    bg = Color(0xFF181424),
+    surface = Color(0xFF221C31),
+    surface2 = Color(0xFF2D253F),
+    line = Color(0xFF3C3251),
+    text = Color(0xFFF6F0FB),
+    muted = Color(0xFFC6B9D6),
     accent = Color(0xFFEE8556),
     onAccent = Color(0xFF2A120A),
     hi = Color(0xFFFFB894),
-    warn = Color(0xFFFF8A75),
-    onWarn = Color(0xFF2B1712),
-    knobOff = Color(0xFFEFD5C6),
-    shadow = Color(10, 4, 2, alpha = 115),
-    hillTint = Color(0xFF653623),
-    houseTint = Color(0xFF4B2518),
+    warn = Color(0xFFFF8A80),
+    onWarn = Color(0xFF2A0F12),
+    knobOff = Color(0xFFE2D9EC),
+    shadow = Color(6, 3, 10, alpha = 115),
+    hillTint = Color(0xFF4A3550),
+    houseTint = Color(0xFF2F2338),
 )

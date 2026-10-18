@@ -9,8 +9,8 @@ import kotlin.math.roundToInt
 /** The sky colour behind Pip, continuous through the day. Keyframes come from the design canvas. */
 object SkyCurve {
     private val keyframes = listOf(
-        0 to Color(0xFF1B1426),
-        300 to Color(0xFF2A1B30),
+        0 to Color(0xFF0F1630),
+        300 to Color(0xFF1C1F3C),
         350 to Color(0xFF5C2F48),
         390 to Color(0xFFE0907A),
         430 to Color(0xFFBFDDF2),
@@ -22,8 +22,8 @@ object SkyCurve {
         1060 to Color(0xFFF2A47A),
         1110 to Color(0xFFD8735E),
         1160 to Color(0xFF7A3A50),
-        1230 to Color(0xFF2E1D33),
-        1440 to Color(0xFF1B1426),
+        1230 to Color(0xFF20213F),
+        1440 to Color(0xFF0F1630),
     )
 
     fun at(minuteOfDay: Float): Color {

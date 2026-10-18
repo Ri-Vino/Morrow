@@ -22,18 +22,18 @@ object Illustration {
     val nightcapTrim = Color(0xFFC9B8E0)
 
     /** Stars, smoke, z's, and text drawn on a dark sky. */
-    val starlight = Color(0xFFFBEEDD)
-    val starlightMuted = Color(0xFFE7CDB6)
+    val starlight = Color(0xFFEEF2FB)
+    val starlightMuted = Color(0xFFC3CCDF)
     val windowGlow = Color(0xFFF5A65B)
 
     /** The pre-dawn sky that warms as Pip gets up, in the setup and mission screens. */
     val dawnNight = Color(0xFF241826)
     val dawnRose = Color(0xFF9A4757)
     val dawnGold = Color(0xFFF2B07A)
-    val ground = Color(0xFF1F1411)
+    val ground = Color(0xFF0E1222)
 
     /** Small labels laid over a sky. */
-    val badge = Color(0x8C150E0C)
+    val badge = Color(0x8C0B0F1C)
     val onBadge = Color(0xFFFFE3C2)
 
     /** The ringing screen's sky, outermost band first, each warming from its night colour to its dawn one. */
@@ -56,16 +56,16 @@ object Illustration {
     /** Wrong answers and wrong codes in a mission. */
     val mistake = Color(0xFFE8806A)
     /** Behind the camera picture. */
-    val viewfinder = Color(0xFF150E0C)
+    val viewfinder = Color(0xFF0B0E16)
     /** Dims the screen behind a bottom sheet. */
-    val scrim = Color(0x730F0A08)
+    val scrim = Color(0x730A0D18)
 
     /** Text on a city card whose sky is light, and on one whose sky is dark. */
     val cityInkDark = Color(0xFF16202B)
     val cityInkLight = Color(0xFFFFF6EA)
     /** The pale wash under dark card text, and the dark one under light card text. */
     val cityScrimLight = Color(0xFFFFFFFF)
-    val cityScrimDark = Color(0xFF140C0A)
+    val cityScrimDark = Color(0xFF0B1020)
 
     /** What weather mixes a sky toward, by day and by night: grey, or its own colour in fog, snow and storms. */
     val tintGreyDay = Color(0xFFAEB9C4)
