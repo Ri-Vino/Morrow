@@ -109,8 +109,9 @@ fun TabBar(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier
         launch { start.animateTo(target, if (right) Trailing else Leading) }
         launch { end.animateTo(target + 1f, if (right) Leading else Trailing) }
     }
-    val pill = colors.accent
-    val outline = colors.hi
+    // A neutral pill: the brand colour is kept for the chosen tab's icon and label.
+    val pill = colors.surface2
+    val outline = colors.line
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -126,7 +127,7 @@ fun TabBar(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier
                 val left = start.value * (tab + gap)
                 val right = end.value * (tab + gap) - gap
                 val radius = CornerRadius(PILL_RADIUS.toPx())
-                val line = 2.dp.toPx()
+                val line = 1.dp.toPx()
                 drawRoundRect(pill, Offset(left, 0f), Size(right - left, size.height), radius)
                 drawRoundRect(
                     outline,
@@ -148,7 +149,7 @@ fun TabBar(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier
 @Composable
 private fun RowScope.TabItem(tab: Tab, index: Int, selected: Boolean, onClick: () -> Unit) {
     val colors = MorrowTheme.colors
-    val content by animateColorAsState(if (selected) colors.onAccent else colors.muted, tween(TAB_FADE_MILLIS))
+    val content by animateColorAsState(if (selected) colors.hi else colors.muted, tween(TAB_FADE_MILLIS))
     // Big text no longer fits beside the icon in a third of the bar, so it goes underneath.
     val stacked = LocalDensity.current.fontScale > 1.3f
     val itemModifier = Modifier
@@ -159,23 +160,26 @@ private fun RowScope.TabItem(tab: Tab, index: Int, selected: Boolean, onClick: (
         .padding(horizontal = 4.dp)
     if (stacked) {
         Column(itemModifier, Arrangement.Center, Alignment.CenterHorizontally) {
-            TabContent(tab, content)
+            TabContent(tab, content, selected)
         }
     } else {
         Row(itemModifier, Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), Alignment.CenterVertically) {
-            TabContent(tab, content)
+            TabContent(tab, content, selected)
         }
     }
 }
 
 @Composable
-private fun TabContent(tab: Tab, content: Color) {
-    MorrowIcon(tab.icon, content, size = 20.dp, strokeWidth = 2.2f)
+private fun TabContent(tab: Tab, content: Color, selected: Boolean) {
+    // The chosen tab's icon is filled in, as the platform's tab bars do.
+    MorrowIcon(tab.icon, content, size = 20.dp, strokeWidth = 2.2f, fill = if (selected) content.copy(alpha = SELECTED_FILL) else null)
     BasicText(tab.label, style = MorrowTheme.type.bodyStrong.copy(color = content), maxLines = 1)
 }
 
 private const val TAB_FADE_MILLIS = 220
 private val TAB_GAP = 4.dp
+
+private const val SELECTED_FILL = 0.3f
 
 /** The selected tab's pill; its outline marks it where the fill alone is too faint against the bar. */
 private val PILL_RADIUS = 26.dp

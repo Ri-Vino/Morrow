@@ -18,7 +18,10 @@ import androidx.compose.ui.unit.dp
 import app.morrow.domain.MissionType
 import app.morrow.theme.ThemeKind
 
-/** A line icon from the design, drawn from 24 × 24 SVG path data. Decorative unless given a [contentDescription]. */
+/**
+ * A line icon from the design, drawn from 24 × 24 SVG path data. Decorative unless given a [contentDescription]. With
+ * [fill], its closed shapes are filled in under the lines.
+ */
 @Composable
 fun MorrowIcon(
     path: String,
@@ -27,11 +30,13 @@ fun MorrowIcon(
     size: Dp = 20.dp,
     strokeWidth: Float = 2f,
     contentDescription: String? = null,
+    fill: Color? = null,
 ) {
     val shape = remember(path) { svgPath(path) }
     val described = if (contentDescription != null) Modifier.semantics { this.contentDescription = contentDescription } else Modifier
     Canvas(modifier.size(size).then(described)) {
         scale(this.size.minDimension / 24f, Offset.Zero) {
+            if (fill != null) drawPath(shape, fill)
             drawPath(shape, tint, style = Stroke(strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round))
         }
     }
