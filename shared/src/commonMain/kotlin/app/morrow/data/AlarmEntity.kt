@@ -35,6 +35,8 @@ data class AlarmEntity(
     val difficulty: String? = null,
     @ColumnInfo(name = "snooze_minutes", defaultValue = "5") val snoozeMinutes: Int = DEFAULT_SNOOZE_MINUTES,
     @ColumnInfo(name = "snooze_limit", defaultValue = "3") val snoozeLimit: Int = DEFAULT_SNOOZE_LIMIT,
+    /** Shown on the ring screen under [label], or null for none. */
+    val description: String? = null,
 )
 
 internal fun Alarm.toEntity() = AlarmEntity(
@@ -51,6 +53,7 @@ internal fun Alarm.toEntity() = AlarmEntity(
     difficulty = difficulty?.name,
     snoozeMinutes = snoozeMinutes,
     snoozeLimit = snoozeLimit,
+    description = description,
 )
 
 internal fun AlarmEntity.toAlarm() = Alarm(
@@ -68,4 +71,5 @@ internal fun AlarmEntity.toAlarm() = Alarm(
     difficulty = Difficulty.entries.firstOrNull { it.name == difficulty },
     snoozeMinutes = snoozeMinutes.coerceAtLeast(0),
     snoozeLimit = snoozeLimit.coerceAtLeast(1),
+    description = description?.takeIf(String::isNotBlank),
 )

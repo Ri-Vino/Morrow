@@ -1,6 +1,7 @@
 package app.morrow.data
 
 import app.morrow.domain.Alarm
+import app.morrow.domain.DEFAULT_ALARM_NAME
 import app.morrow.domain.DefaultGames
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -36,7 +37,7 @@ class AlarmRepository(private val dao: AlarmDao) {
             id = 0,
             hour = 8,
             minute = 0,
-            label = "Alarm",
+            label = DEFAULT_ALARM_NAME,
             days = DayOfWeek.entries.take(5).toSet(),
             games = DefaultGames,
             enabled = false,

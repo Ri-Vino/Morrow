@@ -36,6 +36,19 @@ class RingModelTest {
     }
 
     @Test
+    fun aDescriptionIsShownUnderTheLabel() {
+        val model = ringModel(alarm("Gym", MissionType.SHAKE).copy(description = "  Gym bag is by the door "))
+        assertEquals("Gym · Shake", model.label)
+        assertEquals("Gym bag is by the door", model.description)
+    }
+
+    @Test
+    fun noDescriptionOrABlankOneShowsNothing() {
+        assertNull(ringModel(alarm("Gym")).description)
+        assertNull(ringModel(alarm("Gym").copy(description = "   ")).description)
+    }
+
+    @Test
     fun showsTimeLabelAndGames() {
         val model = ringModel(alarm("Work days", MissionType.BREATHE))
         assertEquals("06:05", model.time)

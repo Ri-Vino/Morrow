@@ -27,6 +27,7 @@ import app.morrow.data.AlarmSetup
 import app.morrow.data.MorrowSettings
 import app.morrow.data.OwnSounds
 import app.morrow.domain.Alarm
+import app.morrow.domain.DEFAULT_ALARM_NAME
 import app.morrow.domain.DEFAULT_SNOOZE_LIMIT
 import app.morrow.domain.DEFAULT_SNOOZE_MINUTES
 import app.morrow.domain.DefaultGames
@@ -40,6 +41,7 @@ import app.morrow.domain.encode
 import app.morrow.domain.encodeGames
 import app.morrow.domain.nextAlarm
 import app.morrow.domain.nextRing
+import app.morrow.domain.tidied
 import app.morrow.places.City
 import app.morrow.places.CityCatalog
 import app.morrow.places.CityRepository
@@ -485,7 +487,7 @@ private fun EditRoute(
             },
             onSave = {
                 scope.launch {
-                    services.coordinator.save(current.copy(enabled = true))
+                    services.coordinator.save(current.tidied().copy(enabled = true))
                     onDone()
                 }
             },
@@ -698,7 +700,7 @@ private fun newAlarm(timeZone: String? = null, city: String? = null) = Alarm(
     id = 0,
     hour = 7,
     minute = 0,
-    label = "Alarm",
+    label = DEFAULT_ALARM_NAME,
     days = DayOfWeek.entries.take(5).toSet(),
     games = DefaultGames,
     enabled = true,
@@ -716,7 +718,7 @@ private val AlarmSaver = Saver<Alarm?, List<Any>>(
             listOf(
                 it.id, it.hour, it.minute, it.label, it.days.joinToString(",") { day -> day.name }, encodeGames(it.games), it.enabled,
                 it.timeZone.orEmpty(), it.zoneLabel.orEmpty(), it.sound?.encode().orEmpty(), it.difficulty?.name.orEmpty(), it.snoozeMinutes,
-                it.snoozeLimit,
+                it.snoozeLimit, it.description.orEmpty(),
             )
         }
     },
@@ -735,6 +737,7 @@ private val AlarmSaver = Saver<Alarm?, List<Any>>(
             difficulty = Difficulty.entries.firstOrNull { it.name == saved.getOrNull(10) },
             snoozeMinutes = saved.getOrNull(11) as Int? ?: DEFAULT_SNOOZE_MINUTES,
             snoozeLimit = saved.getOrNull(12) as Int? ?: DEFAULT_SNOOZE_LIMIT,
+            description = (saved.getOrNull(13) as String?)?.ifEmpty { null },
         )
     },
 )

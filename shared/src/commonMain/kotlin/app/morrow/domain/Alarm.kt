@@ -27,6 +27,8 @@ data class Alarm(
     val snoozeMinutes: Int = DEFAULT_SNOOZE_MINUTES,
     /** How many times in a row Snooze can put it off. */
     val snoozeLimit: Int = DEFAULT_SNOOZE_LIMIT,
+    /** A line the ring screen shows under the name, such as "Gym bag is by the door"; null or blank means none. */
+    val description: String? = null,
 ) {
     init {
         require(hour in 0..23) { "hour must be 0..23, was $hour" }
@@ -37,3 +39,16 @@ data class Alarm(
 
     val repeats: Boolean get() = days.isNotEmpty()
 }
+
+/** What an alarm is called until it's given a name. */
+const val DEFAULT_ALARM_NAME = "Alarm"
+
+/** The longest name and description the Edit screen takes. */
+const val MAX_NAME_LENGTH = 30
+const val MAX_DESCRIPTION_LENGTH = 120
+
+/** The alarm as saved: its name trimmed, [DEFAULT_ALARM_NAME] when left blank, and a blank description dropped. */
+fun Alarm.tidied(): Alarm = copy(
+    label = label.trim().ifEmpty { DEFAULT_ALARM_NAME },
+    description = description?.trim()?.takeIf(String::isNotEmpty),
+)

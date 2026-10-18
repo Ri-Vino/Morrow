@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -48,6 +49,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
@@ -56,6 +58,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -75,7 +78,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import app.morrow.domain.Alarm
+import app.morrow.domain.DEFAULT_ALARM_NAME
 import app.morrow.domain.Difficulty
+import app.morrow.domain.MAX_DESCRIPTION_LENGTH
+import app.morrow.domain.MAX_NAME_LENGTH
 import app.morrow.domain.MissionType
 import app.morrow.domain.RingSound
 import app.morrow.domain.SnoozeChoices
@@ -257,6 +263,30 @@ private fun EditForm(
                 modifier = Modifier.fillMaxWidth(),
             )
             ZoneRowView(model.zone, onPickZone)
+            val focus = LocalFocusManager.current
+            Section("Name") {
+                TextEntry(
+                    value = draft.label,
+                    onValueChange = { actions.onChange(draft.copy(label = it.take(MAX_NAME_LENGTH))) },
+                    description = "Alarm name",
+                    placeholder = DEFAULT_ALARM_NAME,
+                    singleLine = true,
+                    imeAction = ImeAction.Next,
+                    onAction = { focus.moveFocus(FocusDirection.Down) },
+                )
+            }
+            Section("Description", aside = "Optional") {
+                TextEntry(
+                    value = draft.description.orEmpty(),
+                    onValueChange = { actions.onChange(draft.copy(description = it.replace('\n', ' ').take(MAX_DESCRIPTION_LENGTH))) },
+                    description = "Alarm description",
+                    placeholder = "Gym bag is by the door",
+                    singleLine = false,
+                    imeAction = ImeAction.Done,
+                    onAction = { focus.clearFocus() },
+                )
+                BasicText("Pip shows it when the alarm rings.", style = MorrowTheme.type.body.copy(color = colors.muted))
+            }
             Section("Repeat") { DayChips(draft.days) { actions.onChange(draft.copy(days = it)) } }
             Section("Sound") { SoundRowView(model.sound, onPickSound) }
             Section("Wake-up games", aside = "Played in this order") {
@@ -424,6 +454,44 @@ private fun Section(title: String, aside: String? = null, content: @Composable (
         }
         content()
     }
+}
+
+/** A rounded text box on the form: one line, or wrapping onto up to three, with [placeholder] showing while it's empty. */
+@Composable
+private fun TextEntry(
+    value: String,
+    onValueChange: (String) -> Unit,
+    description: String,
+    placeholder: String,
+    singleLine: Boolean,
+    imeAction: ImeAction,
+    onAction: () -> Unit,
+) {
+    val colors = MorrowTheme.colors
+    val type = MorrowTheme.type
+    val shape = RoundedCornerShape(16.dp)
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        singleLine = singleLine,
+        maxLines = if (singleLine) 1 else 3,
+        textStyle = type.bodyLarge.copy(color = colors.text),
+        cursorBrush = SolidColor(colors.hi),
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = imeAction),
+        keyboardActions = KeyboardActions(onNext = { onAction() }, onDone = { onAction() }),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .background(colors.surface, shape)
+            .border(2.dp, colors.line, shape)
+            .semantics { contentDescription = description },
+        decorationBox = { field ->
+            Box(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), contentAlignment = Alignment.CenterStart) {
+                if (value.isEmpty()) BasicText(placeholder, style = type.bodyLarge.copy(color = colors.muted), maxLines = 1)
+                field()
+            }
+        },
+    )
 }
 
 @Composable

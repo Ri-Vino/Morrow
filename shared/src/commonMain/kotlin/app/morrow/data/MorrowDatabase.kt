@@ -13,7 +13,7 @@ import kotlinx.coroutines.IO
 
 @Database(
     entities = [AlarmEntity::class, SavedCityEntity::class, WeatherCacheEntity::class, CitySearchCacheEntity::class, TimerEntity::class, OwnSoundEntity::class],
-    version = 11,
+    version = 12,
 )
 @ConstructedBy(MorrowDatabaseConstructor::class)
 abstract class MorrowDatabase : RoomDatabase() {
@@ -42,7 +42,7 @@ fun buildMorrowDatabase(builder: RoomDatabase.Builder<MorrowDatabase>): MorrowDa
     builder
         .setDriver(BundledSQLiteDriver())
         .setQueryCoroutineContext(Dispatchers.IO)
-        .addMigrations(GamesMigration, CitiesMigration, ZonesMigration, WeatherMigration, TimersMigration, SoundsMigration, DifficultyMigration, SnoozeMigration, OwnSoundsMigration, SnoozeLimitMigration)
+        .addMigrations(GamesMigration, CitiesMigration, ZonesMigration, WeatherMigration, TimersMigration, SoundsMigration, DifficultyMigration, SnoozeMigration, OwnSoundsMigration, SnoozeLimitMigration, DescriptionMigration)
         .build()
 
 /** An alarm's one mission becomes its first and only game, with that game's usual rounds. */
@@ -151,5 +151,12 @@ internal object OwnSoundsMigration : Migration(9, 10) {
 internal object SnoozeLimitMigration : Migration(10, 11) {
     override fun migrate(connection: SQLiteConnection) {
         connection.execSQL("ALTER TABLE `alarms` ADD COLUMN `snooze_limit` INTEGER NOT NULL DEFAULT 3")
+    }
+}
+
+/** Alarms can carry a description for the ring screen. None has one yet. */
+internal object DescriptionMigration : Migration(11, 12) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("ALTER TABLE `alarms` ADD COLUMN `description` TEXT")
     }
 }

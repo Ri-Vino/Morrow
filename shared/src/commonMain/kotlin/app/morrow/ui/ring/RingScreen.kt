@@ -124,6 +124,17 @@ private fun RingContent(
                 MorrowIcon(model.missionIcon, Illustration.onBadge, size = 15.dp, strokeWidth = 2.2f)
                 BasicText(model.label, style = type.bodyStrong.copy(color = Illustration.onBadge))
             }
+            model.description?.let { description ->
+                BasicText(
+                    description,
+                    style = type.body.copy(color = Illustration.onBadge, textAlign = TextAlign.Center),
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .fadeUpIn { textIn(1) }
+                        .background(Illustration.ground.copy(alpha = 0.45f), RoundedCornerShape(16.dp))
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
             BasicText(
                 "“Morning! I’m up — your turn.”",
                 style = type.title.copy(color = Illustration.glint, fontStyle = FontStyle.Italic, textAlign = TextAlign.Center),

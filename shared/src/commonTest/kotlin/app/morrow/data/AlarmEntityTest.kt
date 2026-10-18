@@ -8,6 +8,7 @@ import kotlinx.datetime.DayOfWeek.MONDAY
 import kotlinx.datetime.DayOfWeek.SUNDAY
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class AlarmEntityTest {
 
@@ -20,6 +21,24 @@ class AlarmEntityTest {
         val row = alarm.toEntity()
         assertEquals("SUMS:3,BREATHE:2", row.games)
         assertEquals(alarm, row.toAlarm())
+    }
+
+    @Test
+    fun aDescriptionRoundTripsThroughItsRow() {
+        val alarm = Alarm(
+            id = 3, hour = 6, minute = 0, label = "Gym", days = setOf(MONDAY), games = DefaultGames, enabled = true,
+            description = "Gym bag is by the door",
+        )
+        val row = alarm.toEntity()
+        assertEquals("Gym bag is by the door", row.description)
+        assertEquals(alarm, row.toAlarm())
+    }
+
+    @Test
+    fun aBlankDescriptionReadsAsNone() {
+        val row = AlarmEntity(1, 7, 0, "Alarm", days = 0, games = "SUMS:3", enabled = true, description = "  ")
+        assertNull(row.toAlarm().description)
+        assertNull(AlarmEntity(1, 7, 0, "Alarm", days = 0, games = "SUMS:3", enabled = true).toAlarm().description)
     }
 
     @Test

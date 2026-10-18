@@ -22,6 +22,8 @@ import kotlinx.datetime.TimeZone
 data class RingModel(
     val time: String,
     val label: String,
+    /** The alarm's own line, shown under [label], or null when it has none. */
+    val description: String?,
     val missionIcon: String,
     val startLabel: String,
 )
@@ -37,6 +39,7 @@ fun ringModel(alarm: Alarm, now: Instant, phoneZone: TimeZone): RingModel {
     return RingModel(
         time = cityClock(now, phoneZone),
         label = listOf(alarm.label.trim(), about).filter(String::isNotEmpty).joinToString(" · "),
+        description = alarm.description?.trim()?.takeIf(String::isNotEmpty),
         missionIcon = if (city == null) Icons.forMission(first) else Icons.Globe,
         startLabel = "I’m up — start ${first.displayName.lowercase()}",
     )

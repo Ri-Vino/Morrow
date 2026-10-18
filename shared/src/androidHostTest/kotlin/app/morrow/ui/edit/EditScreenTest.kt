@@ -22,10 +22,13 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.dp
 import app.morrow.domain.Alarm
 import app.morrow.domain.GameStep
+import app.morrow.domain.MAX_DESCRIPTION_LENGTH
+import app.morrow.domain.MAX_NAME_LENGTH
 import app.morrow.domain.MissionType
 import app.morrow.domain.RingSound
 import app.morrow.domain.WakeSound
@@ -101,6 +104,37 @@ class EditScreenTest {
         compose.onNodeWithText("Ocean waves").performScrollTo().performClick()
 
         assertEquals(RingSound.Bundled(WakeSound.OCEAN_WAVES), draft.sound)
+    }
+
+    @Test
+    fun anAlarmTakesANameAndADescription() {
+        show(alarm(hour = 7, minute = 0))
+
+        compose.onNodeWithContentDescription("Alarm name").performScrollTo().performTextClearance()
+        compose.onNodeWithContentDescription("Alarm name").performTextInput("Gym")
+        compose.onNodeWithContentDescription("Alarm description").performScrollTo().performTextInput("Gym bag is by the door")
+
+        assertEquals("Gym", draft.label)
+        assertEquals("Gym bag is by the door", draft.description)
+    }
+
+    @Test
+    fun theNameAndDescriptionStopAtTheirLimits() {
+        show(alarm(hour = 7, minute = 0))
+
+        compose.onNodeWithContentDescription("Alarm name").performScrollTo().performTextInput("x".repeat(40))
+        compose.onNodeWithContentDescription("Alarm description").performScrollTo().performTextInput("y".repeat(150))
+
+        assertEquals(MAX_NAME_LENGTH, draft.label.length)
+        assertEquals(MAX_DESCRIPTION_LENGTH, draft.description?.length)
+    }
+
+    @Test
+    fun theNameAndDescriptionShowWhatTheAlarmHas() {
+        show(alarm(hour = 7, minute = 0).copy(label = "Gym", description = "Gym bag is by the door"))
+
+        compose.onNodeWithText("Gym").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Gym bag is by the door").performScrollTo().assertIsDisplayed()
     }
 
     @Test
