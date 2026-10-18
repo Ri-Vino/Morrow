@@ -151,7 +151,7 @@ private fun MorningContent(model: MorningModel, weather: MorningWeather?, onRepl
         ) {
             PrimaryButton("Start my day", onClick = { onStartDay(intention.trim()) })
             BasicText(
-                "Alarm off · sensors released · Pip sleeps until tomorrow",
+                "Alarm off · Pip sleeps until tomorrow",
                 style = type.caption.copy(color = colors.muted, textAlign = TextAlign.Center),
             )
         }

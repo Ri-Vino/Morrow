@@ -93,6 +93,11 @@ private const val REPEAT_AFTER_MS = 400L
 private const val REPEAT_SLOWEST_MS = 160L
 private const val REPEAT_FASTEST_MS = 45L
 
+/**
+ * The main action on a screen. Button labels, like every label in the app, are in sentence case ("Save alarm", not
+ * "Save Alarm") on both platforms: one shared voice, Android's own convention, and calmer than title case for a
+ * friendly app. Small uppercase labels are kept for section eyebrows only.
+ */
 @Composable
 fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: String? = null, iconAfter: Boolean = false) {
     val colors = MorrowTheme.colors
