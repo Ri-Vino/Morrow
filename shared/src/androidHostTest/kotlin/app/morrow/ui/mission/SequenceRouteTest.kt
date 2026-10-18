@@ -293,15 +293,13 @@ class SequenceRouteTest {
         compose.waitUntil { compose.onAllNodes(hasText("WAKE-UP MISSION")).fetchSemanticsNodes().isNotEmpty() }
     }
 
-    /** Pip's "We're up!" stays on screen for a moment, then the mission is done. */
     private fun hasClickLabel(label: String) =
         SemanticsMatcher("click label $label") { it.config.getOrNull(SemanticsActions.OnClick)?.label == label }
 
+    /** The last game done, the mission is done straight away, with no pause on the clock. */
     private fun assertFinishes() {
         compose.waitForIdle()
-        assertFalse(done)
-        compose.mainClock.advanceTimeBy(FINISH_PAUSE)
-        compose.waitUntil { done }
+        assertTrue(done)
     }
 
     /** Still not done, even after the moment a finished mission would wait. */

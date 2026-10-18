@@ -15,18 +15,35 @@ import androidx.compose.runtime.setValue
 import app.morrow.data.MorrowSettings
 import app.morrow.platform.Speaker
 import app.morrow.platform.SpeechPurpose
+import app.morrow.weather.Units
 import app.morrow.weather.WeatherRepository
+import app.morrow.weather.WeatherState
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlin.time.Clock
 import kotlin.time.Instant
 
 /**
- * The Morning screen for a mission finished at [wokeAt]. [onStartDay] gets what the user typed, trimmed.
+ * What the Morning screen shows besides the moment it opens: a guess at bedtime, the weather, its units, and whether
+ * Pip reads it out.
+ */
+data class MorningInputs(val wentToBed: Instant?, val forecasts: WeatherState, val units: Units, val readAloud: Boolean)
+
+/** [MorningInputs] as they change. Collect it while the alarm rings and pass the latest to [MorningRoute]. */
+fun morningInputs(settings: MorrowSettings, weather: WeatherRepository, phoneCountry: String): Flow<MorningInputs> =
+    combine(settings.lastClosedAt, weather.forecasts, settings.effectiveUnits(phoneCountry), settings.readWeatherAloud) { bed, state, units, aloud ->
+        MorningInputs(bed, state, units, aloud)
+    }
+
+/**
+ * The Morning screen for a mission finished at [wokeAt]. [onStartDay] gets what the user typed, trimmed. With
+ * [preloaded] inputs from [morningInputs], it opens complete, rather than a frame or two before its weather.
  *
  * Opening it refreshes the weather, for up to 5 s, or takes up the refresh [WeatherRepository.prepareMorning] began
- * during the games. The card shows as soon as there is a forecast from today, and a
+ * as the alarm rang. The card shows as soon as there is a forecast from today, and a
  * fresh fetch replaces it in place; with nothing from today, it stays hidden. With "Pip reads it out when you wake"
  * on, [speaker] reads the card once after the refresh, and a button reads it again; leaving the screen or "Start my
  * day" cuts off only what this screen is saying. [phoneCountry] is the phone's region, for the default units.
@@ -39,14 +56,16 @@ fun MorningRoute(
     phoneCountry: String,
     wokeAt: Instant,
     onStartDay: (intention: String) -> Unit,
+    preloaded: MorningInputs? = null,
     clock: Clock = Clock.System,
     zone: TimeZone = TimeZone.currentSystemDefault(),
 ) {
-    val wentToBed by remember(settings) { settings.lastClosedAt }.collectAsState(initial = null)
-    val forecasts by remember(weather) { weather.forecasts }.collectAsState(initial = null)
-    val units by remember(settings, phoneCountry) { settings.effectiveUnits(phoneCountry) }.collectAsState(initial = null)
-    val readAloud by remember(settings) { settings.readWeatherAloud }.collectAsState(initial = null)
-    val model = morningModel(wokeAt, wentToBed, zone)
+    val inputs by remember(settings, weather, phoneCountry) { morningInputs(settings, weather, phoneCountry) }
+        .collectAsState(initial = preloaded)
+    val forecasts = inputs?.forecasts
+    val units = inputs?.units
+    val readAloud = inputs?.readAloud
+    val model = morningModel(wokeAt, inputs?.wentToBed, zone)
 
     var refreshed by remember { mutableStateOf(false) }
     var stored by remember { mutableStateOf<Instant?>(null) }

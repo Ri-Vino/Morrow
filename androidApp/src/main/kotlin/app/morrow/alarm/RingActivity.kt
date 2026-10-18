@@ -25,6 +25,7 @@ import app.morrow.ui.minuteTicks
 import app.morrow.ui.mission.MissionServices
 import app.morrow.ui.mission.SequenceRoute
 import app.morrow.ui.morning.MorningRoute
+import app.morrow.ui.morning.morningInputs
 import app.morrow.ui.ring.RingScreen
 import app.morrow.ui.ring.RingSnooze
 import app.morrow.ui.ring.ringModel
@@ -80,8 +81,10 @@ class RingActivity : ComponentActivity() {
                         }
                     }
                 }
-                // The weather is fetched while the games are played, so Morning has it as it opens.
-                LaunchedEffect(stage) { if (stage == Stage.MISSION) morrow.weather.prepareMorning() }
+                // The weather is fetched as the alarm rings, and Morning's inputs are kept loaded, so Morning opens complete
+                // the moment the games are done.
+                LaunchedEffect(Unit) { morrow.weather.prepareMorning() }
+                val morningInputs by remember { morningInputs(morrow.settings, morrow.weather, phoneCountry) }.collectAsState(initial = null)
                 LaunchedEffect(stage) {
                     if (stage != Stage.MORNING) return@LaunchedEffect
                     delay(MORNING_HOLD)
@@ -97,6 +100,7 @@ class RingActivity : ComponentActivity() {
                         phoneCountry = phoneCountry,
                         wokeAt = Instant.fromEpochMilliseconds(wokeAt),
                         onStartDay = ::startDay,
+                        preloaded = morningInputs,
                     )
                     ringing == null -> Unit
                     // The alarm rings on until the last game is done. If this screen fails, the safety stop still ends it.

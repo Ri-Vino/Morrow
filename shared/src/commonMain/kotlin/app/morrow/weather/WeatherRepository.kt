@@ -25,7 +25,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Clock
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
@@ -131,10 +130,13 @@ class WeatherRepository(
     private var prepared: Pair<Instant, Deferred<Instant?>>? = null
 
     /**
-     * Starts the Morning refresh while the games are played, so the location fix and the request are done by the time
-     * [refreshForMorning] is asked for. Asking again starts it again.
+     * Starts the Morning refresh as the alarm rings, so the location fix and the request are done long before
+     * [refreshForMorning] is asked for. Asking again while one is still running keeps that one; asking once it's done
+     * starts again, as for an alarm ringing again after a snooze, though places fetched in the last [RefreshAfter]
+     * come from the cache. With weather off it fetches nothing.
      */
     fun prepareMorning() {
+        if (prepared?.second?.isActive == true) return
         prepared = clock.now() to scope.async {
             try {
                 refresh(RefreshReason.MORNING)
@@ -270,8 +272,8 @@ class WeatherRepository(
         val RequestTimeout = 10.seconds
         val MorningTimeout = 5.seconds
 
-        /** How long a refresh started by [prepareMorning] counts for the Morning screen. */
-        val PreparedFor = 10.minutes
+        /** How long a refresh started by [prepareMorning] counts for the Morning screen: as long as the cache does. */
+        val PreparedFor = RefreshAfter
 
         /** Of [MorningTimeout], what finding the location may take. */
         val MorningFixTimeout = 2.seconds

@@ -173,6 +173,7 @@ class WeatherRepositoryTest {
      */
     private inner class Slow(val fixTime: Duration, val requestTime: Duration, val fix: Coordinates = leeds) : LocationProvider, WeatherSource {
         val timeouts = mutableListOf<Duration>()
+        val requests = mutableListOf<List<Coordinates>>()
         override val allowed = true
 
         override suspend fun current(timeout: Duration): Coordinates? {
@@ -186,6 +187,7 @@ class WeatherRepositoryTest {
         }
 
         override suspend fun forecast(places: List<Coordinates>): List<Forecast> {
+            requests += places
             delay(requestTime)
             return places.map { forecastFor(it, clock.now) }
         }
@@ -253,10 +255,56 @@ class WeatherRepositoryTest {
 
         weather.prepareMorning()
         delay(10.seconds)
-        clock.now = start + 11.minutes
+        clock.now = start + 31.minutes
         weather.refreshForMorning()
 
         assertEquals(listOf(2.seconds, 2.seconds), slow.timeouts)
+    }
+
+    @Test
+    fun aMorningRefreshStartedAfterASnoozeIsStillTakenUp() = runTest {
+        seedLondonAndTokyo()
+        val slow = Slow(fixTime = 1.seconds, requestTime = 1.seconds)
+        val weather = weatherWith(slow)
+
+        weather.prepareMorning()
+        delay(10.seconds)
+        clock.now = start + 25.minutes
+        val before = currentTime
+        weather.refreshForMorning()
+
+        assertEquals(before, currentTime, "nothing left to wait for")
+        assertEquals(listOf(2.seconds), slow.timeouts)
+    }
+
+    @Test
+    fun preparingAgainWhileAMorningRefreshRunsKeepsIt() = runTest {
+        seedLondonAndTokyo()
+        val slow = Slow(fixTime = 1.seconds, requestTime = 3.seconds)
+        val weather = weatherWith(slow)
+
+        weather.prepareMorning()
+        delay(1.seconds)
+        weather.prepareMorning()
+        delay(30.seconds)
+
+        assertEquals(listOf(2.seconds), slow.timeouts, "the location was found once")
+    }
+
+    @Test
+    fun aMorningRefreshPreparedAgainUsesTheCacheItFilled() = runTest {
+        seedLondonAndTokyo()
+        val slow = Slow(fixTime = 1.seconds, requestTime = 3.seconds)
+        val weather = weatherWith(slow)
+
+        // The alarm rings, is snoozed for ten minutes, then rings again.
+        weather.prepareMorning()
+        delay(30.seconds)
+        clock.now = start + 10.minutes
+        weather.prepareMorning()
+        delay(30.seconds)
+
+        assertEquals(1, slow.requests.size, "every place was still fresh")
     }
 
     @Test

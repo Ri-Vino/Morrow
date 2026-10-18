@@ -77,6 +77,7 @@ import app.morrow.ui.home.homeWeather
 import app.morrow.ui.mission.MissionServices
 import app.morrow.ui.mission.SequenceRoute
 import app.morrow.ui.morning.MorningRoute
+import app.morrow.ui.morning.morningInputs
 import app.morrow.ui.ring.RingPreview
 import app.morrow.ui.ring.RingScreen
 import app.morrow.ui.ring.RingSnooze
@@ -537,6 +538,9 @@ private fun WakeRoute(services: MorrowServices, alarmId: Long, onSystemBarsChang
     // Its difficulty's name, empty for an alarm saved before each had its own.
     var difficulty by rememberSaveable(alarmId) { mutableStateOf("") }
     var wokeAt by rememberSaveable(alarmId) { mutableStateOf<Long?>(null) }
+    // Kept loaded through the games, so Morning opens complete the moment they're done.
+    val morningInputs by remember(services) { morningInputs(services.settings, services.weather, services.phoneCountry) }
+        .collectAsStateWithLifecycle(initialValue = null)
     LaunchedEffect(alarmId) {
         if (games != null) return@LaunchedEffect
         // Yesterday's "one small thing" lasts until the next alarm, which is this one.
@@ -575,6 +579,7 @@ private fun WakeRoute(services: MorrowServices, alarmId: Long, onSystemBarsChang
                     onDone()
                 }
             },
+            preloaded = morningInputs,
         )
         chosen != null -> SequenceRoute(
             decodeGames(chosen),

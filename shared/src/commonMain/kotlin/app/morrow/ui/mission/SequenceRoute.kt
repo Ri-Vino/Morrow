@@ -153,8 +153,8 @@ private fun Scan(setup: MissionSetup, services: MissionServices, step: Step, onS
 }
 
 /**
- * The mission screen for one game of the sequence. Once the game is finished, Pip names the next one for a moment,
- * or after the last one gives "We're up!" a moment on screen, before moving on.
+ * The mission screen for one game of the sequence. Once the game is finished, Pip names the next one for a moment
+ * before moving on; after the last one the sequence is done at once, so the next screen follows without a pause.
  */
 @Composable
 private fun StepFrame(step: Step, model: MissionModel, progress: Float, body: @Composable ColumnScope.() -> Unit) {
@@ -169,7 +169,7 @@ private fun StepFrame(step: Step, model: MissionModel, progress: Float, body: @C
     )
     if (!done) return
     LaunchedEffect(Unit) {
-        delay(if (next == null) 900 else 1100)
+        if (next != null) delay(1100)
         step.onFinished()
     }
 }
