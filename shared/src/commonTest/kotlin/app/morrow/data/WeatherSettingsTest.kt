@@ -80,6 +80,9 @@ class WeatherSettingsTest {
         settings.saveLastLocation(Coordinates(51.507351, -0.127758), at)
         assertEquals(LastLocation(Coordinates(51.51, -0.13), at), settings.lastLocation.first())
 
+        settings.saveLastLocation(Coordinates(51.51, -0.13), at, name = "London")
+        assertEquals("London", settings.lastLocation.first()?.name)
+
         settings.clearLastLocation()
         assertNull(settings.lastLocation.first())
     }

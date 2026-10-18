@@ -1,5 +1,6 @@
 package app.morrow.weather
 
+import app.morrow.data.LastLocation
 import app.morrow.data.MorrowSettings
 import app.morrow.data.WeatherCacheDao
 import app.morrow.data.WeatherCacheEntity
@@ -30,10 +31,10 @@ import kotlin.time.Instant
 
 /** Why the weather is being refreshed. Every one of them happens with the app open. */
 enum class RefreshReason {
-    /** The app starting or coming back to the foreground. */
+    /** The app starting or coming back to the foreground. A fix from the last [RefreshAfter] is used again. */
     START,
 
-    /** The World tab opening. */
+    /** The World tab opening. A fix from the last [RefreshAfter] is used again. */
     WORLD,
 
     /** The Morning screen, which waits only 5 s, for the location and the request together. */
@@ -97,7 +98,7 @@ class WeatherRepository(
      * zone. Each fix [refresh] takes is saved first, so this follows it. Reading this never asks for the location.
      */
     val here: Flow<HerePlace?> = combine(settings.weatherSource, settings.lastLocation, cities.cities) { mode, last, saved ->
-        resolveHere(mode, current = null, last = last?.coordinates, home = saved.firstOrNull { it.isHome }?.city)
+        resolveHere(mode, current = null, last = last, home = saved.firstOrNull { it.isHome }?.city)
     }.distinctUntilChanged()
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -186,15 +187,22 @@ class WeatherRepository(
             val morning = reason == RefreshReason.MORNING
             val mode = settings.weatherSource.first()
             val locateAndFetch: suspend () -> Unit = {
-                val current = if (mode == WeatherPlaceMode.AUTO) location.current(if (morning) MorningFixTimeout else RequestTimeout)?.rounded() else null
+                val last = settings.lastLocation.first()
+                // Opening the app or World again soon after needn't turn the location on again.
+                val reuseFix = reason in ReusesRecentFix && last != null && !needsRefresh(last.at, clock.now())
+                val current = if (mode == WeatherPlaceMode.AUTO && !reuseFix) {
+                    location.current(if (morning) MorningFixTimeout else RequestTimeout)?.rounded()
+                } else {
+                    null
+                }
                 val saved = cities.cities.first()
-                val here = resolveHere(mode, current, settings.lastLocation.first()?.coordinates, saved.firstOrNull { it.isHome }?.city)
+                val here = resolveHere(mode, current, last, saved.firstOrNull { it.isHome }?.city)
                 val wanted = (listOfNotNull(here?.coordinates) + saved.map { it.city.coordinates }).distinct()
                 val arrived = withTimeoutOrNull(timeoutFor(reason)) { download(stale(wanted, force = reason == RefreshReason.MANUAL)) }
                 if (arrived != null) {
                     store(arrived)
                     storedHere = arrived.firstOrNull { it.place == here?.coordinates }?.fetchedAt
-                    if (current != null) settings.saveLastLocation(current, clock.now())
+                    if (current != null) settings.saveLastLocation(current, clock.now(), here?.takeIf { it.coordinates == current }?.name)
                     cache.deleteAllExcept(wanted.map(Coordinates::key))
                 }
             }
@@ -249,13 +257,19 @@ class WeatherRepository(
         cache.upsert(forecasts.map { WeatherCacheEntity(it.place.key, OpenMeteoJson.encodeToString(Forecast.serializer(), it), it.fetchedAt.toEpochMilliseconds()) })
     }
 
-    /** [weatherPlace], with the name of the city it's in or nearest to, and how it was found. */
-    private suspend fun resolveHere(mode: WeatherPlaceMode, current: Coordinates?, last: Coordinates?, home: City?): HerePlace? {
+    /**
+     * [weatherPlace], with the name of the city it's in or nearest to, and how it was found. A fix at the [last] place
+     * takes the name saved with it, as finding the nearest city means loading the whole list.
+     */
+    private suspend fun resolveHere(mode: WeatherPlaceMode, current: Coordinates?, last: LastLocation?, home: City?): HerePlace? {
         val zoneCity = if (home == null) catalog.cityForZone(phoneZone()) else null
-        val place = weatherPlace(current, last, home?.coordinates, zoneCity?.coordinates, mode) ?: return null
-        val fix = if (mode == WeatherPlaceMode.AUTO) current ?: last else null
+        val place = weatherPlace(current, last?.coordinates, home?.coordinates, zoneCity?.coordinates, mode) ?: return null
+        val fix = if (mode == WeatherPlaceMode.AUTO) current ?: last?.coordinates else null
         return when {
-            fix != null && fix.rounded() == place -> HerePlace(place, catalog.nearest(place.latitude, place.longitude)?.name, HereSource.LOCATION)
+            fix != null && fix.rounded() == place -> {
+                val name = last?.takeIf { it.coordinates == place }?.name ?: catalog.nearest(place.latitude, place.longitude)?.name
+                HerePlace(place, name, HereSource.LOCATION)
+            }
             home != null -> HerePlace(place, home.name, HereSource.HOME_CITY)
             else -> HerePlace(place, zoneCity?.name, HereSource.ZONE_CITY)
         }
@@ -274,6 +288,9 @@ class WeatherRepository(
 
         /** How long a refresh started by [prepareMorning] counts for the Morning screen: as long as the cache does. */
         val PreparedFor = RefreshAfter
+
+        /** The reasons that use a fix from the last [RefreshAfter] rather than asking for another. */
+        val ReusesRecentFix = setOf(RefreshReason.START, RefreshReason.WORLD)
 
         /** Of [MorningTimeout], what finding the location may take. */
         val MorningFixTimeout = 2.seconds

@@ -122,16 +122,17 @@ class MorrowSettings internal constructor(private val store: DataStore<Preferenc
         val latitude = prefs[LastLatitude] ?: return@map null
         val longitude = prefs[LastLongitude] ?: return@map null
         val at = prefs[LastLocationAt] ?: return@map null
-        LastLocation(Coordinates(latitude, longitude), Instant.fromEpochMilliseconds(at))
+        LastLocation(Coordinates(latitude, longitude), Instant.fromEpochMilliseconds(at), prefs[LastLocationName])
     }
 
-    /** Keeps [coordinates] rounded, so a precise location is never stored. */
-    suspend fun saveLastLocation(coordinates: Coordinates, at: Instant) {
+    /** Keeps [coordinates] rounded, so a precise location is never stored. [name] is the city it's nearest to. */
+    suspend fun saveLastLocation(coordinates: Coordinates, at: Instant, name: String? = null) {
         val rounded = coordinates.rounded()
         store.edit {
             it[LastLatitude] = rounded.latitude
             it[LastLongitude] = rounded.longitude
             it[LastLocationAt] = at.toEpochMilliseconds()
+            if (name != null) it[LastLocationName] = name else it.remove(LastLocationName)
         }
     }
 
@@ -140,6 +141,7 @@ class MorrowSettings internal constructor(private val store: DataStore<Preferenc
             it.remove(LastLatitude)
             it.remove(LastLongitude)
             it.remove(LastLocationAt)
+            it.remove(LastLocationName)
         }
     }
 
@@ -167,6 +169,7 @@ class MorrowSettings internal constructor(private val store: DataStore<Preferenc
         val LastLatitude = doublePreferencesKey("last_location_latitude")
         val LastLongitude = doublePreferencesKey("last_location_longitude")
         val LastLocationAt = longPreferencesKey("last_location_at")
+        val LastLocationName = stringPreferencesKey("last_location_name")
         val WeatherBackoffUntil = longPreferencesKey("weather_backoff_until")
         val Intention = stringPreferencesKey("intention")
         val LastClosedAt = longPreferencesKey("last_closed_at")
@@ -179,7 +182,8 @@ class MorrowSettings internal constructor(private val store: DataStore<Preferenc
 }
 
 /** A rounded location fix and when it was taken. */
-data class LastLocation(val coordinates: Coordinates, val at: Instant)
+/** The last fix, and the name of the city nearest it, kept so naming it again needn't load the city list. */
+data class LastLocation(val coordinates: Coordinates, val at: Instant, val name: String? = null)
 
 data class MissionSetup(val difficulty: Difficulty, val kettleCode: String?)
 

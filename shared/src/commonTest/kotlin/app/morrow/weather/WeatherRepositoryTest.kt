@@ -544,6 +544,51 @@ class WeatherRepositoryTest {
     }
 
     @Test
+    fun aFixIsSavedWithTheNameOfItsCity() = runTest {
+        seedLondonAndTokyo()
+        location.fix = Coordinates(53.7997, -1.5492)
+
+        weather().refresh(RefreshReason.START)
+
+        assertEquals("Leeds", settings.lastLocation.first()?.name)
+    }
+
+    @Test
+    fun theNameSavedWithTheLastFixSparesLoadingTheCityList() = runTest {
+        var loads = 0
+        val counted = CityCatalog { loads++; "" }
+        val savedCities = CityRepository(FakeSavedCityDao(), counted) { phoneZone }
+        savedCities.add(tokyo)
+        savedCities.makeHome(tokyo.id)
+        settings.saveLastLocation(leeds, start, name = "Leeds")
+        val weather = WeatherRepository(settings, savedCities, counted, location, source, cache, clock, { phoneZone }, backgroundScope)
+
+        assertEquals(HerePlace(leeds, "Leeds", HereSource.LOCATION), weather.here.first())
+        assertEquals(0, loads)
+    }
+
+    @Test
+    fun openingTheAppAgainSoonUsesTheLastFixRatherThanAskingAgain() = runTest {
+        seedLondonAndTokyo()
+        location.fix = leeds
+        val weather = weather()
+        weather.refresh(RefreshReason.START)
+
+        clock.now = start + 29.minutes
+        weather.refresh(RefreshReason.START)
+        weather.refresh(RefreshReason.WORLD)
+        assertEquals(1, location.calls)
+        assertEquals(HerePlace(leeds, "Leeds", HereSource.LOCATION), weather.here.first())
+
+        weather.refresh(RefreshReason.MANUAL)
+        assertEquals(2, location.calls, "pulling World down always asks")
+
+        clock.now = start + 1.hours
+        weather.refresh(RefreshReason.START)
+        assertEquals(3, location.calls, "a fix over 30 minutes old is asked for again")
+    }
+
+    @Test
     fun withLocationDeniedTheLastFixIsUsed() = runTest {
         seedLondonAndTokyo()
         settings.saveLastLocation(Coordinates(53.7997, -1.5492), start - 1.days)
