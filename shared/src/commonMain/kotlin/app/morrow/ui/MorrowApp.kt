@@ -65,6 +65,7 @@ import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeClock
 import app.morrow.theme.ThemeKind
 import app.morrow.timers.TimerCoordinator
+import app.morrow.ui.about.AboutRoute
 import app.morrow.ui.components.RestingScenes
 import app.morrow.ui.components.screenChange
 import app.morrow.ui.components.skySceneState
@@ -141,6 +142,8 @@ class MorrowServices(
     /** The user's own sounds, and the way to bring one in from the phone; both null where that can't be done. */
     val ownSounds: OwnSounds? = null,
     val soundPicker: SoundPicker? = null,
+    /** The version people see, like "0.9.0-beta.1", for Legal & about. */
+    val appVersion: String = "",
 )
 
 /**
@@ -189,6 +192,7 @@ fun MorrowApp(
                     var inSettings by rememberSaveable { mutableStateOf(false) }
                     var addingCity by rememberSaveable { mutableStateOf(false) }
                     var pickingHome by rememberSaveable { mutableStateOf(false) }
+                    var readingAbout by rememberSaveable { mutableStateOf(false) }
                     var tab by rememberSaveable(stateSaver = TabSaver) { mutableStateOf(Tab.ALARMS) }
                     val reduceMotion = MorrowTheme.reduceMotion
                     val route = when {
@@ -196,6 +200,7 @@ fun MorrowApp(
                         wakingTimers.isNotEmpty() -> Route.TimersWake(wakingTimers)
                         previewing != null -> Route.Preview(previewing!!)
                         inSettings && pickingHome -> Route.PickHome
+                        inSettings && readingAbout -> Route.About
                         inSettings -> Route.Settings
                         addingCity -> Route.AddCity
                         editing == null -> Route.Tabs
@@ -237,7 +242,12 @@ fun MorrowApp(
                                     onWeatherChanged = { services.weather.refreshSoon(RefreshReason.SETTINGS) },
                                     onBack = { inSettings = false },
                                     alarmSound = services.alarmSound,
+                                    onAbout = { readingAbout = true },
                                 )
+                            }
+                            Route.About -> {
+                                ThemeSystemBars(theme, onSystemBarsChange)
+                                AboutRoute(version = services.appVersion, onBack = { readingAbout = false })
                             }
                             Route.AddCity -> {
                                 ThemeSystemBars(theme, onSystemBarsChange)
@@ -608,6 +618,7 @@ private sealed class Route(val depth: Int) {
     data object AddCity : Route(1)
     data class Edit(val target: String) : Route(1)
     data object PickHome : Route(2)
+    data object About : Route(2)
     data class Preview(val alarm: Alarm) : Route(2)
     data class Wake(val alarmId: Long) : Route(3)
     data class TimersWake(val timerIds: List<Long>) : Route(3)

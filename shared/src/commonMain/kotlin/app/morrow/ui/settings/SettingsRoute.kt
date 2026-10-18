@@ -41,6 +41,7 @@ fun SettingsRoute(
     onBack: () -> Unit,
     /** Plays sounds from the Default alarm sound sheet; null to stay silent. */
     alarmSound: AlarmSound? = null,
+    onAbout: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val missing by permissions.missing.collectAsStateWithLifecycle()
@@ -115,6 +116,7 @@ fun SettingsRoute(
             },
             onHearSample = { scope.launch { speaker.speak(VOICE_SAMPLE_PHRASE, SpeechPurpose.SAMPLE) } },
             onSeasonal = { scope.launch { settings.setSeasonalLooks(it) } },
+            onAbout = onAbout,
         ),
     )
 }

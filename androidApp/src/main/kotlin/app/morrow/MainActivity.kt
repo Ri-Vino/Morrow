@@ -66,6 +66,7 @@ class MainActivity : ComponentActivity() {
             canSnooze = true,
             ownSounds = app.ownSounds,
             soundPicker = soundPicker,
+            appVersion = BuildConfig.VERSION_NAME,
         )
         setContent {
             WithTestFontScale {

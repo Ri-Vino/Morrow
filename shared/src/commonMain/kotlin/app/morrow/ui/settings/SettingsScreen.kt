@@ -83,6 +83,8 @@ class SettingsActions(
     val onStopSound: () -> Unit = {},
     val onHearSample: () -> Unit = {},
     val onSeasonal: (Boolean) -> Unit = {},
+    /** Opens Legal & about: the privacy policy, terms and licences. */
+    val onAbout: () -> Unit = {},
 )
 
 @Composable
@@ -200,6 +202,25 @@ private fun SettingsContent(
                     model.permissions.forEachIndexed { i, status -> PermissionRow(status, divider = i > 0) { actions.onAllow(status.permission) } }
                 }
             }
+            Section("About") {
+                Card(selectable = false) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 64.dp)
+                            .pressable(actions.onAbout)
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            BasicText("Legal & about", style = MorrowTheme.type.button.copy(color = colors.text))
+                            BasicText("Privacy, terms and licences", style = MorrowTheme.type.body.copy(color = colors.muted))
+                        }
+                        MorrowIcon(Icons.Forward, colors.muted, size = 20.dp, strokeWidth = 2.2f)
+                    }
+                }
+            }
             actions.onDeveloperTools?.let { SecondaryButton("Developer tools", it) }
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 BasicText(
@@ -228,7 +249,7 @@ private fun SettingsContent(
 }
 
 @Composable
-private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
+internal fun Section(title: String, content: @Composable ColumnScope.() -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         BasicText(
             title.uppercase(),
@@ -250,12 +271,12 @@ private fun GroupLabel(text: String) {
 }
 
 @Composable
-private fun Note(text: String) {
+internal fun Note(text: String) {
     BasicText(text, style = MorrowTheme.type.body.copy(color = MorrowTheme.colors.muted), modifier = Modifier.padding(horizontal = 8.dp))
 }
 
 @Composable
-private fun Card(selectable: Boolean = true, content: @Composable ColumnScope.() -> Unit) {
+internal fun Card(selectable: Boolean = true, content: @Composable ColumnScope.() -> Unit) {
     val colors = MorrowTheme.colors
     val shape = RoundedCornerShape(24.dp)
     Column(

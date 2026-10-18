@@ -114,6 +114,7 @@ object IosApp {
             phoneCountry = country.orEmpty(),
             speaker = speaker,
             timers = timers,
+            appVersion = appVersion(),
         )
         // At launch, trust that each alarm reached AlarmKit when it was saved.
         inSync = alarmKit.authorized
@@ -214,5 +215,9 @@ object IosApp {
 
     private var syncingTimersAgain: Job? = null
 
-    private fun appVersion(): String = NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String ?: "0"
+    /** The version with its beta label, like "0.9.0-beta.1", which CFBundleShortVersionString can't carry. */
+    private fun appVersion(): String =
+        (NSBundle.mainBundle.objectForInfoDictionaryKey("MorrowVersionLabel") as? String)?.takeIf { it.isNotBlank() }
+            ?: NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String
+            ?: "0"
 }
