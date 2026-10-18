@@ -2,6 +2,10 @@
 .kotlin/
 build/
 local.properties
+# Release signing keys stay out of the repository.
+*.jks
+*.keystore
+keystore.properties
 captures/
 .idea/
 *.iml
