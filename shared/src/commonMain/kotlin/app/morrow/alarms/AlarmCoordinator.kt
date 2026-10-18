@@ -38,7 +38,7 @@ class AlarmCoordinator(
 
     private val doneWith = MutableStateFlow<Alarm?>(null)
 
-    /** The temporary alarm that last deleted itself, as it was saved, so Home can offer to put it back. */
+    /** The temporary alarm that last deleted itself, switched off, so Home can offer to put it back. */
     val deletedWhenDone: StateFlow<Alarm?> = doneWith.asStateFlow()
 
     /** Home has offered [deletedWhenDone] back, so it needn't again. */
@@ -54,7 +54,8 @@ class AlarmCoordinator(
         val alarm = repository.get(id) ?: return
         if (!alarm.temporary) return
         delete(id)
-        doneWith.value = alarm
+        // Off, so putting it back can't set it ringing again tomorrow at the same time.
+        doneWith.value = alarm.copy(enabled = false)
     }
 
     /** After a reboot, a clock or timezone change, an app update or a permission change. */

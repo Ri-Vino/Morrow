@@ -285,6 +285,8 @@ class AlarmCoordinatorTest {
         assertNull(repository.get(temporary))
         assertEquals(false, repository.get(once)?.enabled)
         assertEquals(temporary, coordinator.deletedWhenDone.value?.id)
+        // Still on when the system rang it, but offered back off, so Undo can't set it for tomorrow.
+        assertEquals(false, coordinator.deletedWhenDone.value?.enabled)
     }
 }
 
