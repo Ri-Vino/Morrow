@@ -53,7 +53,7 @@ class AboutScreenTest {
                 }
             }) {
                 MorrowTheme(ThemeKind.MORNING) {
-                    AboutRoute(version = "0.9.0-beta.1", onBack = { backs++ }, read = { File(resources, it).readText() })
+                    AboutRoute(version = "0.1.0-beta.1", onBack = { backs++ }, read = { File(resources, it).readText() })
                 }
             }
         }
@@ -97,7 +97,7 @@ class AboutScreenTest {
     @Test
     fun namesTheOwnerAndVersionAndOpensTheirGitHub() {
         show()
-        compose.onNodeWithText("Version 0.9.0-beta.1").assertExists()
+        compose.onNodeWithText("Version 0.1.0-beta.1").assertExists()
         compose.onNodeWithText("This is a beta", substring = true).assertExists()
         compose.onNodeWithText("github.com/Ri-Vino").performScrollTo().assertExists()
 

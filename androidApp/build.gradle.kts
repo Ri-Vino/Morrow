@@ -19,7 +19,7 @@ android {
         // Keep in step with MARKETING_VERSION and MORROW_VERSION_LABEL in iosApp/project.yml. Every upload to
         // Google Play needs a higher versionCode than the last.
         versionCode = 1
-        versionName = "0.9.0-beta.1"
+        versionName = "0.1.0-beta.1"
     }
 
     signingConfigs {

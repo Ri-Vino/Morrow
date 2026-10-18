@@ -215,7 +215,7 @@ object IosApp {
 
     private var syncingTimersAgain: Job? = null
 
-    /** The version with its beta label, like "0.9.0-beta.1", which CFBundleShortVersionString can't carry. */
+    /** The version with its beta label, like "0.1.0-beta.1", which CFBundleShortVersionString can't carry. */
     private fun appVersion(): String =
         (NSBundle.mainBundle.objectForInfoDictionaryKey("MorrowVersionLabel") as? String)?.takeIf { it.isNotBlank() }
             ?: NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String

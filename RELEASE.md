@@ -1,6 +1,6 @@
 # Releasing Morrow
 
-Morrow's first public release is a **beta**: `0.9.0-beta.1` on Android, `0.9.0` (build 1) on iOS through TestFlight.
+Morrow's first public release is a **beta**: `0.1.0-beta.1` on Android, `0.1.0` (build 1) on iOS through TestFlight.
 This is what's needed to ship it, and what has to be done by hand.
 
 ---
@@ -9,13 +9,13 @@ This is what's needed to ship it, and what has to be done by hand.
 
 | Where | Field | Now | Rule |
 | --- | --- | --- | --- |
-| `androidApp/build.gradle.kts` | `versionName` | `0.9.0-beta.1` | What people see |
+| `androidApp/build.gradle.kts` | `versionName` | `0.1.0-beta.1` | What people see |
 | `androidApp/build.gradle.kts` | `versionCode` | `1` | Higher for every Play upload, even of the same version |
-| `iosApp/project.yml` | `MARKETING_VERSION` | `0.9.0` | Numbers only; App Store Connect refuses `-beta` |
-| `iosApp/project.yml` | `MORROW_VERSION_LABEL` | `0.9.0-beta.1` | What Settings › Legal & about shows on iPhone |
+| `iosApp/project.yml` | `MARKETING_VERSION` | `0.1.0` | Numbers only; App Store Connect refuses `-beta` |
+| `iosApp/project.yml` | `MORROW_VERSION_LABEL` | `0.1.0-beta.1` | What Settings › Legal & about shows on iPhone |
 | `iosApp/project.yml` | `CURRENT_PROJECT_VERSION` | `1` | Higher for every TestFlight upload of the same version |
 
-Keep the two platforms in step. For the next beta: `0.9.0-beta.2`, versionCode `2`, build `2`. Drop the `-beta.N` and go to `1.0.0` when it leaves beta.
+Keep the two platforms in step. For the next beta: `0.1.0-beta.2`, versionCode `2`, build `2`. Drop the `-beta.N` and go to `1.0.0` when it leaves beta.
 
 When the privacy policy or terms change, update the "Last updated" date at the top of
 `shared/src/commonMain/composeResources/files/legal/privacy.md` or `terms.md`.
@@ -119,7 +119,7 @@ Each of these needs the store reviewer to agree that Morrow is an alarm clock.
 - [ ] Release build tested by hand on a real phone (section 2)
 - [ ] "Last updated" dates right, if the privacy policy or terms changed
 - [ ] Release notes written for the testers
-- [ ] Commit tagged, for example `git tag v0.9.0-beta.1`
+- [ ] Commit tagged, for example `git tag v0.1.0-beta.1`
 
 ## 6. Things to keep in mind
 

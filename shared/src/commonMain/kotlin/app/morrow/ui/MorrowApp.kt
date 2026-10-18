@@ -142,7 +142,7 @@ class MorrowServices(
     /** The user's own sounds, and the way to bring one in from the phone; both null where that can't be done. */
     val ownSounds: OwnSounds? = null,
     val soundPicker: SoundPicker? = null,
-    /** The version people see, like "0.9.0-beta.1", for Legal & about. */
+    /** The version people see, like "0.1.0-beta.1", for Legal & about. */
     val appVersion: String = "",
 )
 
