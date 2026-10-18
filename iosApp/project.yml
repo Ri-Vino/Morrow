@@ -32,6 +32,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.morrow
         INFOPLIST_FILE: iosApp/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1"
         # The Gradle build step writes outside the project, which Xcode's script sandbox would block.
         ENABLE_USER_SCRIPT_SANDBOXING: NO

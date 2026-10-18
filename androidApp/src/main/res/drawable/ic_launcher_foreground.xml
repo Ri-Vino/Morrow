@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pip peeking over the horizon, drawn in 100 × 100 units and scaled into the 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.86"
+        android:scaleY="0.86"
+        android:translateX="11"
+        android:translateY="11.43">
+        <group android:pivotX="50" android:pivotY="66" android:rotation="-60">
+            <path android:fillColor="#F2B33D" android:pathData="M48,29 A2,2 0 0 1 52,29 L52,34 A2,2 0 0 1 48,34 Z" />
+        </group>
+        <group android:pivotX="50" android:pivotY="66" android:rotation="-30">
+            <path android:fillColor="#F2B33D" android:pathData="M48,29 A2,2 0 0 1 52,29 L52,34 A2,2 0 0 1 48,34 Z" />
+        </group>
+        <path android:fillColor="#F2B33D" android:pathData="M48,29 A2,2 0 0 1 52,29 L52,34 A2,2 0 0 1 48,34 Z" />
+        <group android:pivotX="50" android:pivotY="66" android:rotation="30">
+            <path android:fillColor="#F2B33D" android:pathData="M48,29 A2,2 0 0 1 52,29 L52,34 A2,2 0 0 1 48,34 Z" />
+        </group>
+        <group android:pivotX="50" android:pivotY="66" android:rotation="60">
+            <path android:fillColor="#F2B33D" android:pathData="M48,29 A2,2 0 0 1 52,29 L52,34 A2,2 0 0 1 48,34 Z" />
+        </group>
+        <path android:fillColor="#F5A65B" android:pathData="M26,66 A24,24 0 0 1 74,66 Z" />
+        <path android:fillColor="#CCFFC97A" android:pathData="M36.5,52 A4.5,4.5 0 1 0 45.5,52 A4.5,4.5 0 1 0 36.5,52 Z" />
+        <path android:fillColor="#3A2218" android:pathData="M39,57 A3,3 0 1 0 45,57 A3,3 0 1 0 39,57 Z M55,57 A3,3 0 1 0 61,57 A3,3 0 1 0 55,57 Z" />
+        <path android:fillColor="#FFF4E6" android:pathData="M42,56 A1,1 0 1 0 44,56 A1,1 0 1 0 42,56 Z M58,56 A1,1 0 1 0 60,56 A1,1 0 1 0 58,56 Z" />
+        <path android:fillColor="#2E2214" android:pathData="M21,66 L79,66 A3,3 0 0 1 79,72 L21,72 A3,3 0 0 1 21,66 Z" />
+    </group>
+</vector>
