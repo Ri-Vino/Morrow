@@ -8,6 +8,10 @@ The whole app follows the time of day: its colours, sky and Pip change from morn
 
 Morrow is built with Kotlin Multiplatform and Compose Multiplatform. Android is the main platform; the iOS app shares the same code and rings through Apple's AlarmKit.
 
+
+https://github.com/user-attachments/assets/508f50d0-5e38-4425-9ce4-84fd9c6a8777
+
+
 ---
 
 ## Contents
