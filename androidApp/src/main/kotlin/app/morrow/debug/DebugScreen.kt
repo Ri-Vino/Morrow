@@ -81,7 +81,8 @@ fun DebugScreen(permissions: PermissionGate, onBack: () -> Unit) {
 
     var warmth by remember { mutableStateOf(Warmth.MILD) }
     var windy by remember { mutableStateOf(false) }
-    var holiday by remember { mutableStateOf<Holiday?>(null) }
+    // Forced on every screen, not just this scene: Home, the ring screen and Pip all follow it.
+    val holiday = Holiday.forced
 
     Column(modifier = Modifier.fillMaxSize().background(colors.bg).safeDrawingPadding()) {
         SkyScene(sceneMinute.toFloat(), sceneTheme, feel = Feel(warmth, windy), holiday = holiday)
@@ -113,9 +114,9 @@ fun DebugScreen(permissions: PermissionGate, onBack: () -> Unit) {
                 DebugButton("Windy", selected = windy) { windy = !windy }
             }
             Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                DebugButton("No holiday", selected = holiday == null) { holiday = null }
+                DebugButton("Real date", selected = holiday == null) { Holiday.forced = null }
                 for (kind in Holiday.entries) {
-                    DebugButton(kind.name.lowercase().replace('_', ' ').replaceFirstChar(Char::uppercase), selected = holiday == kind) { holiday = kind }
+                    DebugButton(kind.name.lowercase().replace('_', ' ').replaceFirstChar(Char::uppercase), selected = holiday == kind) { Holiday.forced = kind }
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {

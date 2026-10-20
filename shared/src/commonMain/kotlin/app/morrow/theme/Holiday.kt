@@ -1,5 +1,8 @@
 package app.morrow.theme
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.Month
 import kotlinx.datetime.TimeZone
@@ -26,8 +29,15 @@ enum class Holiday {
     val christmas: Boolean get() = this == CHRISTMAS || this == NEW_YEAR
 
     companion object {
+        /**
+         * Dev tools only: a holiday every screen shows whatever the date, and whatever Settings says, until it's set back to
+         * null. Snapshot state, so the screens showing it change as soon as it does.
+         */
+        var forced: Holiday? by mutableStateOf(null)
+
         /** The holiday at [now] in [zone], or null on an ordinary day or with seasonal looks turned off ([seasonal]). */
-        fun at(now: Instant, zone: TimeZone, seasonal: Boolean): Holiday? = if (seasonal) on(now.toLocalDateTime(zone).date) else null
+        fun at(now: Instant, zone: TimeZone, seasonal: Boolean): Holiday? =
+            forced ?: if (seasonal) on(now.toLocalDateTime(zone).date) else null
 
         /** The holiday on [date] in the phone's own calendar, or null for an ordinary day. */
         fun on(date: LocalDate): Holiday? = when {

@@ -1,6 +1,9 @@
 package app.morrow.theme
 
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
+import kotlinx.datetime.LocalDateTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -26,5 +29,19 @@ class HolidayTest {
         assertEquals(Holiday.NEW_YEAR, on("2026-12-31"))
         assertEquals(Holiday.NEW_YEAR, on("2027-01-01"))
         assertNull(on("2027-01-02"))
+    }
+
+    @Test
+    fun aForcedHolidayShowsOnAnyDayAndWhateverSettingsSays() {
+        val ordinary = LocalDateTime.parse("2026-06-10T08:00").toInstant(TimeZone.UTC)
+        assertNull(Holiday.at(ordinary, TimeZone.UTC, seasonal = true))
+        Holiday.forced = Holiday.CHRISTMAS
+        try {
+            assertEquals(Holiday.CHRISTMAS, Holiday.at(ordinary, TimeZone.UTC, seasonal = true))
+            assertEquals(Holiday.CHRISTMAS, Holiday.at(ordinary, TimeZone.UTC, seasonal = false))
+        } finally {
+            Holiday.forced = null
+        }
+        assertNull(Holiday.at(ordinary, TimeZone.UTC, seasonal = true))
     }
 }
