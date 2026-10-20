@@ -82,12 +82,24 @@ class AlarmCoordinatorTest {
     @Test
     fun rescheduleAllRestoresEveryEnabledAlarm() = runTest {
         val on = repository.save(alarm(7, 30))
-        val off = repository.save(alarm(9, 0, enabled = false))
-        scheduler.scheduled[off] = local("2026-10-05T09:00")
+        repository.save(alarm(9, 0, enabled = false))
 
         coordinator.rescheduleAll()
 
         assertEquals(mapOf(on to local("2026-10-05T07:30")), scheduler.scheduled)
+    }
+
+    @Test
+    fun rescheduleAllLeavesASnoozedOneOffAlarmSnoozed() = runTest {
+        val id = coordinator.save(alarm(7, 0))
+        coordinator.onRang(id)
+        // Snoozed: the scheduler holds its next ring, beside the alarm's own (now off) schedule.
+        scheduler.scheduled[id] = local("2026-10-05T07:05")
+
+        // Opening the app reschedules everything.
+        coordinator.rescheduleAll()
+
+        assertEquals(local("2026-10-05T07:05"), scheduler.scheduled[id])
     }
 
     @Test

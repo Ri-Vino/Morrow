@@ -58,9 +58,13 @@ class AlarmCoordinator(
         doneWith.value = alarm.copy(enabled = false)
     }
 
-    /** After a reboot, a clock or timezone change, an app update or a permission change. */
+    /**
+     * After a reboot, a clock or timezone change, an app update, a permission change, and each time the app opens.
+     * Alarms that are off are left alone: they were cancelled as they went off, and cancelling them again would call
+     * off a snooze, since a one-off alarm switches itself off when it first rings.
+     */
     suspend fun rescheduleAll() {
-        repository.getAll().forEach(::sync)
+        repository.getAll().filter { it.enabled }.forEach(::sync)
     }
 
     /**
