@@ -13,7 +13,11 @@ Morrow is built with Kotlin Multiplatform and Compose Multiplatform. Android is 
 
 https://github.com/user-attachments/assets/24abc86f-08b3-43c7-9923-57ef074ed2ba
 
-
+<p align="center">
+  <img src="screenshots/home.png" alt="Home: today's alarms and Pip waking you in 15h 56m" width="260">
+  <img src="screenshots/ring.png" alt="The sunrise ringing screen" width="260">
+  <img src="screenshots/world.png" alt="World clock cards, each a small sky" width="260">
+</p>
 
 ---
 
@@ -37,6 +41,8 @@ https://github.com/user-attachments/assets/24abc86f-08b3-43c7-9923-57ef074ed2ba
 ## Features
 
 ### Alarms
+
+<p align="center"><img src="screenshots/edit.png" alt="Edit alarm: the sky dial" width="220"></p>
 - **Setting the time:** drag the sun around a 24-hour sky dial, tap the time to type it, or tap or hold the − and + buttons to move it in 5-minute steps.
 - **Repeat days:** one-off or weekly alarms, with labels.
 - **Alarms by another city's clock:** set a 09:00 New York alarm from London and it rings at 09:00 New York time, even when the two cities change their clocks on different dates.
@@ -45,6 +51,8 @@ https://github.com/user-attachments/assets/24abc86f-08b3-43c7-9923-57ef074ed2ba
 - **Sounds:** Birdsong, Wind chimes and Soft piano. Each alarm can have its own, or use the default from Settings, with a volume ramp of 30 seconds, 1 minute or 2 minutes.
 
 ### Wake-up games
+
+<p align="center"><img src="screenshots/sums.png" alt="The Sums wake-up game" width="220"></p>
 Pick one or more games and chain them into a sequence, for example 3 sums, then 4 typed sentences, then 1 unscramble.
 
 | Game | What you do |
@@ -62,11 +70,15 @@ Difficulty can be set to **Gentle**, **Normal** or **Tough**.
 - A bright Morning screen with a sleep summary, today's weather and "one thing to look forward to", which then shows on Home.
 
 ### World
+
+<p align="center"><img src="screenshots/world.png" alt="World clock cards drawn as small skies" width="220"></p>
 - **World clock:** city cards that show each city's time and time of day, drawn as a small sky.
 - **Weather:** current conditions for where you are or a home city, plus each city on the World tab.
 - **City search:** a bundled list of world cities, with smaller places found online.
 
 ### Timers
+
+<p align="center"><img src="screenshots/timers.png" alt="Winding Pip round to set a timer" width="220"></p>
 - Wind Pip round a dial to set a timer, an hour a lap, or pick a quick length or type it.
 - Run several timers at once, each with an optional note. Each one shows Pip setting in a little sky as it runs down.
 - When a timer ends, Pip reads its note aloud.
