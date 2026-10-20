@@ -278,6 +278,13 @@ private fun EditForm(
                 modifier = Modifier.fillMaxWidth(),
             )
             ZoneRowView(model.zone, onPickZone)
+            if (draft.temporary) {
+                Section("Repeat") {
+                    BasicText("Rings once, then deletes itself once you’re up.", style = MorrowTheme.type.body.copy(color = colors.muted))
+                }
+            } else {
+                Section("Repeat") { DayChips(draft.days) { actions.onChange(draft.copy(days = it)) } }
+            }
             val focus = LocalFocusManager.current
             Section("Name") {
                 TextEntry(
@@ -301,13 +308,6 @@ private fun EditForm(
                     onAction = { focus.clearFocus() },
                 )
                 BasicText("Pip shows it when the alarm rings.", style = MorrowTheme.type.body.copy(color = colors.muted))
-            }
-            if (draft.temporary) {
-                Section("Repeat") {
-                    BasicText("Rings once, then deletes itself once you’re up.", style = MorrowTheme.type.body.copy(color = colors.muted))
-                }
-            } else {
-                Section("Repeat") { DayChips(draft.days) { actions.onChange(draft.copy(days = it)) } }
             }
             Section("Sound") { SoundRowView(model.sound, onPickSound) }
             Section("Wake-up games", aside = "Played in this order") {
