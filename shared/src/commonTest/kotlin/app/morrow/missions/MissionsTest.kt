@@ -52,6 +52,23 @@ class SumsMissionTest {
     }
 
     @Test
+    fun sumsVaryAndNeverRepeatTheLastQuestion() {
+        for (difficulty in Difficulty.entries) {
+            val random = Random(11)
+            var previous: Sum? = null
+            val questions = mutableSetOf<String>()
+            repeat(300) {
+                val sum = randomSum(random, difficulty, previous)
+                assertTrue(sum.answer > 0)
+                assertTrue(sum.question != previous?.question, "repeated ${sum.question}")
+                questions += sum.question
+                previous = sum
+            }
+            assertTrue(questions.size > 60, "only ${questions.size} different sums at $difficulty")
+        }
+    }
+
+    @Test
     fun theDifficultyCarriesOnToEverySum() {
         val mission = SumsMission(count = 5, Random(2), Difficulty.GENTLE)
         repeat(4) {
