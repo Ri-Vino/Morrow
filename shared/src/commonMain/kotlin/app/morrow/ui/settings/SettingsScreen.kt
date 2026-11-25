@@ -39,6 +39,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import app.morrow.domain.RingLength
 import app.morrow.domain.VolumeRamp
 import app.morrow.domain.WakeSound
 import app.morrow.platform.AlarmPermission
@@ -60,12 +61,18 @@ import app.morrow.weather.WeatherPlaceMode
 private const val SPEAKER_ICON = "M4 9v6h4l5 4V5L8 9H4zM16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"
 private const val PLAY_ICON = "M9 7.5v9l7-4.5z"
 
-class SettingsChoices(val sound: WakeSound, val ramp: VolumeRamp)
+class SettingsChoices(
+    val sound: WakeSound,
+    val ramp: VolumeRamp,
+    /** Null where the system rings alarms, so there's no length to pick. */
+    val ringFor: RingLength? = null,
+)
 
 class SettingsActions(
     val onBack: () -> Unit,
     val onSound: (WakeSound) -> Unit,
     val onRamp: (VolumeRamp) -> Unit,
+    val onRingLength: (RingLength) -> Unit = {},
     val onAllow: (AlarmPermission) -> Unit,
     /** Only in debug builds. */
     val onDeveloperTools: (() -> Unit)?,
@@ -186,6 +193,18 @@ private fun SettingsContent(
             Section("Volume ramp") {
                 SegmentedControl(VolumeRamp.entries, choices.ramp, VolumeRamp::displayName, actions.onRamp)
                 Note("Starts quiet and gets louder, so the sunrise does the waking.")
+            }
+            choices.ringFor?.let { ringFor ->
+                Section("Stop ringing after") {
+                    SegmentedControl(RingLength.entries, ringFor, RingLength::displayName, actions.onRingLength)
+                    Note(
+                        if (ringFor.limit == null) {
+                            "Rings until your games are done, even if that runs the battery down."
+                        } else {
+                            "If you haven’t finished your games by then, the alarm gives up."
+                        },
+                    )
+                }
             }
             if (seasonal != null) {
                 Section("Looks") {

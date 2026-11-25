@@ -1,6 +1,7 @@
 package app.morrow.domain
 
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
@@ -48,4 +49,15 @@ enum class VolumeRamp(val displayName: String, val duration: Duration) {
     HALF_MINUTE("30 s", 30.seconds),
     ONE_MINUTE("1 min", 1.minutes),
     TWO_MINUTES("2 min", 2.minutes),
+}
+
+/**
+ * How long an alarm no one answers rings before it gives up: [limit], or null to ring until the games are done.
+ * [inWords] is the length as a sentence has it.
+ */
+enum class RingLength(val displayName: String, val limit: Duration?, val inWords: String?) {
+    TEN_MINUTES("10 min", 10.minutes, "10 minutes"),
+    THIRTY_MINUTES("30 min", 30.minutes, "30 minutes"),
+    ONE_HOUR("1 hour", 1.hours, "1 hour"),
+    NO_LIMIT("No limit", null, null),
 }

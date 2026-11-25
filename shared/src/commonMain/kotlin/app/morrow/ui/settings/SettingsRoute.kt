@@ -42,6 +42,8 @@ fun SettingsRoute(
     /** Plays sounds from the Default alarm sound sheet; null to stay silent. */
     alarmSound: AlarmSound? = null,
     onAbout: () -> Unit = {},
+    /** True where Morrow rings alarms itself, so how long they ring can be picked. */
+    limitsRinging: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     val missing by permissions.missing.collectAsStateWithLifecycle()
@@ -68,7 +70,7 @@ fun SettingsRoute(
     val voice = savedVoice ?: return
     SettingsScreen(
         model = settingsModel(permissions.asked, missing),
-        choices = SettingsChoices(sound.sound, sound.ramp),
+        choices = SettingsChoices(sound.sound, sound.ramp, sound.ringFor.takeIf { limitsRinging }),
         weather = weatherSection(enabled, mode, herePlace, homeName, shownUnits, readsAloud),
         voice = voiceSection(voice.id, voices),
         seasonal = seasonal,
@@ -81,6 +83,7 @@ fun SettingsRoute(
             },
             onStopSound = { alarmSound?.stop() },
             onRamp = { scope.launch { settings.setRamp(it) } },
+            onRingLength = { scope.launch { settings.setRingLength(it) } },
             onAllow = permissions::request,
             onDeveloperTools = developerTools,
             onWeatherEnabled = { on ->

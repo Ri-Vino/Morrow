@@ -12,6 +12,7 @@ import androidx.compose.ui.test.performScrollTo
 import app.morrow.data.FakeSavedCityDao
 import app.morrow.data.InMemoryPreferences
 import app.morrow.data.MorrowSettings
+import app.morrow.domain.RingLength
 import app.morrow.domain.WakeSound
 import app.morrow.places.CityCatalog
 import app.morrow.places.CityRepository
@@ -60,7 +61,7 @@ class SoundSettingsScreenTest {
         }
     }
 
-    private fun show() {
+    private fun show(limitsRinging: Boolean = true) {
         compose.setContent {
             MorrowTheme(ThemeKind.MORNING) {
                 SettingsRoute(
@@ -75,10 +76,29 @@ class SoundSettingsScreenTest {
                     onWeatherChanged = {},
                     onBack = {},
                     alarmSound = sound,
+                    limitsRinging = limitsRinging,
                 )
             }
         }
         compose.waitUntil(timeoutMillis = 5_000) { compose.onAllNodesWithText("DEFAULT ALARM SOUND").fetchSemanticsNodes().isNotEmpty() }
+    }
+
+    @Test
+    fun howLongAnUnansweredAlarmRingsCanBePicked() {
+        show()
+        compose.onNodeWithText("10 min").performScrollTo().assertIsSelected()
+
+        compose.onNodeWithText("No limit").performScrollTo().performClick()
+
+        compose.waitUntil(timeoutMillis = 5_000) { runBlocking { settings.alarmSetup.first().ringFor } == RingLength.NO_LIMIT }
+        compose.onNodeWithText("No limit").assertIsSelected()
+    }
+
+    @Test
+    fun thereIsNoRingLengthWhereTheSystemRingsAlarms() {
+        show(limitsRinging = false)
+        compose.onNodeWithText("STOP RINGING AFTER").assertDoesNotExist()
+        compose.onNodeWithText("No limit").assertDoesNotExist()
     }
 
     @Test

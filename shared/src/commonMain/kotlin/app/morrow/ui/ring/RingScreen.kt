@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import app.morrow.domain.Alarm
 import app.morrow.domain.DefaultGames
+import app.morrow.domain.RingLength
 import app.morrow.theme.Holiday
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
@@ -84,9 +85,12 @@ fun RingScreen(
     snooze: RingSnooze? = null,
     /** Dresses Pip up for the season, or null for an ordinary day. */
     holiday: Holiday? = null,
+    /** How long the alarm rings if no one answers, which the footer says. */
+    ringFor: RingLength = RingLength.TEN_MINUTES,
 ) {
     MorrowTheme(ThemeKind.NIGHT) {
-        RingContent(model, rememberSceneSeconds(still = SUNRISE_DONE, fullRateFor = SUNRISE_LENGTH), onStartMission, modifier, preview, snooze, holiday)
+        val seconds = rememberSceneSeconds(still = SUNRISE_DONE, fullRateFor = SUNRISE_LENGTH)
+        RingContent(model, seconds, onStartMission, modifier, preview, snooze, holiday, ringFor)
     }
 }
 
@@ -99,6 +103,7 @@ private fun RingContent(
     preview: RingPreview? = null,
     snooze: RingSnooze? = null,
     holiday: Holiday? = null,
+    ringFor: RingLength = RingLength.TEN_MINUTES,
 ) {
     val colors = MorrowTheme.colors
     val type = MorrowTheme.type
@@ -179,7 +184,7 @@ private fun RingContent(
                 )
             }
             BasicText(
-                "Pip keeps singing until you’re done. It stops by itself after 10 minutes, just in case.",
+                ringFooter(ringFor),
                 style = type.body.copy(color = colors.muted, textAlign = TextAlign.Center),
             )
             if (preview != null) {

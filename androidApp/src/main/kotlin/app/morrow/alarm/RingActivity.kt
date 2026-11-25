@@ -17,6 +17,7 @@ import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import app.morrow.MainActivity
+import app.morrow.data.AlarmSetup
 import app.morrow.debug.WithTestFontScale
 import app.morrow.missions.AndroidCodeScanner
 import app.morrow.missions.AndroidMotionSensor
@@ -122,11 +123,13 @@ class RingActivity : ComponentActivity() {
                         val model = remember(ringing, now) { ringModel(ringing, now, TimeZone.currentSystemDefault()) }
                         val snooze = remember(ringing) { snoozeLabel(ringing, Ringing.snoozed) }
                         val seasonal by morrow.settings.seasonalLooks.collectAsStateWithLifecycle(initialValue = true)
+                        val setup by morrow.settings.alarmSetup.collectAsStateWithLifecycle(initialValue = AlarmSetup.Default)
                         RingScreen(
                             model,
                             onStartMission = { stage = Stage.MISSION },
                             snooze = snooze?.let { RingSnooze(it) { RingService.snooze(this) } },
                             holiday = Holiday.at(now, TimeZone.currentSystemDefault(), seasonal),
+                            ringFor = setup.ringFor,
                         )
                     }
                 }

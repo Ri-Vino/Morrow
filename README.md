@@ -47,7 +47,7 @@ https://github.com/user-attachments/assets/24abc86f-08b3-43c7-9923-57ef074ed2ba
 - **Repeat days:** one-off or weekly alarms, with labels.
 - **Alarms by another city's clock:** set a 09:00 New York alarm from London and it rings at 09:00 New York time, even when the two cities change their clocks on different dates.
 - **Sleep estimate:** Home and Edit show how much sleep you'll get if you go to bed now.
-- **Sunrise ringing screen:** a banded sky that warms over a few seconds while Pip rises, with a 10-minute safety stop.
+- **Sunrise ringing screen:** a banded sky that warms over a few seconds while Pip rises. An unanswered alarm stops after 10 minutes, or after 30 minutes, an hour or never, as you choose in Settings.
 - **Sounds:** Birdsong, Wind chimes and Soft piano. Each alarm can have its own, or use the default from Settings, with a volume ramp of 30 seconds, 1 minute or 2 minutes.
 
 ### Wake-up games

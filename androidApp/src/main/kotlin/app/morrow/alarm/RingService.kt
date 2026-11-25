@@ -3,11 +3,13 @@ package app.morrow.alarm
 import app.morrow.data.AlarmSetup
 import app.morrow.domain.Alarm
 import app.morrow.domain.DefaultGames
+import app.morrow.domain.RingLength
 import app.morrow.domain.RingSound
 import app.morrow.domain.canSnooze
 import app.morrow.morrow
 import app.morrow.platform.play
 import app.morrow.timers.Timer
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationManager
 import android.app.Service
@@ -28,6 +30,7 @@ import android.util.Log
 import android.view.View
 import android.view.WindowManager
 import kotlin.time.Clock
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
@@ -45,8 +48,8 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
 /**
- * Runs only while something rings: sound on the alarm stream, vibration and a wake lock. It always stops itself after
- * [RING_LIMIT].
+ * Runs only while something rings: sound on the alarm stream, vibration and a wake lock. It stops itself when no one
+ * answers: timers after [TIMER_LIMIT], and an alarm after the length chosen in Settings, which can be no limit at all.
  *
  * It rings in one of two modes, and an alarm always comes first:
  * - **Alarm**, from AlarmReceiver: the alarm's sound, ramping up, until its games are done. Timers that end meanwhile
@@ -59,7 +62,7 @@ import kotlinx.datetime.toLocalDateTime
  *
  * Each mode has its own safety stop, counted from when it started ringing: for an alarm from when it went off, for
  * timers from when the latest of them ended. Leaving a mode cancels its safety stop, so an alarm that takes over from
- * timers gets its full ten minutes, and so do the timers when they ring again after it.
+ * timers gets its full length, and so do the timers when they ring again after it.
  */
 class RingService : Service() {
 
@@ -135,13 +138,14 @@ class RingService : Service() {
         if (mode != Mode.ALARM) {
             mode = Mode.ALARM
             Ringing.setGameLevel(1f)
-            holdWakeLock()
+            // The default length stands until the settings are read, so there is always a safety stop by then.
+            limitAlarm(AlarmSetup.Default.ringFor)
             startVibration()
-            handler.postDelayed(alarmSafetyStop, RING_LIMIT.inWholeMilliseconds)
             scope.launch {
                 // If the settings or the alarm can't be read quickly, ring with the defaults rather than not at all.
                 val setup = runCatching { withTimeoutOrNull(1.seconds) { morrow.settings.alarmSetup.first() } }.getOrNull()
                     ?: AlarmSetup.Default
+                if (mode == Mode.ALARM) limitAlarm(setup.ringFor)
                 val own = runCatching { withTimeoutOrNull(1.seconds) { morrow.repository.get(alarmId)?.sound } }.getOrNull()
                 val file = (own as? RingSound.Own)?.let { mine ->
                     runCatching { withTimeoutOrNull(1.seconds) { morrow.ownSounds.get(mine.id) } }.getOrNull()
@@ -274,9 +278,9 @@ class RingService : Service() {
             startVibration()
             sound.playBell()
         }
-        holdWakeLock()
+        holdWakeLock(TIMER_LIMIT)
         handler.removeCallbacks(timerSafetyStop)
-        handler.postDelayed(timerSafetyStop, RING_LIMIT.inWholeMilliseconds)
+        handler.postDelayed(timerSafetyStop, TIMER_LIMIT.inWholeMilliseconds)
     }
 
     /** Has Pip read the notes, and follows which timers ring until none does. */
@@ -370,13 +374,24 @@ class RingService : Service() {
         }
     }
 
-    /** Held while anything rings. Each new ring renews its timeout, which always outlasts the safety stop. */
-    private fun holdWakeLock() {
+    /** Stops the alarm [length] from now, if its games haven't by then. */
+    private fun limitAlarm(length: RingLength) {
+        handler.removeCallbacks(alarmSafetyStop)
+        holdWakeLock(length.limit)
+        length.limit?.let { handler.postDelayed(alarmSafetyStop, it.inWholeMilliseconds) }
+    }
+
+    /**
+     * Held while anything rings. Each new ring renews its timeout, which always outlasts a safety stop [limit] away. An
+     * alarm set to ring with no limit has none, and the lock is let go only when the service stops.
+     */
+    @SuppressLint("WakelockTimeout")
+    private fun holdWakeLock(limit: Duration?) {
         val lock = wakeLock ?: getSystemService(PowerManager::class.java)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Morrow:ring")
             .apply { setReferenceCounted(false) }
             .also { wakeLock = it }
-        lock.acquire((RING_LIMIT + 1.minutes).inWholeMilliseconds)
+        if (limit == null) lock.acquire() else lock.acquire((limit + 1.minutes).inWholeMilliseconds)
     }
 
     private fun quiet() {
@@ -409,7 +424,7 @@ class RingService : Service() {
         private const val ACTION_RING_TIMERS = "app.morrow.action.RING_TIMERS"
         private const val EXTRA_ALARM_ID = "alarm_id"
         private const val NO_ALARM = -1L
-        val RING_LIMIT = 10.minutes
+        private val TIMER_LIMIT = 10.minutes
 
         /** Of 255, how hard the vibration taps under the games. */
         private const val GENTLE_AMPLITUDE = 60

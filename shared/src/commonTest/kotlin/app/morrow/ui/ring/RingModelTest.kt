@@ -4,6 +4,7 @@ import kotlin.test.assertNull
 import app.morrow.domain.Alarm
 import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
+import app.morrow.domain.RingLength
 import app.morrow.domain.UNLIMITED_SNOOZES
 import app.morrow.domain.nextRing
 import app.morrow.theme.Illustration
@@ -34,6 +35,13 @@ class RingModelTest {
         assertEquals("Stand-up · 09:00 in New York", model.label)
         assertEquals(Icons.Globe, model.missionIcon)
         assertEquals("I’m up — start sums", model.startLabel)
+    }
+
+    @Test
+    fun theFooterSaysWhenTheAlarmGivesUp() {
+        assertEquals("Pip keeps singing until you’re done. It stops by itself after 10 minutes, just in case.", ringFooter(RingLength.TEN_MINUTES))
+        assertEquals("Pip keeps singing until you’re done. It stops by itself after 1 hour, just in case.", ringFooter(RingLength.ONE_HOUR))
+        assertEquals("Pip keeps singing until you’re done.", ringFooter(RingLength.NO_LIMIT))
     }
 
     @Test

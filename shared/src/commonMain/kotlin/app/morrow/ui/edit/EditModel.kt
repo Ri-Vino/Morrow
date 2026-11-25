@@ -6,6 +6,7 @@ import app.morrow.domain.GameStep
 import app.morrow.domain.MissionType
 import app.morrow.domain.MAX_SNOOZE_MINUTES
 import app.morrow.domain.OwnSound
+import app.morrow.domain.RingLength
 import app.morrow.domain.RingSound
 import app.morrow.domain.UNLIMITED_SNOOZES
 import app.morrow.domain.WakeSound
@@ -27,6 +28,8 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.offsetIn
@@ -112,7 +115,7 @@ data class ZoneChoice(
 
 data class GameChoice(val type: MissionType, val name: String, val description: String, val added: Boolean)
 
-/** How long the games take, and whether that's [tooLong] for the alarm's ten minutes of singing. */
+/** How long the games take, and whether that's [tooLong] for how long the alarm sings. */
 data class Estimate(val text: String, val tooLong: Boolean)
 
 /** [now] and [phoneZone] are the phone's; an alarm on another city's clock is shown by that clock. */
@@ -130,6 +133,8 @@ fun editModel(
     canSnooze: Boolean = true,
     /** The sounds the user has added, to pick from too. */
     ownSounds: List<OwnSound> = emptyList(),
+    /** How long an unanswered alarm rings, as chosen in Settings. */
+    ringFor: RingLength = RingLength.TEN_MINUTES,
 ): EditModel {
     // An own sound that's been taken off the list rings with the default.
     val own = (draft.sound as? RingSound.Own)?.let { picked -> ownSounds.firstOrNull { it.id == picked.id } }
@@ -185,7 +190,7 @@ fun editModel(
                 canMoveDown = i < games.lastIndex,
             )
         },
-        estimate = if (games.isEmpty()) Estimate("No games: one tap turns it off", tooLong = false) else estimate(gamesSeconds(games)),
+        estimate = if (games.isEmpty()) Estimate("No games: one tap turns it off", tooLong = false) else estimate(gamesSeconds(games), ringFor),
         gameChoices = MissionType.entries.map { type ->
             GameChoice(type, type.displayName, type.gameDescription, added = games.any { it.type == type })
         },
@@ -316,15 +321,15 @@ private fun zoneOrNull(id: String): TimeZone? = timeZoneOrNull(id)
 /** A rough guess at how long [games] take to play, in seconds. */
 fun gamesSeconds(games: List<GameStep>): Int = games.sumOf { it.type.rules.secondsPerRound * it.rounds }
 
-/** Over this, the games may outlast the alarm, which stops singing at ten minutes. */
-private const val TOO_LONG_SECONDS = 8 * 60
+/** With less than this to spare, the games may outlast the alarm. */
+private val SPARE_TIME = 2.minutes
 
-fun estimate(seconds: Int): Estimate {
+fun estimate(seconds: Int, ringFor: RingLength = RingLength.TEN_MINUTES): Estimate {
     val minutes = maxOf(1, (seconds / 60f).roundToInt())
-    val tooLong = seconds > TOO_LONG_SECONDS
+    val stopsAt = ringFor.limit?.takeIf { seconds.seconds > it - SPARE_TIME }?.inWholeMinutes
     return Estimate(
-        text = if (tooLong) "About $minutes min. Pip stops singing at 10, so keep it shorter." else "About $minutes min to finish",
-        tooLong = tooLong,
+        text = if (stopsAt != null) "About $minutes min. Pip stops singing at $stopsAt, so keep it shorter." else "About $minutes min to finish",
+        tooLong = stopsAt != null,
     )
 }
 

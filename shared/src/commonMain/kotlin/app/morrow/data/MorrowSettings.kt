@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import app.morrow.domain.Difficulty
+import app.morrow.domain.RingLength
 import app.morrow.domain.VolumeRamp
 import app.morrow.domain.WakeSound
 import app.morrow.weather.Coordinates
@@ -40,11 +41,12 @@ class MorrowSettings internal constructor(private val store: DataStore<Preferenc
         )
     }
 
-    /** What the alarm sounds like, needed at ring time. */
+    /** What the alarm sounds like and how long it rings, needed at ring time. */
     val alarmSetup: Flow<AlarmSetup> = store.data.map { prefs ->
         AlarmSetup(
             sound = prefs[SoundKey].toEnum(WakeSound.BIRDSONG),
             ramp = prefs[RampKey].toEnum(VolumeRamp.ONE_MINUTE),
+            ringFor = prefs[RingLengthKey].toEnum(RingLength.TEN_MINUTES),
         )
     }
 
@@ -54,6 +56,10 @@ class MorrowSettings internal constructor(private val store: DataStore<Preferenc
 
     suspend fun setRamp(ramp: VolumeRamp) {
         store.edit { it[RampKey] = ramp.name }
+    }
+
+    suspend fun setRingLength(length: RingLength) {
+        store.edit { it[RingLengthKey] = length.name }
     }
 
     /** The code the Scan mission looks for, usually a sticker on the kettle. */
@@ -176,6 +182,7 @@ class MorrowSettings internal constructor(private val store: DataStore<Preferenc
         val DifficultyKey = stringPreferencesKey("difficulty")
         val SoundKey = stringPreferencesKey("sound")
         val RampKey = stringPreferencesKey("volume_ramp")
+        val RingLengthKey = stringPreferencesKey("ring_length")
         val KettleCode = stringPreferencesKey("kettle_code")
         val SeasonalLooks = booleanPreferencesKey("seasonal_looks")
     }
@@ -187,7 +194,7 @@ data class LastLocation(val coordinates: Coordinates, val at: Instant, val name:
 
 data class MissionSetup(val difficulty: Difficulty, val kettleCode: String?)
 
-data class AlarmSetup(val sound: WakeSound, val ramp: VolumeRamp) {
+data class AlarmSetup(val sound: WakeSound, val ramp: VolumeRamp, val ringFor: RingLength = RingLength.TEN_MINUTES) {
     companion object {
         val Default = AlarmSetup(WakeSound.BIRDSONG, VolumeRamp.ONE_MINUTE)
     }

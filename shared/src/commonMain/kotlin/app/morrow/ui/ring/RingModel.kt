@@ -7,6 +7,7 @@ import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.Easing
 import androidx.compose.ui.graphics.Color
 import app.morrow.domain.Alarm
+import app.morrow.domain.RingLength
 import app.morrow.domain.UNLIMITED_SNOOZES
 import app.morrow.domain.canSnooze
 import app.morrow.theme.Illustration
@@ -56,6 +57,13 @@ fun snoozeLabel(alarm: Alarm, snoozed: Int): String? {
     val label = "Snooze ${alarm.snoozeMinutes} min"
     if (alarm.snoozeLimit == UNLIMITED_SNOOZES || snoozed == 0) return label
     return "$label · ${alarm.snoozeLimit - snoozed} left"
+}
+
+/** The line under the ring screen's buttons, saying when an alarm that rings for [ringFor] gives up. */
+fun ringFooter(ringFor: RingLength): String {
+    val singing = "Pip keeps singing until you’re done."
+    val length = ringFor.inWords ?: return singing
+    return "$singing It stops by itself after $length, just in case."
 }
 
 /** Hold the sunrise here to show it finished, for when animations are off. */

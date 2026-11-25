@@ -1,5 +1,6 @@
 package app.morrow.ui.edit
 
+import app.morrow.domain.RingLength
 import app.morrow.domain.OwnSound
 import app.morrow.domain.RingSound
 import app.morrow.domain.Alarm
@@ -168,6 +169,17 @@ class EditModelTest {
         assertEquals(Estimate("About 8 min to finish", tooLong = false), estimate(480))
         assertEquals(Estimate("About 8 min. Pip stops singing at 10, so keep it shorter.", tooLong = true), estimate(481))
         assertEquals(Estimate("About 9 min. Pip stops singing at 10, so keep it shorter.", tooLong = true), estimate(540))
+    }
+
+    @Test
+    fun theWarningFollowsHowLongAlarmsRing() {
+        assertEquals(Estimate("About 9 min to finish", tooLong = false), estimate(540, RingLength.THIRTY_MINUTES))
+        assertEquals(Estimate("About 29 min. Pip stops singing at 30, so keep it shorter.", tooLong = true), estimate(1740, RingLength.THIRTY_MINUTES))
+        assertEquals(Estimate("About 90 min to finish", tooLong = false), estimate(5400, RingLength.NO_LIMIT))
+
+        val all = games(*MissionType.entries.map { it to it.rules.maxRounds }.toTypedArray())
+        val unlimited = app.morrow.ui.edit.editModel(all, at("2026-10-05T22:00"), london, ringFor = RingLength.NO_LIMIT)
+        assertFalse(unlimited.estimate.tooLong)
     }
 
     @Test

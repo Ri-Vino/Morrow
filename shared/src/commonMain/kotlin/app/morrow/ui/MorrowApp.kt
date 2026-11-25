@@ -139,6 +139,8 @@ class MorrowServices(
     val timers: TimerCoordinator,
     /** Whether Morrow rings alarms itself, so it can snooze them. On iOS the system does, without a snooze. */
     val canSnooze: Boolean = false,
+    /** True where Morrow rings alarms itself, so how long they ring can be picked. */
+    val limitsRinging: Boolean = false,
     /** The user's own sounds, and the way to bring one in from the phone; both null where that can't be done. */
     val ownSounds: OwnSounds? = null,
     val soundPicker: SoundPicker? = null,
@@ -243,6 +245,7 @@ fun MorrowApp(
                                     onBack = { inSettings = false },
                                     alarmSound = services.alarmSound,
                                     onAbout = { readingAbout = true },
+                                    limitsRinging = services.limitsRinging,
                                 )
                             }
                             Route.About -> {
@@ -485,7 +488,7 @@ private fun EditRoute(
     }
     EditScreen(
         draft = current,
-        model = editModel(current, now, phoneZone, alarmSetup.sound, missions.difficulty, services.canSnooze, ownSounds),
+        model = editModel(current, now, phoneZone, alarmSetup.sound, missions.difficulty, services.canSnooze, ownSounds, alarmSetup.ringFor),
         soundProblem = soundProblem,
         unsaved = opened != null && current != opened,
         zones = ZoneSheetData(
@@ -579,6 +582,7 @@ private fun RingPreviewRoute(services: MorrowServices, alarm: Alarm, onSystemBar
             holiday = Holiday.at(ringsAt, TimeZone.currentSystemDefault(), seasonal),
             onStartMission = { stage = PreviewStage.MISSION },
             preview = RingPreview(soundOn, onToggleSound = { soundOn = !soundOn }, onExit = onExit),
+            ringFor = sound.ringFor,
             // In a preview, snoozing just ends it.
             snooze = snoozeLabel(alarm, snoozed = 0)?.takeIf { services.canSnooze }?.let { RingSnooze(it, onExit) },
         )
