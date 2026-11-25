@@ -324,11 +324,15 @@ class SequenceRouteTest {
     private fun rightAnswer(): Int {
         val question = compose.onNode(hasContentDescription("What is", substring = true))
             .fetchSemanticsNode().config[SemanticsProperties.Text].single().text
-        val (a, sign, b) = question.split(" ")
-        return when (sign) {
-            "+" -> a.toInt() + b.toInt()
-            "−" -> a.toInt() - b.toInt()
-            else -> a.toInt() * b.toInt()
+        val parts = question.split(" ")
+        // Left to right is enough, as × only comes in two-term sums.
+        return parts.drop(1).chunked(2).fold(parts.first().toInt()) { total, (sign, term) ->
+            when (sign) {
+                "+" -> total + term.toInt()
+                "−" -> total - term.toInt()
+                "×" -> total * term.toInt()
+                else -> error("Unknown sign in $question")
+            }
         }
     }
 
