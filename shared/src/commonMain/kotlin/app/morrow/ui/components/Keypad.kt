@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -90,7 +89,7 @@ private fun RowScope.KeypadKey(
             .heightIn(min = minHeight)
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .pressable({ if (enabled) onClick() })
-            .background(background, RoundedCornerShape(20.dp))
+            .background(background, ControlShape)
             .semantics {
                 if (label != null) contentDescription = label
                 if (!enabled) disabled()

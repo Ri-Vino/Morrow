@@ -26,7 +26,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -36,19 +35,17 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
-import app.morrow.ui.components.PillButton
+import app.morrow.ui.components.MorrowButton
 import app.morrow.ui.components.PipLook
 import app.morrow.ui.components.PipMood
 import app.morrow.ui.components.drawPip
@@ -116,7 +113,7 @@ private fun TimerDoneContent(
                         BasicText(
                             timer.title,
                             style = type.display.copy(color = Illustration.starlight, textAlign = TextAlign.Center),
-                            modifier = Modifier.widthIn(max = 330.dp).fadeUpIn { textIn(0.4f) },
+                            modifier = Modifier.widthIn(max = 320.dp).fadeUpIn { textIn(0.4f) },
                         )
                         BasicText(
                             timer.meta,
@@ -132,18 +129,17 @@ private fun TimerDoneContent(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                PillButton(
+                MorrowButton(
                     text = "Stop",
                     onClick = onStop,
                     background = Illustration.sun,
                     content = Illustration.shades,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .dropShadow(CircleShape, Shadow(34.dp, Illustration.sun.copy(alpha = 0.28f), offset = DpOffset(0.dp, 14.dp)))
                         .semantics { contentDescription = model.stopLabel },
                     height = 64.dp,
                 )
-                PillButton(
+                MorrowButton(
                     text = "+1 minute",
                     onClick = onAddMinute,
                     background = Illustration.ground.copy(alpha = 0.5f),
@@ -172,7 +168,7 @@ private fun ReadingBadge(text: String, seconds: State<Float>, modifier: Modifier
         modifier = modifier
             .background(Illustration.ground.copy(alpha = 0.45f), RoundedCornerShape(18.dp))
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Canvas(Modifier.size(22.dp, 16.dp)) {

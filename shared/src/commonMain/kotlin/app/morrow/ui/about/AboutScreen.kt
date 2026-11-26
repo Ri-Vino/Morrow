@@ -245,7 +245,7 @@ private fun Blocks(blocks: List<LegalBlock>) {
                     modifier = Modifier.padding(top = 12.dp).semantics { heading() },
                 )
                 is LegalBlock.Paragraph -> BasicText(block.text, style = MorrowTheme.type.body.copy(color = colors.text))
-                is LegalBlock.Bullet -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                is LegalBlock.Bullet -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     BasicText("•", style = MorrowTheme.type.body.copy(color = colors.hi))
                     BasicText(block.text, style = MorrowTheme.type.body.copy(color = colors.text), modifier = Modifier.weight(1f))
                 }

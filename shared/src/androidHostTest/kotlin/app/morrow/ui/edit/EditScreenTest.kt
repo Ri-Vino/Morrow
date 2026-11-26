@@ -338,7 +338,7 @@ class EditScreenTest {
     @Test
     fun pickingNewYorkRingsByItsClock() {
         show(alarm(hour = 9, minute = 0))
-        compose.onNodeWithText("Rings by the clock wherever you are").assertExists()
+        compose.onNodeWithText("Follows the local clock").assertExists()
 
         compose.onNode(hasText("Phone’s time") and hasClickAction()).performScrollTo().performClick()
         compose.onNodeWithText("Ring by the time in…").assertExists()
@@ -363,7 +363,7 @@ class EditScreenTest {
         compose.onNode(zoneChoice("Phone’s time")).performClick()
 
         assertEquals(null to null, draft.timeZone to draft.zoneLabel)
-        compose.onNodeWithText("Rings by the clock wherever you are").assertExists()
+        compose.onNodeWithText("Follows the local clock").assertExists()
         compose.onNodeWithText("Sleep now and that’s 11h 00m of rest").assertExists()
     }
 

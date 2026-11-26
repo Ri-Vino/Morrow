@@ -65,7 +65,7 @@ fun EntryReadout(
                         selected = picked
                     }
             } ?: Modifier
-            Row(pickable.padding(horizontal = 14.dp, vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(pickable.padding(horizontal = 12.dp, vertical = 2.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 val digits = buildAnnotatedString {
                     withStyle(SpanStyle(color = colors.muted)) { append(part.digits.take(part.waiting)) }
                     append(part.digits.drop(part.waiting))

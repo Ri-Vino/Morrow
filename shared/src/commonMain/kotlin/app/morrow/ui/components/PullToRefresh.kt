@@ -35,6 +35,7 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import app.morrow.theme.Elevation
 import app.morrow.theme.MorrowTheme
 
 /**
@@ -109,7 +110,7 @@ private fun RefreshArrow(shown: Float, threshold: Float, refreshing: Boolean, mo
                 rotationZ = spin
             }
             .size(40.dp)
-            .shadow(6.dp, CircleShape, ambientColor = colors.shadow, spotColor = colors.shadow)
+            .shadow(Elevation.control, CircleShape, ambientColor = colors.shadow, spotColor = colors.shadow)
             .background(colors.surface, CircleShape)
             .border(1.dp, colors.line, CircleShape),
         contentAlignment = Alignment.Center,

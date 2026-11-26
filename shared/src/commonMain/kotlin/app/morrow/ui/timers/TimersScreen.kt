@@ -41,12 +41,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.morrow.platform.PermissionGate
+import app.morrow.theme.Elevation
 import app.morrow.theme.MorrowTheme
 import app.morrow.timers.Timer
 import app.morrow.timers.TimerCoordinator
 import app.morrow.ui.components.Icons
 import app.morrow.ui.components.MorrowIcon
-import app.morrow.ui.components.PillButton
+import app.morrow.ui.components.MorrowButton
 import app.morrow.ui.components.largeText
 import app.morrow.ui.components.pressable
 import kotlinx.coroutines.flow.Flow
@@ -142,7 +143,7 @@ fun TimersScreen(model: TimersModel, actions: TimersActions, modifier: Modifier 
                 .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Header(model.sub, if (model.showNewTimer) actions.onNewTimer else null)
+            Header(model.sub, counts = model.cards.isNotEmpty(), if (model.showNewTimer) actions.onNewTimer else null)
             model.setter?.let { TimerSetter(it, actions, onType = { typing = true }) }
             model.cards.forEach { card -> key(card.id) { TimerCardView(card, actions) } }
         }
@@ -160,9 +161,12 @@ fun TimersScreen(model: TimersModel, actions: TimersActions, modifier: Modifier 
     }
 }
 
-/** The title, what the timers are doing, and New timer beside them once timers are running and the setter is put away. */
+/**
+ * The title, what the timers are doing, and New timer beside them once timers are running and the setter is put away.
+ * Counts sit above the title as an eyebrow; with no timers, the hint is a sentence and reads as one.
+ */
 @Composable
-private fun Header(sub: String, onNewTimer: (() -> Unit)?) {
+private fun Header(sub: String, counts: Boolean, onNewTimer: (() -> Unit)?) {
     val colors = MorrowTheme.colors
     Row(
         Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 4.dp),
@@ -171,8 +175,8 @@ private fun Header(sub: String, onNewTimer: (() -> Unit)?) {
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             BasicText(
-                sub.uppercase(),
-                style = MorrowTheme.type.label.copy(color = colors.muted),
+                if (counts) sub.uppercase() else sub,
+                style = if (counts) MorrowTheme.type.label.copy(color = colors.muted) else MorrowTheme.type.caption.copy(color = colors.muted),
                 modifier = Modifier.semantics {
                     contentDescription = sub
                     liveRegion = LiveRegionMode.Polite
@@ -181,14 +185,14 @@ private fun Header(sub: String, onNewTimer: (() -> Unit)?) {
             BasicText("Timers", style = MorrowTheme.type.display.copy(color = colors.text), modifier = Modifier.semantics { heading() })
         }
         if (onNewTimer != null) {
-            PillButton(
+            MorrowButton(
                 text = "New timer",
                 onClick = onNewTimer,
-                background = colors.accent,
-                content = colors.onAccent,
+                background = colors.primary,
+                content = colors.onPrimary,
                 icon = Icons.Plus,
                 padding = PaddingValues(start = 12.dp, end = 16.dp),
-                modifier = Modifier.padding(bottom = 6.dp),
+                modifier = Modifier.padding(bottom = 8.dp),
             )
         }
     }
@@ -201,14 +205,14 @@ private fun TimerCardView(card: TimerCard, actions: TimersActions) {
     Column(
         Modifier
             .fillMaxWidth()
-            .shadow(12.dp, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
+            .shadow(Elevation.card, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
             .clip(shape)
             .background(colors.surface)
             .border(1.dp, colors.line, shape),
     ) {
         Row(
             Modifier.padding(start = 12.dp, end = 16.dp, top = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             TimerWindow(card.sky, card.state, Modifier.size(if (largeText()) 72.dp else 92.dp))
@@ -246,7 +250,7 @@ private fun CardText(card: TimerCard, modifier: Modifier = Modifier) {
 @Composable
 private fun CardButtons(card: TimerCard, actions: TimersActions) {
     val colors = MorrowTheme.colors
-    PillButton(
+    MorrowButton(
         text = "+1 min",
         onClick = { actions.onAddMinute(card.id) },
         background = colors.surface2,

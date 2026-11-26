@@ -41,8 +41,8 @@ class SequenceModelTest {
 
     @Test
     fun pipNamesTheNextGame() {
-        assertEquals("Nice one! Next up: slow breaths.", nextUpLine(MissionType.BREATHE))
-        assertEquals("Nice one! Next up: code hunt.", nextUpLine(MissionType.SCAN))
+        assertEquals("Nice one. Next up: slow breaths.", nextUpLine(MissionType.BREATHE))
+        assertEquals("Nice one. Next up: code hunt.", nextUpLine(MissionType.SCAN))
     }
 
     @Test

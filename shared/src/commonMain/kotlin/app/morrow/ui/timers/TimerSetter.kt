@@ -42,13 +42,16 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.morrow.theme.Elevation
 import app.morrow.theme.MorrowTheme
+import app.morrow.ui.components.fadeEnd
+import app.morrow.ui.components.PrimaryButton
 import app.morrow.ui.components.BottomSheet
 import app.morrow.ui.components.EntryReadout
 import app.morrow.ui.components.Icons
 import app.morrow.ui.components.Keypad
 import app.morrow.ui.components.MorrowIcon
-import app.morrow.ui.components.PillButton
+import app.morrow.ui.components.MorrowButton
 import app.morrow.ui.components.ReadoutPart
 import app.morrow.ui.components.largeText
 
@@ -64,7 +67,7 @@ internal fun TimerSetter(setter: SetterModel, actions: TimersActions, onType: ()
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .shadow(18.dp, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
+            .shadow(Elevation.card, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
             .background(colors.surface, shape)
             .border(1.dp, colors.line, shape)
             .padding(vertical = 20.dp),
@@ -88,13 +91,13 @@ private fun QuickChips(entry: TimerEntry, onPick: (TimerEntry) -> Unit) {
     val colors = MorrowTheme.colors
     val chip = @Composable { quick: QuickTimer ->
         val picked = quick.entry.duration == entry.duration
-        PillButton(
+        MorrowButton(
             text = quick.name,
             onClick = { onPick(quick.entry) },
             background = if (picked) colors.accent else colors.bg,
             content = if (picked) colors.onAccent else colors.text,
             border = if (picked) colors.hi else colors.line,
-            padding = PaddingValues(horizontal = 14.dp),
+            padding = PaddingValues(horizontal = 16.dp),
             modifier = Modifier.semantics { selected = picked },
         )
     }
@@ -106,7 +109,7 @@ private fun QuickChips(entry: TimerEntry, onPick: (TimerEntry) -> Unit) {
         ) { QuickTimers.forEach { chip(it) } }
     } else {
         Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
+            modifier = Modifier.fillMaxWidth().fadeEnd().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) { QuickTimers.forEach { chip(it) } }
     }
@@ -157,13 +160,11 @@ internal fun TimerTypeSheet(entry: TimerEntry, onSet: (TimerEntry) -> Unit, onCl
             }) { MorrowIcon(Icons.DeleteDigit, colors.muted, size = 28.dp) }
         }
         val ready = typed.canStart
-        PillButton(
+        PrimaryButton(
             text = "Set length",
-            onClick = { if (ready) onSet(typed) },
-            background = if (ready) colors.accent else colors.surface2,
-            content = if (ready) colors.onAccent else colors.muted,
-            modifier = Modifier.fillMaxWidth().semantics { if (!ready) disabled() },
-            height = 56.dp,
+            onClick = { onSet(typed) },
+            enabled = ready,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
@@ -206,17 +207,15 @@ private fun StartRow(setter: SetterModel, actions: TimersActions, modifier: Modi
     val colors = MorrowTheme.colors
     val ready = setter.entry.canStart
     val start = @Composable { buttonModifier: Modifier ->
-        PillButton(
+        PrimaryButton(
             text = "Start timer",
-            onClick = { if (ready) actions.onStart() },
-            background = if (ready) colors.accent else colors.surface2,
-            content = if (ready) colors.onAccent else colors.muted,
-            modifier = buttonModifier.semantics { if (!ready) disabled() },
-            height = 56.dp,
+            onClick = actions.onStart,
+            enabled = ready,
+            modifier = buttonModifier,
         )
     }
     val cancel = @Composable { buttonModifier: Modifier ->
-        PillButton("Cancel", actions.onCancel, colors.bg, colors.text, buttonModifier, height = 56.dp, border = colors.line)
+        MorrowButton("Cancel", actions.onCancel, colors.bg, colors.text, buttonModifier, height = 56.dp, border = colors.line)
     }
     if (largeText()) {
         Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -231,5 +230,5 @@ private fun StartRow(setter: SetterModel, actions: TimersActions, modifier: Modi
     }
 }
 
-internal const val NOTE_LABEL = "Note for Pip to read out (optional)"
-private const val NOTE_HINT = "e.g. Take the pasta off the hob"
+internal const val NOTE_LABEL = "Note (optional)"
+private const val NOTE_HINT = "Take the pasta off the hob"

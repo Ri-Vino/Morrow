@@ -53,6 +53,8 @@ fun MorrowTheme(
         muted = target.muted.animated(),
         accent = target.accent.animated(),
         onAccent = target.onAccent.animated(),
+        primary = target.primary.animated(),
+        onPrimary = target.onPrimary.animated(),
         hi = target.hi.animated(),
         warn = target.warn.animated(),
         onWarn = target.onWarn.animated(),

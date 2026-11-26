@@ -30,6 +30,7 @@ import app.morrow.missions.SumsMission
 import app.morrow.missions.SumsState
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
+import app.morrow.ui.components.ControlShape
 import app.morrow.ui.components.Icons
 import app.morrow.ui.components.Keypad
 import app.morrow.ui.components.MorrowIcon
@@ -57,7 +58,7 @@ internal fun SumsBody(state: SumsState, mission: SumsMission) {
             }
         }
         val missed = state.wrong > 0 && state.answer.isEmpty()
-        val shape = RoundedCornerShape(22.dp)
+        val shape = ControlShape
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -81,7 +82,7 @@ internal fun SumsBody(state: SumsState, mission: SumsMission) {
         Keypad(onDigit = mission::type) {
             Key("Delete digit", mission::delete) { MorrowIcon(Icons.DeleteDigit, colors.muted, size = 28.dp) }
             Digit("0") { mission.type(0) }
-            Key("Check answer", mission::check, colors.accent) { MorrowIcon(Icons.Check, colors.onAccent, size = 28.dp, strokeWidth = 3f) }
+            Key("Check answer", mission::check, colors.primary) { MorrowIcon(Icons.Check, colors.onPrimary, size = 28.dp, strokeWidth = 3f) }
         }
     }
 }

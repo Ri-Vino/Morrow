@@ -36,6 +36,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import app.morrow.theme.Elevation
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
 import app.morrow.ui.PlatformBackHandler
@@ -94,7 +95,7 @@ fun BottomSheet(title: String, onClose: () -> Unit, modifier: Modifier = Modifie
                 .risingWith(entrance)
                 .offset { IntOffset(0, pulled.roundToInt()) }
                 .fillMaxWidth()
-                .shadow(18.dp, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
+                .shadow(Elevation.floating, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
                 .background(colors.bg, shape)
                 .semantics { paneTitle = title }
                 .nestedScroll(swipeDown)

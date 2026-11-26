@@ -35,6 +35,7 @@ import app.morrow.missions.TypeMission
 import app.morrow.missions.TypeState
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
+import app.morrow.ui.components.ControlShape
 
 private const val FIELD_LABEL = "Your sentence"
 
@@ -66,7 +67,7 @@ internal fun TypeBody(state: TypeState, mission: TypeMission, autoFocus: Boolean
         }
 
         BasicText(FIELD_LABEL, style = type.bodyStrong.copy(color = colors.muted))
-        val shape = RoundedCornerShape(22.dp)
+        val shape = ControlShape
         BasicTextField(
             value = state.typed,
             onValueChange = mission::type,

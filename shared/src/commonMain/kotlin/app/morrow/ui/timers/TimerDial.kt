@@ -1,9 +1,9 @@
 package app.morrow.ui.timers
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -75,9 +75,9 @@ internal fun TimerDial(entry: TimerEntry, onWind: (TimerEntry) -> Unit, onType: 
     // Hours, so one turn of the dial is 1.
     val turns = remember { Animatable(entry.turns) }
     LaunchedEffect(entry, dragging) {
-        if (dragging) turns.snapTo(entry.turns) else turns.animateTo(entry.turns, spring(Spring.DampingRatioLowBouncy, Spring.StiffnessLow))
+        if (dragging) turns.snapTo(entry.turns) else turns.animateTo(entry.turns, tween(320, easing = FastOutSlowInEasing))
     }
-    val knobScale by animateFloatAsState(if (dragging) 1.15f else 1f, spring(Spring.DampingRatioMediumBouncy))
+    val knobScale by animateFloatAsState(if (dragging) 1.15f else 1f, tween(140, easing = FastOutSlowInEasing))
     val minutes = entry.duration.inWholeMinutes.toInt()
 
     Box(
@@ -125,7 +125,7 @@ internal fun TimerDial(entry: TimerEntry, onWind: (TimerEntry) -> Unit, onType: 
                 .clip(RoundedCornerShape(24.dp))
                 .pressable(onType, onClickLabel = "Type the length")
                 .semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {

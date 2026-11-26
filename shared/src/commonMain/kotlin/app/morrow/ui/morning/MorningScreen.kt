@@ -241,7 +241,7 @@ private val Ground = svgPath("M0 348 C110 334 250 352 390 338 L390 372 L0 372 Z"
 @Composable
 private fun MorningPreview() = MorrowTheme(ThemeKind.MORNING) {
     MorningContent(
-        MorningModel("Good morning.", "You were up at 06:42, after about 7h 10m of sleep."),
+        MorningModel("Good morning", "You were up at 06:42, after about 7h 10m of sleep."),
         MorningWeather(
             sky = Sky.RAIN,
             night = false,

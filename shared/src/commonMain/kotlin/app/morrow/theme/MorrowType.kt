@@ -66,10 +66,10 @@ internal fun morrowType(): MorrowType {
 
     return MorrowType(
         label = sans(12, FontWeight.SemiBold).copy(letterSpacing = 0.14.em),
-        caption = sans(13, FontWeight.Normal),
+        caption = sans(14, FontWeight.Normal),
         body = sans(16, FontWeight.Normal),
         bodyStrong = sans(16, FontWeight.SemiBold),
-        bodyLarge = sans(17, FontWeight.Normal, lineHeight = 1.5f),
+        bodyLarge = sans(18, FontWeight.Normal, lineHeight = 1.5f),
         button = sans(16, FontWeight.SemiBold, lineHeight = 1.25f),
         // Titles are headings people read, so they keep growing.
         title = serif(fraunces(24), 24, tracking = 0f, capped = false),

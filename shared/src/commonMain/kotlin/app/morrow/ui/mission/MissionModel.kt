@@ -41,7 +41,7 @@ fun scanModel(state: ScanState, cameraAllowed: Boolean, overall: Float = state.p
     },
     pipLine = when {
         state.found -> pipLine(overall)
-        !cameraAllowed -> "I can’t see a thing without the camera!"
+        !cameraAllowed -> "I can’t see a thing without the camera."
         state.wrong > 0 -> "Hmm, that’s not our code."
         else -> pipLine(overall)
     },
@@ -49,11 +49,11 @@ fun scanModel(state: ScanState, cameraAllowed: Boolean, overall: Float = state.p
 
 /** Pip wakes up a little more with each step. */
 fun pipLine(progress: Float): String = when {
-    progress >= 1f -> "We’re up! Well done."
+    progress >= 1f -> "We’re up. Well done."
     progress < 0.01f -> "Mmm… five more minutes?"
     progress < 0.4f -> "Okay, okay. I’m stirring."
     progress < 0.75f -> "Ooh, I can see the light."
-    else -> "Nearly there, keep going!"
+    else -> "Nearly there, keep going."
 }
 
 fun breatheLabel(state: BreatheState): String = when {

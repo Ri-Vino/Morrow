@@ -137,7 +137,7 @@ private fun MuteToggle(mute: MuteButton) {
                 contentDescription = if (mute.muted) "Alarm muted, back in ${mute.secondsLeft} seconds" else "Alarm sounding quietly"
             }
             .padding(horizontal = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         MorrowIcon(if (mute.muted) Icons.SpeakerOff else Icons.Speaker, Illustration.onBadge, size = 18.dp, strokeWidth = 2.2f)
@@ -148,7 +148,7 @@ private fun MuteToggle(mute: MuteButton) {
 
 @Composable
 private fun StepChips(chips: List<StepChip>) {
-    FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         chips.forEach { chip ->
             val background = when (chip.state) {
                 ChipState.DONE -> Illustration.sun
@@ -157,7 +157,7 @@ private fun StepChips(chips: List<StepChip>) {
             }
             Box(
                 modifier = Modifier
-                    .size(30.dp)
+                    .size(32.dp)
                     .background(background, CircleShape)
                     .then(if (chip.state == ChipState.NOW) Modifier.border(2.dp, Illustration.onBadge, CircleShape) else Modifier)
                     .semantics { contentDescription = chip.label },
@@ -187,7 +187,7 @@ private fun RisingSky(progress: Float) {
             val night = 1f - warmth
             Stars.forEach { (at, radius) -> drawCircle(Illustration.starlight.copy(alpha = night), radius, at) }
             if (night > 0f) {
-                translate(322f, 110f + 70f * warmth) {
+                translate(250f, 140f + 50f * warmth) {
                     withAlpha(night, Rect(-20f, -20f, 20f, 20f)) {
                         scale(17f / 30f, Offset.Zero) { drawPip(Moon, seconds = 0f) }
                     }

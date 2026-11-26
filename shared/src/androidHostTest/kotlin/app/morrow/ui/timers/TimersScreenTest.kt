@@ -339,7 +339,7 @@ class TimersScreenTest {
         waitForTimers(0)
         compose.onNodeWithContentDescription("No time set yet").assertIsDisplayed()
         compose.onNodeWithText("New timer").assertDoesNotExist()
-        compose.onNodeWithText("PIP READS YOUR NOTE WHEN ONE ENDS").assertExists()
+        compose.onNodeWithText("Pip reads your note when one ends").assertExists()
     }
 
     @Test

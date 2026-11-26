@@ -25,7 +25,7 @@ fun stepChips(steps: List<GameStep>, index: Int, stepDone: Boolean): List<StepCh
 }
 
 /** What Pip says between games. */
-fun nextUpLine(next: MissionType): String = "Nice one! Next up: ${next.gameTitle.lowercase()}."
+fun nextUpLine(next: MissionType): String = "Nice one. Next up: ${next.gameTitle.lowercase()}."
 
 /** When the game at [index] can't be played on this phone, three sums take its place and the rest stay as they were. */
 fun switchedToSums(steps: List<GameStep>, index: Int): List<GameStep> =

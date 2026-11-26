@@ -25,8 +25,8 @@ class MissionModelTest {
         assertEquals("Mmm… five more minutes?", pipLine(0f))
         assertEquals("Okay, okay. I’m stirring.", pipLine(1f / 3))
         assertEquals("Ooh, I can see the light.", pipLine(2f / 3))
-        assertEquals("Nearly there, keep going!", pipLine(0.8f))
-        assertEquals("We’re up! Well done.", pipLine(1f))
+        assertEquals("Nearly there, keep going.", pipLine(0.8f))
+        assertEquals("We’re up. Well done.", pipLine(1f))
     }
 
     @Test
@@ -52,7 +52,7 @@ class MissionModelTest {
     fun pipFollowsTheWholeSequence() {
         assertEquals("Mmm… five more minutes?", sumsModel(sums(0)).pipLine)
         assertEquals("Ooh, I can see the light.", sumsModel(sums(0), overall = 0.5f).pipLine)
-        assertEquals("Nearly there, keep going!", shakeModel(ShakeState(shakes = 30, goal = 30), overall = 0.9f).pipLine)
+        assertEquals("Nearly there, keep going.", shakeModel(ShakeState(shakes = 30, goal = 30), overall = 0.9f).pipLine)
     }
 
     @Test
@@ -73,7 +73,7 @@ class MissionModelTest {
 
         val off = scanModel(looking, cameraAllowed = false)
         assertEquals("Camera off", off.count)
-        assertEquals("I can’t see a thing without the camera!", off.pipLine)
+        assertEquals("I can’t see a thing without the camera.", off.pipLine)
 
         assertEquals("Found it", scanModel(looking.copy(found = true), cameraAllowed = true).count)
     }

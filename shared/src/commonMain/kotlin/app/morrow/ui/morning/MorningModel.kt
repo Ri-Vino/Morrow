@@ -29,9 +29,9 @@ fun morningModel(wokeAt: Instant, wentToBed: Instant?, zone: TimeZone): MorningM
     val slept = wentToBed?.let { wokeAt - it }?.takeIf { it in BELIEVABLE_NIGHT }
     return MorningModel(
         hello = when {
-            woke.hour < 12 -> "Good morning."
-            woke.hour < 17 -> "Good afternoon."
-            else -> "Good evening."
+            woke.hour < 12 -> "Good morning"
+            woke.hour < 17 -> "Good afternoon"
+            else -> "Good evening"
         },
         summary = if (slept != null) {
             "You were up at $time, after about ${formatDuration(slept)} of sleep."
@@ -57,7 +57,7 @@ data class MorningWeather(
     private val spoken: String,
 ) {
     /** What Pip reads out: the [hello], how it is outside, then the tip. */
-    fun speech(hello: String): String = listOfNotNull(hello, spoken, tip).joinToString(" ")
+    fun speech(hello: String): String = listOfNotNull("$hello.", spoken, tip).joinToString(" ")
 }
 
 /**

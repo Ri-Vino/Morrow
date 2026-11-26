@@ -15,9 +15,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,10 +28,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -96,23 +98,46 @@ private const val REPEAT_FASTEST_MS = 45L
 /**
  * The main action on a screen. Button labels, like every label in the app, are in sentence case ("Save alarm", not
  * "Save Alarm") on both platforms: one shared voice, Android's own convention, and calmer than title case for a
- * friendly app. Small uppercase labels are kept for section eyebrows only.
+ * friendly app. Small uppercase labels are kept for section eyebrows only. While not [enabled] it keeps its colour,
+ * faded, so it still reads as the main action that isn't ready yet.
  */
 @Composable
-fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, icon: String? = null, iconAfter: Boolean = false) {
+fun PrimaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    height: Dp = 56.dp,
+    icon: String? = null,
+    iconAfter: Boolean = false,
+) {
     val colors = MorrowTheme.colors
-    PillButton(text, onClick, colors.accent, colors.onAccent, modifier.fillMaxWidth(), height = 56.dp, icon = icon, iconAfter = iconAfter)
+    MorrowButton(
+        text = text,
+        onClick = { if (enabled) onClick() },
+        background = colors.primary,
+        content = colors.onPrimary,
+        modifier = modifier
+            .alpha(if (enabled) 1f else DISABLED_ALPHA)
+            .semantics { if (!enabled) disabled() },
+        height = height,
+        icon = icon,
+        iconAfter = iconAfter,
+    )
 }
 
 @Composable
 fun SecondaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = MorrowTheme.colors
-    PillButton(text, onClick, colors.surface, colors.text, modifier.fillMaxWidth(), height = 56.dp, border = colors.line)
+    MorrowButton(text, onClick, colors.surface, colors.text, modifier.fillMaxWidth(), height = 56.dp, border = colors.line)
 }
 
-/** A rounded button; [height] 44 for small inline actions, 56 for main ones. */
+/**
+ * A button; [height] 44 for chips and small inline actions, which are pills, and 56 or more for main ones, which take
+ * the control radius.
+ */
 @Composable
-fun PillButton(
+fun MorrowButton(
     text: String,
     onClick: () -> Unit,
     background: Color,
@@ -125,13 +150,15 @@ fun PillButton(
     border: Color? = null,
     padding: PaddingValues = PaddingValues(horizontal = 16.dp),
 ) {
-    val type = if (height >= 56.dp) MorrowTheme.type.button else MorrowTheme.type.bodyStrong
+    val large = height >= 56.dp
+    val type = if (large) MorrowTheme.type.button else MorrowTheme.type.bodyStrong
+    val shape = if (large) ControlShape else CircleShape
     Row(
         modifier = modifier
             .heightIn(min = height)
             .pressable(onClick)
-            .background(background, CircleShape)
-            .then(if (border != null) Modifier.border(1.dp, border, CircleShape) else Modifier)
+            .background(background, shape)
+            .then(if (border != null) Modifier.border(1.dp, border, shape) else Modifier)
             .padding(padding),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically,
@@ -141,3 +168,8 @@ fun PillButton(
         if (icon != null && iconAfter) MorrowIcon(icon, iconTint, size = 22.dp, strokeWidth = 2.6f)
     }
 }
+
+/** The corner of buttons, fields and other controls that aren't small enough to be pills. */
+val ControlShape = RoundedCornerShape(16.dp)
+
+private const val DISABLED_ALPHA = 0.4f

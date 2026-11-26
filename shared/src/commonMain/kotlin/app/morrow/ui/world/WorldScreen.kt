@@ -57,7 +57,7 @@ import app.morrow.theme.MorrowTheme
 import app.morrow.ui.components.BottomSheet
 import app.morrow.ui.components.Icons
 import app.morrow.ui.components.MorrowIcon
-import app.morrow.ui.components.PillButton
+import app.morrow.ui.components.MorrowButton
 import app.morrow.ui.components.PrimaryButton
 import app.morrow.ui.components.PullToRefresh
 import app.morrow.ui.components.largeText
@@ -373,10 +373,10 @@ private fun CitySheetView(sheet: CitySheet, actions: WorldActions) {
             )
         } else {
             val makeHome = @Composable { modifier: Modifier ->
-                PillButton("Make home city", { actions.onMakeHome(sheet.id) }, colors.surface, colors.text, modifier.fillMaxWidth(), height = 56.dp, border = colors.line)
+                MorrowButton("Make home city", { actions.onMakeHome(sheet.id) }, colors.surface, colors.text, modifier.fillMaxWidth(), height = 56.dp, border = colors.line)
             }
             val remove = @Composable { modifier: Modifier ->
-                PillButton("Remove", { actions.onRemove(sheet.id) }, colors.surface, colors.muted, modifier.fillMaxWidth(), height = 56.dp, border = colors.line)
+                MorrowButton("Remove", { actions.onRemove(sheet.id) }, colors.surface, colors.muted, modifier.fillMaxWidth(), height = 56.dp, border = colors.line)
             }
             if (largeText()) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -412,7 +412,7 @@ private fun NextHours(hours: List<SheetHour>) {
                     Column(
                         modifier = Modifier.weight(1f).semantics(mergeDescendants = true) { contentDescription = hour.spoken },
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         BasicText(hour.time, style = type.caption.copy(color = colors.muted))
                         MorrowIcon(weatherIcon(hour.sky, hour.night), colors.hi, size = 22.dp)

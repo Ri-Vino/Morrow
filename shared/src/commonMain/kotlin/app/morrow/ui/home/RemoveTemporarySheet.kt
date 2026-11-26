@@ -9,7 +9,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import app.morrow.theme.MorrowTheme
 import app.morrow.ui.components.BottomSheet
-import app.morrow.ui.components.PillButton
+import app.morrow.ui.components.MorrowButton
 import app.morrow.ui.components.SecondaryButton
 
 /**
@@ -25,7 +25,7 @@ fun RemoveTemporarySheet(time: String, onRemove: () -> Unit, onKeep: () -> Unit)
             "Switching off a temporary alarm removes it. The $time alarm won’t ring, and you can undo this right after.",
             style = MorrowTheme.type.body.copy(color = colors.muted),
         )
-        PillButton("Remove alarm", onRemove, colors.warn, colors.onWarn, Modifier.fillMaxWidth(), height = 56.dp)
+        MorrowButton("Remove alarm", onRemove, colors.warn, colors.onWarn, Modifier.fillMaxWidth(), height = 56.dp)
         SecondaryButton("Keep it on", onKeep)
     }
 }

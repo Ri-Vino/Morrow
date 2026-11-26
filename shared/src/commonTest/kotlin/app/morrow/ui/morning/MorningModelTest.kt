@@ -34,7 +34,7 @@ class MorningModelTest {
     @Test
     fun summarisesABelievableNight() {
         val model = morningModel(woke, wentToBed = woke - 7.hours - 10.minutes, zone)
-        assertEquals("Good morning.", model.hello)
+        assertEquals("Good morning", model.hello)
         assertEquals("You were up at 06:42, after about 7h 10m of sleep.", model.summary)
     }
 
@@ -51,7 +51,7 @@ class MorningModelTest {
     @Test
     fun greetsByTheTimeOfWaking() {
         val afternoon = LocalDateTime(2026, 10, 8, 14, 0).toInstant(zone)
-        assertEquals("Good afternoon.", morningModel(afternoon, null, zone).hello)
+        assertEquals("Good afternoon", morningModel(afternoon, null, zone).hello)
     }
 
     // The weather card
@@ -96,7 +96,7 @@ class MorningModelTest {
 
         assertEquals(
             "Good morning. It's 12 degrees and rainy in London, with a high of 14. Take an umbrella. It dries up this morning.",
-            card.speech("Good morning."),
+            card.speech("Good morning"),
         )
     }
 
@@ -106,7 +106,7 @@ class MorningModelTest {
 
         assertEquals("54° and rainy in London", card.headline)
         assertEquals("High 57° · Low 46° · Rain until about 11:00", card.detail)
-        assertEquals("Good morning. It's 54 degrees and rainy in London, with a high of 57. Take an umbrella. It dries up this morning.", card.speech("Good morning."))
+        assertEquals("Good morning. It's 54 degrees and rainy in London, with a high of 57. Take an umbrella. It dries up this morning.", card.speech("Good morning"))
     }
 
     @Test
@@ -115,7 +115,7 @@ class MorningModelTest {
 
         assertEquals("-3° and rainy in London", card.headline)
         assertEquals("High 0° · Low -5° · Rain until about 11:00", card.detail)
-        assertTrue(card.speech("Hello.").startsWith("Hello. It's minus 3 degrees and rainy in London, with a high of 0."))
+        assertTrue(card.speech("Hello").startsWith("Hello. It's minus 3 degrees and rainy in London, with a high of 0."))
     }
 
     @Test
@@ -123,7 +123,7 @@ class MorningModelTest {
         val card = assertNotNull(card(rainy(), name = null))
 
         assertEquals("12° and rainy", card.headline)
-        assertTrue(card.speech("Hello.").startsWith("Hello. It's 12 degrees and rainy, with a high of 14."))
+        assertTrue(card.speech("Hello").startsWith("Hello. It's 12 degrees and rainy, with a high of 14."))
     }
 
     @Test
@@ -134,7 +134,7 @@ class MorningModelTest {
         assertNull(card.tip)
         assertEquals("12° and cloudy in London", card.headline)
         assertEquals("High 14° · Low 8° · Dry under grey skies", card.detail)
-        assertEquals("Good morning. It's 12 degrees and cloudy in London, with a high of 14.", card.speech("Good morning."))
+        assertEquals("Good morning. It's 12 degrees and cloudy in London, with a high of 14.", card.speech("Good morning"))
     }
 
     @Test

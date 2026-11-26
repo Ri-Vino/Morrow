@@ -40,6 +40,7 @@ import app.morrow.missions.UnscrambleMission
 import app.morrow.missions.UnscrambleState
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
+import app.morrow.ui.components.ControlShape
 import app.morrow.ui.components.pressable
 
 @Composable
@@ -69,7 +70,7 @@ internal fun UnscrambleBody(state: UnscrambleState, mission: UnscrambleMission) 
         ) {
             state.words.take(state.placed).forEach { word ->
                 Box(
-                    Modifier.heightIn(min = 40.dp).background(colors.accent, RoundedCornerShape(20.dp)).padding(horizontal = 14.dp),
+                    Modifier.heightIn(min = 40.dp).background(colors.accent, RoundedCornerShape(20.dp)).padding(horizontal = 16.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     BasicText(word, style = type.button.copy(color = colors.onAccent))
@@ -101,7 +102,7 @@ internal fun UnscrambleBody(state: UnscrambleState, mission: UnscrambleMission) 
 @Composable
 private fun WordChip(word: String, wrong: Boolean, shake: Float, onClick: () -> Unit) {
     val colors = MorrowTheme.colors
-    val shape = RoundedCornerShape(22.dp)
+    val shape = ControlShape
     Box(
         modifier = Modifier
             .heightIn(min = 44.dp)

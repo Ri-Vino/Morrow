@@ -49,7 +49,7 @@ import app.morrow.ui.components.BottomSheet
 import app.morrow.ui.components.Icons
 import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.components.MorrowToggle
-import app.morrow.ui.components.PillButton
+import app.morrow.ui.components.MorrowButton
 import app.morrow.ui.components.PrimaryButton
 import app.morrow.ui.components.SecondaryButton
 import app.morrow.ui.components.SegmentedControl
@@ -546,7 +546,7 @@ private fun PermissionRow(status: PermissionStatus, divider: Boolean, onAllow: (
             }
         } else {
             val required = permission.required
-            PillButton(
+            MorrowButton(
                 text = "Allow",
                 onClick = onAllow,
                 background = if (required) colors.warn else colors.surface2,

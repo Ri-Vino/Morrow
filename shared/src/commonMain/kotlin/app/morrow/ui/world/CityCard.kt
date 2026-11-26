@@ -33,6 +33,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.morrow.theme.Elevation
 import app.morrow.theme.MorrowTheme
 import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.components.WeatherLayer
@@ -65,7 +66,7 @@ fun CityCard(
     val shape = RoundedCornerShape(24.dp)
     val scene = remember(minuteOfDay, weather?.sky) { cityScene(minuteOfDay, weather?.sky) }
     val ink = remember(scene.sky) { inkFor(scene.sky) }
-    val elevation by animateDpAsState(if (lifted) 24.dp else 10.dp)
+    val elevation by animateDpAsState(if (lifted) Elevation.floating else Elevation.card)
     val words = remember { WordSpots() }
     val label = "$name, ${if (isHome) "home city, " else ""}$clock, $relative" + (weather?.let { ", ${it.spoken}" } ?: "")
     val clockText = @Composable {
@@ -76,7 +77,7 @@ fun CityCard(
             Row(
                 modifier = words.spot("name"),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 BasicText(
                     name,
@@ -89,7 +90,7 @@ fun CityCard(
             }
             FlowRow(
                 modifier = words.spot("line"),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 itemVerticalAlignment = Alignment.CenterVertically,
             ) {
                 BasicText(relative, style = type.body.copy(color = ink.text))
@@ -116,7 +117,7 @@ fun CityCard(
             .semantics(mergeDescendants = true) { contentDescription = label },
     ) {
         scene.weather?.let { WeatherLayer(it, WeatherShapes.Card, Modifier.matchParentSize().clearOf(words, ink.text)) }
-        val padding = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)
+        val padding = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
         if (largeText()) {
             Column(padding, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 details(Modifier)

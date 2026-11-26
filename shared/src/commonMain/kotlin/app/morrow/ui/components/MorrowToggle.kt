@@ -1,9 +1,9 @@
 package app.morrow.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -32,7 +32,7 @@ fun MorrowToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit, contentDe
     // the bare track is too close to the cards behind it to see.
     val outline by animateColorAsState(if (checked) colors.hi else mix(colors.line, colors.muted, 0.7f))
     val knob by animateColorAsState(if (checked) colors.onAccent else colors.knobOff)
-    val knobOffset by animateDpAsState(if (checked) 22.dp else 0.dp, spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+    val knobOffset by animateDpAsState(if (checked) 22.dp else 0.dp, tween(200, easing = FastOutSlowInEasing))
     Box(
         modifier = modifier
             .semantics { this.contentDescription = contentDescription }

@@ -45,6 +45,7 @@ import androidx.compose.ui.semantics.collectionInfo
 import androidx.compose.ui.semantics.collectionItemInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import app.morrow.theme.Elevation
 import app.morrow.theme.MorrowTheme
 import app.morrow.ui.PlatformBackHandler
 import app.morrow.ui.components.MorrowIcon
@@ -115,11 +116,11 @@ fun TabBar(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .shadow(16.dp, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
+            .shadow(Elevation.floating, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
             .background(colors.surface, shape)
             .topEdge(colors.line)
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
             .heightIn(min = 52.dp)
             .drawBehind {
                 val gap = TAB_GAP.toPx()

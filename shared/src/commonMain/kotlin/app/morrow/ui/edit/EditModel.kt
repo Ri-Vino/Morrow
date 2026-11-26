@@ -156,7 +156,7 @@ fun editModel(
         daypart = if (city == null) daypart(alarmMinute) else "$city · ${daypart(alarmMinute)}",
         untilText = if (city == null) rest else "Rings at ${cityClock(ringsAt, phoneZone)} your time · $rest",
         zone = if (city == null) {
-            ZoneRow("Phone’s time", "Rings by the clock wherever you are", zoned = false)
+            ZoneRow("Phone’s time", "Follows the local clock", zoned = false)
         } else {
             ZoneRow("$city time", "Follows $city’s clock, summer time included", zoned = true)
         },

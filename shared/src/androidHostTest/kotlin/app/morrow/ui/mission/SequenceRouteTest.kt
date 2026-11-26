@@ -182,7 +182,7 @@ class SequenceRouteTest {
         compose.onNodeWithContentDescription("Game 2 of 2, Shake, next").assertExists()
 
         answer(rightAnswer())
-        compose.onNodeWithText("Nice one! Next up: shake it off.").assertExists()
+        compose.onNodeWithText("Nice one. Next up: shake it off.").assertExists()
         compose.onNodeWithContentDescription("Game 1 of 2, Sums, done").assertExists()
         assertNotDone()
 
@@ -220,7 +220,7 @@ class SequenceRouteTest {
         start(GameStep(MissionType.SUMS, 1), GameStep(MissionType.TYPE, 1))
 
         answer(rightAnswer())
-        compose.onNodeWithText("Nice one! Next up: type it out.").assertExists()
+        compose.onNodeWithText("Nice one. Next up: type it out.").assertExists()
         assertNotDone()
 
         compose.onNodeWithText("Type it out").assertExists()

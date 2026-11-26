@@ -44,7 +44,7 @@ import app.morrow.theme.MorrowTheme
 import app.morrow.theme.mix
 import app.morrow.ui.components.Icons
 import app.morrow.ui.components.MorrowIcon
-import app.morrow.ui.components.PillButton
+import app.morrow.ui.components.MorrowButton
 import app.morrow.ui.components.PipLook
 import app.morrow.ui.components.PipMood
 import app.morrow.ui.components.PrimaryButton
@@ -126,7 +126,7 @@ private fun PermissionRow(permission: AlarmPermission, granted: Boolean, onAllow
                 MorrowIcon(Icons.Check, colors.hi, size = 22.dp, strokeWidth = 3f)
             }
         } else {
-            PillButton("Allow", onAllow, colors.accent, colors.onAccent)
+            MorrowButton("Allow", onAllow, colors.primary, colors.onPrimary)
         }
     }
 }

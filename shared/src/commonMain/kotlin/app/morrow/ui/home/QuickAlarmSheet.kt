@@ -19,12 +19,12 @@ import app.morrow.domain.NapChoices
 import app.morrow.domain.QuickChoices
 import app.morrow.domain.typeMinutes
 import app.morrow.theme.MorrowTheme
+import app.morrow.ui.components.PrimaryButton
 import app.morrow.ui.components.BottomSheet
 import app.morrow.ui.components.EntryReadout
 import app.morrow.ui.components.Icons
 import app.morrow.ui.components.Keypad
 import app.morrow.ui.components.MorrowIcon
-import app.morrow.ui.components.PillButton
 import app.morrow.ui.components.ReadoutPart
 import app.morrow.ui.components.SegmentedControl
 import app.morrow.ui.hhmm
@@ -74,17 +74,15 @@ fun QuickAlarmSheet(kind: QuickKind, minuteOfDay: Float, onSet: (Int) -> Unit, o
             }) { MorrowIcon(Icons.DeleteDigit, colors.muted, size = 28.dp) }
         }
         val ringsAt = minutes?.let { (minuteOfDay.toInt() + it) % (24 * 60) }?.let { hhmm(it / 60, it % 60) }
-        PillButton(
+        PrimaryButton(
             text = when {
                 ringsAt == null -> "Type up to $MAX_QUICK_MINUTES minutes"
                 nap -> "Nap until $ringsAt"
                 else -> "Ring at $ringsAt"
             },
             onClick = { minutes?.let(onSet) },
-            background = if (minutes != null) colors.accent else colors.surface2,
-            content = if (minutes != null) colors.onAccent else colors.muted,
-            modifier = Modifier.fillMaxWidth().semantics { if (minutes == null) disabled() },
-            height = 56.dp,
+            enabled = minutes != null,
+            modifier = Modifier.fillMaxWidth(),
         )
         BasicText(
             "Rings once, then deletes itself once you’re up.",

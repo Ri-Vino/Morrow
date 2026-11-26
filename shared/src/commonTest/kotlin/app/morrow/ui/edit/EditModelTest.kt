@@ -227,7 +227,7 @@ class EditModelTest {
     @Test
     fun anAlarmOnThePhonesClockSaysSo() {
         val model = editModel(alarm(6, 30), nowMinute = 600)
-        assertEquals(ZoneRow("Phone’s time", "Rings by the clock wherever you are", zoned = false), model.zone)
+        assertEquals(ZoneRow("Phone’s time", "Follows the local clock", zoned = false), model.zone)
         assertEquals("Dawn", model.daypart)
     }
 

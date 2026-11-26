@@ -53,6 +53,7 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
@@ -89,6 +90,7 @@ import app.morrow.domain.SnoozeChoices
 import app.morrow.domain.SnoozeLimitChoices
 import app.morrow.domain.UNLIMITED_SNOOZES
 import app.morrow.domain.WakeSound
+import app.morrow.theme.Elevation
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
 import app.morrow.ui.PlatformBackHandler
@@ -96,7 +98,7 @@ import app.morrow.ui.components.EntryReadout
 import app.morrow.ui.components.Icons
 import app.morrow.ui.components.Keypad
 import app.morrow.ui.components.MorrowIcon
-import app.morrow.ui.components.PillButton
+import app.morrow.ui.components.MorrowButton
 import app.morrow.ui.components.PrimaryButton
 import app.morrow.ui.components.ReadoutPart
 import app.morrow.ui.components.SecondaryButton
@@ -241,7 +243,7 @@ private fun DiscardSheet(isNew: Boolean, onDiscard: () -> Unit, onKeep: () -> Un
             if (isNew) "This new alarm won’t be saved." else "The alarm stays as it was before you opened it.",
             style = MorrowTheme.type.body.copy(color = colors.muted),
         )
-        PillButton("Discard changes", onDiscard, colors.warn, colors.onWarn, Modifier.fillMaxWidth(), height = 56.dp)
+        MorrowButton("Discard changes", onDiscard, colors.warn, colors.onWarn, Modifier.fillMaxWidth(), height = 56.dp)
         SecondaryButton("Keep editing", onKeep)
     }
 }
@@ -261,98 +263,102 @@ private fun EditForm(
 ) {
     val colors = MorrowTheme.colors
     Column(modifier.fillMaxSize().background(colors.bg).statusBarsPadding()) {
-        Column(
-            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(start = 24.dp, end = 24.dp, top = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Header(model, onBack, actions.onDelete)
-            SkyDial(
-                minuteOfDay = draft.hour * 60 + draft.minute,
-                onMinuteChange = { actions.onChange(draft.at(it)) },
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
-            TimeRow(model, onNudge = { actions.onChange(draft.nudged(it)) }, onTypeTime = onTypeTime)
-            BasicText(
-                model.untilText,
-                style = MorrowTheme.type.body.copy(color = colors.muted, textAlign = TextAlign.Center),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            ZoneRowView(model.zone, onPickZone)
-            if (draft.temporary) {
-                Section("Repeat") {
-                    BasicText("Rings once, then deletes itself once you’re up.", style = MorrowTheme.type.body.copy(color = colors.muted))
-                }
-            } else {
-                Section("Repeat") { DayChips(draft.days) { actions.onChange(draft.copy(days = it)) } }
-            }
-            val focus = LocalFocusManager.current
-            Section("Name") {
-                TextEntry(
-                    value = draft.label,
-                    onValueChange = { actions.onChange(draft.copy(label = it.take(MAX_NAME_LENGTH))) },
-                    description = "Alarm name",
-                    placeholder = DEFAULT_ALARM_NAME,
-                    singleLine = true,
-                    imeAction = ImeAction.Next,
-                    onAction = { focus.moveFocus(FocusDirection.Down) },
+        Box(Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Header(model, onBack, actions.onDelete)
+                SkyDial(
+                    minuteOfDay = draft.hour * 60 + draft.minute,
+                    onMinuteChange = { actions.onChange(draft.at(it)) },
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
                 )
-            }
-            Section("Description", aside = "Optional") {
-                TextEntry(
-                    value = draft.description.orEmpty(),
-                    onValueChange = { actions.onChange(draft.copy(description = it.replace('\n', ' ').take(MAX_DESCRIPTION_LENGTH))) },
-                    description = "Alarm description",
-                    placeholder = "Gym bag is by the door",
-                    singleLine = false,
-                    imeAction = ImeAction.Done,
-                    onAction = { focus.clearFocus() },
+                TimeRow(model, onNudge = { actions.onChange(draft.nudged(it)) }, onTypeTime = onTypeTime)
+                BasicText(
+                    model.untilText,
+                    style = MorrowTheme.type.body.copy(color = colors.muted, textAlign = TextAlign.Center),
+                    modifier = Modifier.fillMaxWidth(),
                 )
-                BasicText("Pip shows it when the alarm rings.", style = MorrowTheme.type.body.copy(color = colors.muted))
-            }
-            Section("Sound") { SoundRowView(model.sound, onPickSound) }
-            Section("Wake-up games", aside = "Played in this order") {
-                GameList(draft, model.games, actions.onChange)
-                EstimateRow(model, onAddGame)
-            }
-            // Difficulty is how hard the games are, so there's nothing to set without any.
-            if (model.games.isNotEmpty()) {
-                Section("Difficulty") {
-                    SegmentedControl(Difficulty.entries, model.difficulty, Difficulty::displayName, { actions.onChange(draft.copy(difficulty = it)) })
-                    BasicText(model.difficultyText, style = MorrowTheme.type.body.copy(color = colors.muted))
-                }
-            }
-            model.snooze?.let { snooze ->
-                Section("Snooze") {
-                    // Custom is selected whenever the length isn't one of the quick ones, and then names it.
-                    val custom = snooze.minutes !in SnoozeChoices
-                    SegmentedControl(
-                        SnoozeChoices + CUSTOM_SNOOZE,
-                        if (custom) CUSTOM_SNOOZE else snooze.minutes,
-                        { if (it == CUSTOM_SNOOZE) (if (custom) "${snooze.minutes} min" else "Custom") else snoozeChoiceName(it) },
-                        { if (it == CUSTOM_SNOOZE) onTypeSnooze() else actions.onChange(draft.copy(snoozeMinutes = it)) },
-                        description = { if (it == CUSTOM_SNOOZE) "Custom snooze length" else snoozeChoiceName(it) },
-                    )
-                    if (snooze.minutes > 0) {
-                        SegmentedControl(
-                            SnoozeLimitChoices,
-                            snooze.limit,
-                            ::snoozeLimitName,
-                            { actions.onChange(draft.copy(snoozeLimit = it)) },
-                            description = { snoozeLimitDescription(it) },
-                        )
+                ZoneRowView(model.zone, onPickZone)
+                if (draft.temporary) {
+                    Section("Repeat") {
+                        BasicText("Rings once, then deletes itself once you’re up.", style = MorrowTheme.type.body.copy(color = colors.muted))
                     }
-                    BasicText(snooze.text, style = MorrowTheme.type.body.copy(color = colors.muted))
+                } else {
+                    Section("Repeat") { DayChips(draft.days) { actions.onChange(draft.copy(days = it)) } }
+                }
+                val focus = LocalFocusManager.current
+                Section("Name") {
+                    TextEntry(
+                        value = draft.label,
+                        onValueChange = { actions.onChange(draft.copy(label = it.take(MAX_NAME_LENGTH))) },
+                        description = "Alarm name",
+                        placeholder = DEFAULT_ALARM_NAME,
+                        singleLine = true,
+                        imeAction = ImeAction.Next,
+                        onAction = { focus.moveFocus(FocusDirection.Down) },
+                    )
+                }
+                Section("Description", aside = "Optional") {
+                    TextEntry(
+                        value = draft.description.orEmpty(),
+                        onValueChange = { actions.onChange(draft.copy(description = it.replace('\n', ' ').take(MAX_DESCRIPTION_LENGTH))) },
+                        description = "Alarm description",
+                        placeholder = "Gym bag is by the door",
+                        singleLine = false,
+                        imeAction = ImeAction.Done,
+                        onAction = { focus.clearFocus() },
+                    )
+                    BasicText("Pip shows it when the alarm rings.", style = MorrowTheme.type.body.copy(color = colors.muted))
+                }
+                Section("Sound") { SoundRowView(model.sound, onPickSound) }
+                Section("Wake-up games", aside = "Played in this order") {
+                    GameList(draft, model.games, actions.onChange)
+                    EstimateRow(model, onAddGame)
+                }
+                // Difficulty is how hard the games are, so there's nothing to set without any.
+                if (model.games.isNotEmpty()) {
+                    Section("Difficulty") {
+                        SegmentedControl(Difficulty.entries, model.difficulty, Difficulty::displayName, { actions.onChange(draft.copy(difficulty = it)) })
+                        BasicText(model.difficultyText, style = MorrowTheme.type.body.copy(color = colors.muted))
+                    }
+                }
+                model.snooze?.let { snooze ->
+                    Section("Snooze") {
+                        // Custom is selected whenever the length isn't one of the quick ones, and then names it.
+                        val custom = snooze.minutes !in SnoozeChoices
+                        SegmentedControl(
+                            SnoozeChoices + CUSTOM_SNOOZE,
+                            if (custom) CUSTOM_SNOOZE else snooze.minutes,
+                            { if (it == CUSTOM_SNOOZE) (if (custom) "${snooze.minutes} min" else "Custom") else snoozeChoiceName(it) },
+                            { if (it == CUSTOM_SNOOZE) onTypeSnooze() else actions.onChange(draft.copy(snoozeMinutes = it)) },
+                            description = { if (it == CUSTOM_SNOOZE) "Custom snooze length" else snoozeChoiceName(it) },
+                        )
+                        if (snooze.minutes > 0) {
+                            SegmentedControl(
+                                SnoozeLimitChoices,
+                                snooze.limit,
+                                ::snoozeLimitName,
+                                { actions.onChange(draft.copy(snoozeLimit = it)) },
+                                description = { snoozeLimitDescription(it) },
+                            )
+                        }
+                        BasicText(snooze.text, style = MorrowTheme.type.body.copy(color = colors.muted))
+                    }
                 }
             }
+            // The form fades out above the buttons rather than being cut off at their edge.
+            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(24.dp).background(Brush.verticalGradient(listOf(colors.bg.copy(alpha = 0f), colors.bg))))
         }
         if (largeText()) {
-            Column(Modifier.navigationBarsPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.navigationBarsPadding().padding(start = 24.dp, end = 24.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 PrimaryButton("Save alarm", actions.onSave)
                 SecondaryButton("Preview", actions.onPreview)
             }
         } else {
             Row(
-                modifier = Modifier.navigationBarsPadding().padding(24.dp),
+                modifier = Modifier.navigationBarsPadding().padding(start = 24.dp, end = 24.dp, bottom = 24.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 SecondaryButton("Preview", actions.onPreview, Modifier.weight(1f))
@@ -458,13 +464,11 @@ private fun TimeSheet(hour: Int, minute: Int, onSet: (Int) -> Unit, onClose: () 
             Digit("0") { entry = entry.type(0) }
             Key("Delete digit", { entry = entry.delete() }) { MorrowIcon(Icons.DeleteDigit, colors.muted, size = 28.dp) }
         }
-        PillButton(
+        PrimaryButton(
             text = "Set time",
             onClick = { typed?.let(onSet) },
-            background = if (typed != null) colors.accent else colors.surface2,
-            content = if (typed != null) colors.onAccent else colors.muted,
-            modifier = Modifier.fillMaxWidth().semantics { if (typed == null) disabled() },
-            height = 56.dp,
+            enabled = typed != null,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
@@ -494,13 +498,11 @@ private fun SnoozeSheet(current: Int, onSet: (Int) -> Unit, onClose: () -> Unit)
             Digit("0") { typed = typeSnoozeMinutes(typed, 0) }
             Key("Delete digit", { typed = typed.dropLast(1) }) { MorrowIcon(Icons.DeleteDigit, colors.muted, size = 28.dp) }
         }
-        PillButton(
+        PrimaryButton(
             text = "Set snooze",
             onClick = { minutes?.let(onSet) },
-            background = if (minutes != null) colors.accent else colors.surface2,
-            content = if (minutes != null) colors.onAccent else colors.muted,
-            modifier = Modifier.fillMaxWidth().semantics { if (minutes == null) disabled() },
-            height = 56.dp,
+            enabled = minutes != null,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
@@ -736,7 +738,7 @@ private fun EstimateRow(model: EditModel, onAddGame: () -> Unit) {
     }
     val add = @Composable {
         if (model.canAddGame) {
-            PillButton(
+            MorrowButton(
                 "Add a game",
                 onAddGame,
                 background = colors.surface2,
@@ -1061,7 +1063,7 @@ private fun Sheet(title: String, onClose: () -> Unit, onScrimClick: () -> Unit =
                 .align(Alignment.BottomCenter)
                 .risingWith(entrance)
                 .fillMaxWidth()
-                .shadow(18.dp, sheetShape, ambientColor = colors.shadow, spotColor = colors.shadow)
+                .shadow(Elevation.floating, sheetShape, ambientColor = colors.shadow, spotColor = colors.shadow)
                 .background(colors.bg, sheetShape)
                 .semantics { paneTitle = title }
                 .verticalScroll(rememberScrollState())

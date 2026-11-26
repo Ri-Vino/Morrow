@@ -71,6 +71,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import app.morrow.theme.Elevation
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
 import app.morrow.theme.mix
@@ -78,7 +79,7 @@ import app.morrow.ui.PlatformBackHandler
 import app.morrow.ui.components.Icons
 import app.morrow.ui.components.MorrowIcon
 import app.morrow.ui.components.MorrowToggle
-import app.morrow.ui.components.PillButton
+import app.morrow.ui.components.MorrowButton
 import app.morrow.ui.components.Pip
 import app.morrow.ui.components.PipLook
 import app.morrow.ui.components.PipMood
@@ -238,7 +239,7 @@ private fun UndoBar(text: String, onUndo: () -> Unit, onDismiss: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(14.dp, RoundedCornerShape(20.dp), ambientColor = colors.shadow, spotColor = colors.shadow)
+            .shadow(Elevation.card, RoundedCornerShape(20.dp), ambientColor = colors.shadow, spotColor = colors.shadow)
             .background(colors.text, RoundedCornerShape(20.dp))
             .padding(start = 20.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
             .semantics { liveRegion = LiveRegionMode.Polite },
@@ -360,7 +361,7 @@ private fun BlockedBanner(text: String, onFix: () -> Unit) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             BasicText("Your alarms can’t ring", style = MorrowTheme.type.button.copy(color = colors.text))
             BasicText(text, style = MorrowTheme.type.body.copy(color = colors.muted))
-            PillButton("Allow in settings", onFix, colors.warn, colors.onWarn, Modifier.padding(top = 8.dp))
+            MorrowButton("Allow in settings", onFix, colors.warn, colors.onWarn, Modifier.padding(top = 8.dp))
         }
     }
 }
@@ -372,7 +373,7 @@ private fun SleepCardView(card: SleepCard, theme: ThemeKind, onTrySunrise: () ->
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(18.dp, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
+            .shadow(Elevation.card, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
             .background(colors.surface, shape)
             .border(1.dp, colors.line, shape)
             .padding(24.dp),
@@ -384,7 +385,7 @@ private fun SleepCardView(card: SleepCard, theme: ThemeKind, onTrySunrise: () ->
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             BasicText(card.big, style = MorrowTheme.type.display.copy(color = colors.hi), modifier = Modifier.weight(1f))
-            PillButton(
+            MorrowButton(
                 text = "Try sunrise",
                 onClick = onTrySunrise,
                 background = colors.surface2,
@@ -465,7 +466,7 @@ private fun AlarmRowView(row: AlarmRow, actions: HomeActions, onSwitch: (Boolean
                 }
                 BasicText(row.details, style = MorrowTheme.type.body.copy(color = colors.muted))
                 row.zoneText?.let { text ->
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         MorrowIcon(Icons.Globe, colors.hi, size = 14.dp, strokeWidth = 2.2f)
                         BasicText(text, style = MorrowTheme.type.label.copy(color = colors.hi, letterSpacing = MorrowTheme.type.caption.letterSpacing))
                     }
@@ -501,7 +502,7 @@ private fun EmptyAlarms(onNewAlarm: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(18.dp, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
+            .shadow(Elevation.card, shape, ambientColor = colors.shadow, spotColor = colors.shadow)
             .background(colors.surface, shape)
             .border(1.dp, colors.line, shape)
             .padding(start = 24.dp, end = 24.dp, top = 32.dp, bottom = 24.dp),

@@ -1,8 +1,7 @@
 package app.morrow.ui.home
 
-import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
@@ -38,9 +37,10 @@ import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import app.morrow.theme.Elevation
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
-import app.morrow.ui.components.PillButton
+import app.morrow.ui.components.MorrowButton
 import app.morrow.ui.components.PipLook
 import app.morrow.ui.components.PipMood
 import app.morrow.ui.components.drawPip
@@ -75,20 +75,20 @@ fun SunButton(
     val tap by rememberUpdatedState(onNewAlarm)
     val openChange by rememberUpdatedState(onOpenChange)
     val isOpen by rememberUpdatedState(open)
-    val press by animateFloatAsState(if (pressed && !open) 0.92f else if (open) 1.06f else 1f, spring(dampingRatio = 0.5f))
-    val burst by animateFloatAsState(if (open) 1f else 0f, if (reduceMotion) tween(0) else spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessLow))
+    val press by animateFloatAsState(if (pressed && !open) 0.92f else 1f, tween(140, easing = FastOutSlowInEasing))
+    val burst by animateFloatAsState(if (open) 1f else 0f, if (reduceMotion) tween(0) else tween(320, easing = FastOutSlowInEasing))
 
     // The menu's room is only taken while it's open, so the space beside the button stays free to tap otherwise.
     Box(modifier.then(if (open) Modifier.size(MENU_WIDTH, MENU_HEIGHT) else Modifier), contentAlignment = Alignment.BottomEnd) {
         QuickKind.entries.forEachIndexed { i, kind ->
             val shown by animateFloatAsState(
                 if (open) 1f else 0f,
-                if (reduceMotion) tween(150) else spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow, visibilityThreshold = 0.001f),
+                if (reduceMotion) tween(150) else tween(240, delayMillis = i * 40, easing = FastOutSlowInEasing),
                 label = "choice $i",
             )
             if (shown > 0.01f) {
                 val (x, y) = ChoiceOffsets[i]
-                PillButton(
+                MorrowButton(
                     text = kind.label,
                     onClick = { onPick(kind) },
                     background = colors.surface,
@@ -104,7 +104,7 @@ fun SunButton(
                             scaleY = grow
                             transformOrigin = TransformOrigin(1f, 1f)
                         }
-                        .shadow(8.dp, CircleShape, ambientColor = colors.shadow, spotColor = colors.shadow),
+                        .shadow(Elevation.card, CircleShape, ambientColor = colors.shadow, spotColor = colors.shadow),
                 )
             }
         }

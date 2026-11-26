@@ -25,7 +25,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -35,12 +34,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import app.morrow.domain.Alarm
 import app.morrow.domain.DefaultGames
@@ -49,11 +46,12 @@ import app.morrow.theme.Holiday
 import app.morrow.theme.Illustration
 import app.morrow.theme.MorrowTheme
 import app.morrow.theme.ThemeKind
+import app.morrow.ui.components.PrimaryButton
 import app.morrow.ui.components.FireworkShow
 import app.morrow.ui.components.FireworkSky
 import app.morrow.ui.components.Icons
 import app.morrow.ui.components.MorrowIcon
-import app.morrow.ui.components.PillButton
+import app.morrow.ui.components.MorrowButton
 import app.morrow.ui.components.PipLook
 import app.morrow.ui.components.PipMood
 import app.morrow.ui.components.drawFacePaint
@@ -135,7 +133,7 @@ private fun RingContent(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                MorrowIcon(model.missionIcon, Illustration.onBadge, size = 15.dp, strokeWidth = 2.2f)
+                MorrowIcon(model.missionIcon, Illustration.onBadge, size = 16.dp, strokeWidth = 2.2f)
                 BasicText(model.label, style = type.bodyStrong.copy(color = Illustration.onBadge))
             }
             model.description?.let { description ->
@@ -150,7 +148,7 @@ private fun RingContent(
                 )
             }
             BasicText(
-                "“Morning! I’m up — your turn.”",
+                "“Morning. I’m up — your turn.”",
                 style = type.title.copy(color = Illustration.glint, fontStyle = FontStyle.Italic, textAlign = TextAlign.Center),
                 modifier = Modifier.padding(top = 24.dp).fadeUpIn { textIn(2) },
             )
@@ -161,20 +159,16 @@ private fun RingContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            PillButton(
+            PrimaryButton(
                 text = model.startLabel,
                 onClick = onStartMission,
-                background = colors.accent,
-                content = colors.onAccent,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .dropShadow(CircleShape, Shadow(34.dp, colors.accent.copy(alpha = 0.28f), offset = DpOffset(0.dp, 14.dp))),
+                modifier = Modifier.fillMaxWidth(),
                 height = 64.dp,
                 icon = Icons.ArrowRight,
                 iconAfter = true,
             )
             if (snooze != null) {
-                PillButton(
+                MorrowButton(
                     text = snooze.label,
                     onClick = snooze.onSnooze,
                     background = Illustration.ground.copy(alpha = 0.55f),
