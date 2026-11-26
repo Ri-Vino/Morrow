@@ -7,6 +7,8 @@ import app.morrow.platform.AlarmScheduler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.TimeZone
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
@@ -19,22 +21,18 @@ class AlarmCoordinator(
     /** The phone's zone. Alarms on another city's clock keep to that city's zone instead. */
     private val timeZone: () -> TimeZone = { TimeZone.currentSystemDefault() },
 ) {
+    // One change at a time, so a reschedule reading an alarm can't undo a ring switching it off meanwhile.
+    private val lock = Mutex()
 
-    suspend fun save(alarm: Alarm): Long {
+    suspend fun save(alarm: Alarm): Long = lock.withLock {
         val id = repository.save(alarm)
         sync(alarm.copy(id = id))
-        return id
+        id
     }
 
-    suspend fun setEnabled(id: Long, enabled: Boolean) {
-        repository.setEnabled(id, enabled)
-        repository.get(id)?.let(::sync)
-    }
+    suspend fun setEnabled(id: Long, enabled: Boolean) = lock.withLock { switch(id, enabled) }
 
-    suspend fun delete(id: Long) {
-        scheduler.cancel(id)
-        repository.delete(id)
-    }
+    suspend fun delete(id: Long) = lock.withLock { remove(id) }
 
     private val doneWith = MutableStateFlow<Alarm?>(null)
 
@@ -50,10 +48,12 @@ class AlarmCoordinator(
      * The alarm [id] has rung and is done with: its games are over, its safety stop ended it, or its snooze was called
      * off. A temporary one deletes itself; any other is left as it is. Not for a snooze, after which it rings again.
      */
-    suspend fun onFinished(id: Long) {
+    suspend fun onFinished(id: Long) = lock.withLock { finish(id) }
+
+    private suspend fun finish(id: Long) {
         val alarm = repository.get(id) ?: return
         if (!alarm.temporary) return
-        delete(id)
+        remove(id)
         // Off, so putting it back can't set it ringing again tomorrow at the same time.
         doneWith.value = alarm.copy(enabled = false)
     }
@@ -63,7 +63,7 @@ class AlarmCoordinator(
      * Alarms that are off are left alone: they were cancelled as they went off, and cancelling them again would call
      * off a snooze, since a one-off alarm switches itself off when it first rings.
      */
-    suspend fun rescheduleAll() {
+    suspend fun rescheduleAll() = lock.withLock {
         repository.getAll().filter { it.enabled }.forEach(::sync)
     }
 
@@ -73,7 +73,7 @@ class AlarmCoordinator(
      * Repeating alarms on another city's clock are handed over again each time, since the system holds only their
      * next week of dates.
      */
-    suspend fun catchUp(stillScheduled: Set<Long>) {
+    suspend fun catchUp(stillScheduled: Set<Long>) = lock.withLock {
         repository.getAll()
             // A zoned alarm still holding any of its dates is left alone: handing it over again would cancel the date
             // that may be ringing as the app opens. It's topped up once its dates run out, and after each mission.
@@ -81,21 +81,31 @@ class AlarmCoordinator(
             .forEach {
                 when {
                     it.repeats -> sync(it)
-                    it.temporary -> onFinished(it.id)
+                    it.temporary -> finish(it.id)
                     else -> repository.setEnabled(it.id, false)
                 }
             }
     }
 
-    suspend fun onRang(id: Long) {
-        val alarm = repository.get(id) ?: return
+    suspend fun onRang(id: Long) = lock.withLock {
+        val alarm = repository.get(id) ?: return@withLock
         if (alarm.repeats) {
             // A minute's margin so an alarm delivered a moment early isn't scheduled for the same minute again.
             val after = clock.now() + 1.minutes
             scheduler.schedule(alarm, alarm.nextRing(after, timeZone()))
         } else {
-            setEnabled(id, false)
+            switch(id, false)
         }
+    }
+
+    private suspend fun switch(id: Long, enabled: Boolean) {
+        repository.setEnabled(id, enabled)
+        repository.get(id)?.let(::sync)
+    }
+
+    private suspend fun remove(id: Long) {
+        scheduler.cancel(id)
+        repository.delete(id)
     }
 
     private fun sync(alarm: Alarm) {

@@ -1,7 +1,6 @@
 package app.morrow.alarm
 
 import app.morrow.morrow
-import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -21,7 +20,6 @@ class AlarmReceiver : BroadcastReceiver() {
             ACTION_SNOOZED -> RingService.start(context, alarmId, snoozed = intent.getIntExtra(EXTRA_SNOOZED, 1))
             ACTION_END_SNOOZE -> {
                 AndroidAlarmScheduler(context).cancelSnooze(alarmId)
-                context.getSystemService(NotificationManager::class.java).cancel(RingNotifications.snoozedId(alarmId))
                 // Called off, so it's done with: a temporary alarm deletes itself.
                 goAsync { context.morrow.coordinator.onFinished(alarmId) }
             }

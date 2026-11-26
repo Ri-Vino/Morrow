@@ -16,20 +16,7 @@ class AndroidAlarmScheduler(private val context: Context) : AlarmScheduler {
     private val alarmManager = context.getSystemService(AlarmManager::class.java)
 
     override fun schedule(alarm: Alarm, at: Instant) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            // The app warns about this; BootReceiver reschedules once the permission comes back.
-            Log.w(TAG, "Exact alarms not allowed; alarm ${alarm.id} not scheduled")
-            return
-        }
-        // Tapping the alarm icon in the status bar opens the app.
-        val show = PendingIntent.getActivity(
-            context,
-            0,
-            Intent(context, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-        val info = AlarmManager.AlarmClockInfo(at.toEpochMilliseconds(), show)
-        alarmManager.setAlarmClock(info, ringIntent(alarm.id, PendingIntent.FLAG_UPDATE_CURRENT)!!)
+        setClock(at, "alarm ${alarm.id} not scheduled") { ringIntent(alarm.id, PendingIntent.FLAG_UPDATE_CURRENT)!! }
     }
 
     /** Cancels the alarm's next ring, and any snooze it's waiting out. */
@@ -46,25 +33,17 @@ class AndroidAlarmScheduler(private val context: Context) : AlarmScheduler {
      * change, and the status bar's alarm icon shows whichever comes first.
      */
     fun snooze(alarmId: Long, at: Instant, count: Int) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            Log.w(TAG, "Exact alarms not allowed; alarm $alarmId not snoozed")
-            return
+        setClock(at, "alarm $alarmId not snoozed") {
+            PendingIntent.getBroadcast(
+                context,
+                alarmId.toInt(),
+                AlarmReceiver.snoozedIntent(context, alarmId, count),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
         }
-        val show = PendingIntent.getActivity(
-            context,
-            0,
-            Intent(context, MainActivity::class.java),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-        val again = PendingIntent.getBroadcast(
-            context,
-            alarmId.toInt(),
-            AlarmReceiver.snoozedIntent(context, alarmId, count),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-        alarmManager.setAlarmClock(AlarmManager.AlarmClockInfo(at.toEpochMilliseconds(), show), again)
     }
 
+    /** Calls off [alarmId]'s snooze and the notification saying when it rings again. */
     fun cancelSnooze(alarmId: Long) {
         PendingIntent.getBroadcast(
             context,
@@ -75,6 +54,23 @@ class AndroidAlarmScheduler(private val context: Context) : AlarmScheduler {
             alarmManager.cancel(it)
             it.cancel()
         }
+        RingNotifications.hideSnoozed(context, alarmId)
+    }
+
+    private fun setClock(at: Instant, skipped: String, operation: () -> PendingIntent) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+            // The app warns about this; BootReceiver reschedules once the permission comes back.
+            Log.w(TAG, "Exact alarms not allowed; $skipped")
+            return
+        }
+        // Tapping the alarm icon in the status bar opens the app.
+        val show = PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        alarmManager.setAlarmClock(AlarmManager.AlarmClockInfo(at.toEpochMilliseconds(), show), operation())
     }
 
     private fun ringIntent(alarmId: Long, flags: Int): PendingIntent? =

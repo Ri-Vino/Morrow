@@ -1,10 +1,15 @@
 package app.morrow.alarms
 
+import app.morrow.data.AlarmDao
+import app.morrow.data.AlarmEntity
 import app.morrow.data.AlarmRepository
 import app.morrow.data.FakeAlarmDao
 import app.morrow.domain.Alarm
 import app.morrow.domain.DefaultGames
 import app.morrow.platform.AlarmScheduler
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.DayOfWeek.MONDAY
@@ -300,6 +305,31 @@ class AlarmCoordinatorTest {
         // Still on when the system rang it, but offered back off, so Undo can't set it for tomorrow.
         assertEquals(false, coordinator.deletedWhenDone.value?.enabled)
     }
+
+    @Test
+    fun aOneOffRingingDuringARescheduleStaysOff() = runTest {
+        val dao = GatedAlarmDao()
+        val coordinator = AlarmCoordinator(AlarmRepository(dao), scheduler, clock) { london }
+        val id = coordinator.save(alarm(7, 30))
+        dao.gated = true
+        // The reschedule reads the alarm as on, then the alarm rings before it hands it back.
+        val rescheduling = launch { coordinator.rescheduleAll() }
+        runCurrent()
+        val ringing = launch { coordinator.onRang(id) }
+        runCurrent()
+        dao.gate.complete(Unit)
+        rescheduling.join()
+        ringing.join()
+        assertNull(scheduler.scheduled[id])
+    }
+}
+
+/** Holds [getAll] after reading, while [gated], until [gate] completes. */
+private class GatedAlarmDao(private val inner: FakeAlarmDao = FakeAlarmDao()) : AlarmDao by inner {
+    var gated = false
+    val gate = CompletableDeferred<Unit>()
+
+    override suspend fun getAll(): List<AlarmEntity> = inner.getAll().also { if (gated) gate.await() }
 }
 
 class FakeAlarmScheduler : AlarmScheduler {

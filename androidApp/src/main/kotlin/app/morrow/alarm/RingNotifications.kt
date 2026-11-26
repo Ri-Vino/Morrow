@@ -19,10 +19,15 @@ internal object RingNotifications {
     const val ID = 1
     private const val CHANNEL = "ringing"
     private const val SNOOZED_CHANNEL = "snoozed"
-    private const val SNOOZED_ID_BASE = 1000
+    // Tagged, so the alarm's id can't clash with a timer's notification of the same number.
+    private const val SNOOZED_TAG = "snoozed"
 
-    /** The notification for [alarmId]'s snooze, one for each alarm. */
-    fun snoozedId(alarmId: Long): Int = SNOOZED_ID_BASE + alarmId.toInt()
+    /** Shows [alarm]'s snooze notification, one for each alarm. */
+    fun showSnoozed(context: Context, alarm: Alarm, until: Instant) =
+        context.getSystemService(NotificationManager::class.java).notify(SNOOZED_TAG, alarm.id.toInt(), snoozed(context, alarm, until))
+
+    fun hideSnoozed(context: Context, alarmId: Long) =
+        context.getSystemService(NotificationManager::class.java).cancel(SNOOZED_TAG, alarmId.toInt())
 
     fun build(context: Context, alarm: Alarm): Notification {
         ensureChannel(context)
@@ -50,7 +55,7 @@ internal object RingNotifications {
     }
 
     /** While [alarm] is snoozed: when it'll ring again, and Dismiss, which calls the snooze off. */
-    fun snoozed(context: Context, alarm: Alarm, until: Instant): Notification {
+    private fun snoozed(context: Context, alarm: Alarm, until: Instant): Notification {
         val channel = NotificationChannel(SNOOZED_CHANNEL, "Snoozed alarms", NotificationManager.IMPORTANCE_LOW).apply {
             description = "Shown while an alarm is snoozed, until it rings again"
         }

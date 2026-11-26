@@ -12,6 +12,8 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.UUID
 
 /**
@@ -57,7 +59,7 @@ class AndroidSoundPicker(private val activity: ComponentActivity) : SoundPicker 
         val file = File(folder(), UUID.randomUUID().toString() + (extension?.let { ".$it" } ?: ""))
         try {
             val input = resolver.openInputStream(uri) ?: return PickedSound.Failed("That file couldn’t be opened.")
-            input.use { from -> file.outputStream().use { to -> if (from.copyTo(to) > MAX_BYTES) error("too big") } }
+            input.use { from -> file.outputStream().use { to -> copyAtMost(from, to) } }
         } catch (e: Exception) {
             Log.w(TAG, "Couldn't copy $uri", e)
             file.delete()
@@ -68,6 +70,19 @@ class AndroidSoundPicker(private val activity: ComponentActivity) : SoundPicker 
             return PickedSound.Failed("That file doesn’t seem to be a sound this phone can play.")
         }
         return PickedSound.Copied(name.substringBeforeLast('.').trim().take(MAX_NAME).ifEmpty { "Sound" }, file.absolutePath)
+    }
+
+    /** Copies [from] into [to], failing as soon as it passes [MAX_BYTES], as not every file says its size up front. */
+    private fun copyAtMost(from: InputStream, to: OutputStream) {
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        var copied = 0L
+        while (true) {
+            val read = from.read(buffer)
+            if (read < 0) return
+            copied += read
+            if (copied > MAX_BYTES) error("too big")
+            to.write(buffer, 0, read)
+        }
     }
 
     /** Whether the file has a sound of some length in it. */

@@ -124,8 +124,13 @@ class RingService : Service() {
 
     private fun ring(alarmId: Long, snoozed: Int) {
         val placeholder = placeholder(alarmId)
+        // Another alarm going off takes over the screen, so the one ringing until now is done with.
+        val previous = Ringing.current.value?.id
+        if (mode == Mode.ALARM && previous != null && previous != alarmId) {
+            scope.launch { withContext(NonCancellable) { morrow.coordinator.onFinished(previous) } }
+        }
         Ringing.snoozed = snoozed
-        getSystemService(NotificationManager::class.java).cancel(RingNotifications.snoozedId(alarmId))
+        RingNotifications.hideSnoozed(this, alarmId)
         startInForeground(RingNotifications.ID, RingNotifications.build(this, placeholder))
         Ringing.set(placeholder)
         showRingScreen()
@@ -204,8 +209,7 @@ class RingService : Service() {
         if (mode != Mode.ALARM || alarm == null || !canSnooze(alarm, Ringing.snoozed)) return
         val until = Clock.System.now() + alarm.snoozeMinutes.minutes
         AndroidAlarmScheduler(this).snooze(alarm.id, until, Ringing.snoozed + 1)
-        getSystemService(NotificationManager::class.java)
-            .notify(RingNotifications.snoozedId(alarm.id), RingNotifications.snoozed(this, alarm, until))
+        RingNotifications.showSnoozed(this, alarm, until)
         stopAlarm(gamesDone = false, snoozed = true)
     }
 
